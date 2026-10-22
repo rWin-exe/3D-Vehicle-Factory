@@ -96,6 +96,26 @@ def look_frame(origin, forward, up=Z_AXIS):
     return frame_matrix(origin, x, z.cross(x), z)
 
 
+def axis_frame(origin, axis):
+    """Rahmen mit lokalem +Y = ``axis`` (Konvention der Knochen) und lokalem Z möglichst nach oben."""
+    y = V(axis).normalized()
+    if abs(y.z) < 0.9:
+        z = (Z_AXIS - y * Z_AXIS.dot(y)).normalized()
+        x = y.cross(z)
+    else:
+        x = (X_AXIS - y * X_AXIS.dot(y)).normalized()
+        z = x.cross(y)
+    return frame_matrix(origin, x, y, z)
+
+
+def forward_frame(origin, forward):
+    """Rahmen mit lokalem +X = ``forward`` (für Sockets, z.B. Auspuffrichtung)."""
+    x = V(forward).normalized()
+    ref = Z_AXIS if abs(x.z) < 0.9 else X_AXIS
+    y = ref.cross(x).normalized()
+    return frame_matrix(origin, x, y, x.cross(y))
+
+
 class Pchip:
     """Monotone kubische Interpolation (Fritsch–Carlson) – kein Überschwingen bei Spanten."""
 
@@ -826,6 +846,12 @@ def _apply_surface(nd, bsdf, color, rough, metallic=0.0, rough_var=0.08, bump=0.
         nd.link(normal, bsdf.inputs["Normal"])
 
 
+def uv_weight(mat, factor):
+    """Texeldichte-Gewicht fürs UV-Packen (siehe scale_uv_islands)."""
+    mat["uv_scale"] = factor
+    return mat
+
+
 def new_mat(name):
     m = bpy.data.materials.new(name)
     m["generator"] = "vehicle_generator"
@@ -987,6 +1013,8 @@ class Assembly:
         self.collision = []   # (name, [objects], keep(point) or None, max_verts)
         self.ao_distance = 0.3
         self.sockets = {}
+        self.socket_fwd = {}
+        self.notes = {"root": ""}
 
     def _empty(self, name, loc, size=0.15, kind="PLAIN_AXES"):
         e = bpy.data.objects.new(name, None)
@@ -996,22 +1024,31 @@ class Assembly:
         self.coll.objects.link(e)
         return e
 
-    def pivot(self, key, loc, axis=Z_AXIS, parent="root"):
+    def pivot(self, key, loc, axis=Z_AXIS, parent="root", orient=False, positive=""):
+        """Drehpunkt. ``orient``: Empty so drehen, dass sein lokales +Y auf der Drehachse liegt
+        (für schräge Scharniere wie Türen, Ruder, Lenkkopf) – dann reicht in der Engine eine
+        Rotation um die lokale Y-Achse."""
         e = self._empty(f"{self.name}_{key}_Pivot", V(loc), 0.12, "ARROWS")
         par = self.pivots[parent]
         e.parent = par
-        e.matrix_world = Matrix.Translation(V(loc))
+        e.matrix_world = axis_frame(V(loc), axis) if orient else Matrix.Translation(V(loc))
+        e["oriented"] = bool(orient)
+        self.notes[key] = positive
         self.pivots[key] = e
         self.axes[key] = V(axis).normalized()
         self.parents[key] = parent
         return e
 
-    def socket(self, key, loc):
-        """Andockpunkte für die Engine (Fahrerposition, Kamera, Licht …)."""
-        e = self._empty(f"SOCKET_{key}", V(loc), 0.08, "SPHERE")
+    def socket(self, key, loc, forward=None):
+        """Andockpunkte für die Engine (Fahrerposition, Kamera, Licht …); ``forward`` = lokale +X-Richtung.
+        Der Name wird beim Export zu ``SOCKET_<key>`` (hier mit Asset-Präfix, damit mehrere
+        Fahrzeuge in einer Szene keine Namenskonflikte haben)."""
+        e = self._empty(f"{self.name}_SOCKET_{key}", V(loc), 0.08, "SPHERE")
         e.parent = self.root
-        e.matrix_world = Matrix.Translation(V(loc))
+        e.matrix_world = forward_frame(V(loc), forward) if forward is not None else Matrix.Translation(V(loc))
+        e["oriented"] = forward is not None
         self.sockets[key] = e
+        self.socket_fwd[key] = V(forward).normalized() if forward is not None else X_AXIS.copy()
         return e
 
     def add(self, md_or_obj, name, pivot="root", smooth=35.0, mods=(), detail=0):
@@ -1019,8 +1056,7 @@ class Assembly:
         if obj.name not in self.coll.objects:
             self.coll.objects.link(obj)
         p = self.pivots[pivot]
-        pw = p.matrix_world.translation.copy()
-        obj.data.transform(Matrix.Translation(-pw))
+        obj.data.transform(p.matrix_world.inverted())
         obj.parent = p
         obj.matrix_parent_inverse = Matrix.Identity(4)
         obj.location = (0, 0, 0)
@@ -1470,11 +1506,12 @@ def build_enduro(cfg):
     M = enduro_materials(name, pal, cfg.dirt)
     asm = Assembly(name)
     asm.ao_distance = 0.25
-    asm.pivot("Steering", g.steer(0.76), g.up)
-    asm.pivot("ForkLower", g.FA, g.up, parent="Steering")
-    asm.pivot("WheelFront", g.FA, Y_AXIS, parent="ForkLower")
-    asm.pivot("Swingarm", g.pivot, Y_AXIS)
-    asm.pivot("WheelRear", g.RA, Y_AXIS, parent="Swingarm")
+    asm.pivot("Steering", g.steer(0.76), g.up, orient=True, positive="Lenkung nach links")
+    asm.pivot("ForkLower", g.FA, g.up, parent="Steering", orient=True,
+              positive="Verschiebung entlang +Y = Gabel federt ein")
+    asm.pivot("WheelFront", g.FA, Y_AXIS, parent="ForkLower", positive="Rad rollt vorwärts")
+    asm.pivot("Swingarm", g.pivot, Y_AXIS, positive="Hinterachse nach oben (einfedern)")
+    asm.pivot("WheelRear", g.RA, Y_AXIS, parent="Swingarm", positive="Rad rollt vorwärts")
     bevel = ("bevel", dict(width=0.0025, segments=2, angle=35))
     bevel_s = ("bevel", dict(width=0.0012, segments=1, angle=40))
 
@@ -1926,8 +1963,8 @@ def build_enduro(cfg):
     asm.socket("Peg_R", (-0.075, -0.165, 0.44))
     asm.socket("Grip_L", bar_at(bar_c.y + 0.35))
     asm.socket("Grip_R", bar_at(bar_c.y - 0.35))
-    asm.socket("Exhaust", s1 + sd * 0.03)
-    asm.socket("Headlight", g.fork(0.80) + g.fwd * 0.13)
+    asm.socket("Exhaust", s1 + sd * 0.03, forward=sd)
+    asm.socket("Headlight", g.fork(0.80) + g.fwd * 0.13, forward=g.fwd)
     wheels = [o for o in asm.meshes() if o["pivot"] in ("WheelFront", "WheelRear")]
     asm.collide("Body", [o for o in asm.meshes() if o not in wheels])
     asm.collide("WheelFront", [o for o in wheels if o["pivot"] == "WheelFront" and "Tire" in o.name], max_verts=32)
@@ -2148,9 +2185,10 @@ def subdivide_tris(md, max_edge=0.025):
     return res.compact()
 
 
-def project_onto(md, target, direction, offset=0.0015):
-    """Mesh-Decal: alle Vertices entlang ``direction`` auf die Zielfläche (MeshData) projizieren."""
-    md = subdivide_tris(md)
+def project_onto(md, target, direction, offset=0.0015, max_edge=0.025):
+    """Mesh-Decal: alle Vertices entlang ``direction`` auf die Zielfläche (MeshData) projizieren.
+    ``max_edge`` an die Krümmung anpassen (stark gewölbt → klein, flach → groß spart Dreiecke)."""
+    md = subdivide_tris(md, max_edge)
     tris = []
     for f in target.faces:
         for i in range(1, len(f) - 1):
@@ -2219,15 +2257,17 @@ def airfoil_loft(sections, n_af=20, mat=None, cap=True, ring=None):
     """Tragflächen-/Rotorblatt-Loft. Jede Sektion: dict(le, chord_dir, thick_dir, chord, t).
 
     ``ring``: eigener 2D-Profilring (z.B. aus airfoil_ring), sonst symmetrisches NACA 0012.
-    Die Profildicke wird mit t/0.12 skaliert.
+    Der Ring wird mit t/0.12 skaliert; eine Sektion kann mit dict(..., ring=...) einen eigenen,
+    unskalierten Ring mitbringen (gleiche Punktzahl), z.B. um die Wölbung unabhängig von der Dicke zu halten.
     """
     base = ring or airfoil_2d(n_af, 0.12)
     rings = []
     for s in sections:
         cd = V(s["chord_dir"]).normalized()
         td = V(s["thick_dir"]).normalized()
-        k = s["t"] / 0.12
-        rings.append([V(s["le"]) + cd * (p.x * s["chord"]) + td * (p.y * s["chord"] * k) for p in base])
+        pts = s.get("ring", base)                    # eigener Ring je Sektion: Dicke schon enthalten
+        k = 1.0 if "ring" in s else s["t"] / 0.12
+        rings.append([V(s["le"]) + cd * (p.x * s["chord"]) + td * (p.y * s["chord"] * k) for p in pts])
     c0 = sum(rings[0], V()) / len(rings[0])
     c1 = sum(rings[-1], V()) / len(rings[-1])
     md = grid_rings(rings, True, c0 if cap else None, c1 if cap else None, mat)
@@ -2256,9 +2296,9 @@ def heli_materials(prefix, liv, dirt):
     return {
         "paint": mat_paint(P + "Paint", liv["base"], liv["rough"], coat=liv["coat"], livery=liv["bands"],
                            dirt=dirt * 0.25, dirt_z=(0.4, 0.9), seams=HeliGeo.SEAMS),
-        "interior": mat_plastic(P + "Interior", (0.05, 0.05, 0.055), 0.75, grain=0.15),
-        "fabric": mat_plastic(P + "SeatFabric", (0.025, 0.027, 0.032), 0.9, grain=0.3),
-        "floor": mat_rubber(P + "Floor", (0.03, 0.03, 0.03), 0.85),
+        "interior": uv_weight(mat_plastic(P + "Interior", (0.05, 0.05, 0.055), 0.75, grain=0.15), 0.5),
+        "fabric": uv_weight(mat_plastic(P + "SeatFabric", (0.025, 0.027, 0.032), 0.9, grain=0.3), 0.5),
+        "floor": uv_weight(mat_rubber(P + "Floor", (0.03, 0.03, 0.03), 0.85), 0.5),
         "seal": mat_rubber(P + "Seal", (0.012, 0.012, 0.012), 0.6),
         "glass": mat_glass(P + "Glass", (0.62, 0.70, 0.74)),
         "metal": mat_metal(P + "Metal", (0.55, 0.56, 0.58), 0.32),
@@ -2270,10 +2310,10 @@ def heli_materials(prefix, liv, dirt):
         "tblade": mat_rotor_blade(P + "TailBlade", (0.035, 0.035, 0.04),
                                   [(0.60, 0.70, (0.8, 0.8, 0.8)), (0.70, 0.80, (0.75, 0.03, 0.02)),
                                    (0.80, 0.95, (0.8, 0.8, 0.8))], 0.45, axis="Y"),
-        "decal": mat_paint(P + "Decal", liv["text"], 0.3, coat=liv["coat"]),
+        "decal": uv_weight(mat_paint(P + "Decal", liv["text"], 0.3, coat=liv["coat"]), 2.0),
         "dark_paint": mat_paint(P + "DarkPaint", (0.02, 0.02, 0.022), 0.35, coat=0.3),
-        "panel": mat_plastic(P + "Panel", (0.018, 0.018, 0.02), 0.55),
-        "screen": mat_emit(P + "Screen", (0.10, 0.22, 0.32), 1.5, base=(0.01, 0.01, 0.012)),
+        "panel": uv_weight(mat_plastic(P + "Panel", (0.018, 0.018, 0.02), 0.55), 0.5),
+        "screen": uv_weight(mat_emit(P + "Screen", (0.10, 0.22, 0.32), 1.5, base=(0.01, 0.01, 0.012)), 0.5),
         "grille": mat_metal(P + "Grille", (0.03, 0.03, 0.03), 0.6),
         "nav_red": mat_emit(P + "NavRed", (1.0, 0.02, 0.01), 12.0),
         "nav_green": mat_emit(P + "NavGreen", (0.02, 1.0, 0.1), 12.0),
@@ -2404,7 +2444,8 @@ def build_heli(cfg):
             xl, xh = hinge_x
             p_lo = V((xl, side * g.half_width(xl, zl), zl))
             p_hi = V((xh, side * g.half_width(xh, zh), zh))
-            asm.pivot(f"Door_{dk}", (p_lo + p_hi) / 2, (p_hi - p_lo).normalized())
+            hinge = (p_hi - p_lo).normalized() * (-1.0 if side > 0 else 1.0)    # positiv = öffnet nach außen
+            asm.pivot(f"Door_{dk}", (p_lo + p_hi) / 2, hinge, orient=True, positive="Tür öffnet nach außen")
             asm.add(d, f"Door_{dk}", f"Door_{dk}")
             gl = glass_patch(fus_md, normals, offset_poly(win, 0.05), shell_t * 0.45, M["glass"],
                              (lambda y, s=side: y * s > 0.2))
@@ -2500,7 +2541,7 @@ def build_heli(cfg):
     asm.add(tg, "TailGearbox", mods=[bevel_s])
 
     # ------------------------------------------------------------- Hauptrotor
-    asm.pivot("MainRotor", g.hub, Z_AXIS)
+    asm.pivot("MainRotor", g.hub, Z_AXIS, positive="Drehrichtung des Rotors (von oben gegen den Uhrzeigersinn)")
     head = MeshData()
     head.merge(cylinder(V((0, 0, 2.30)), V((0, 0, 3.0)), 0.075, 24, M["dark"]))
     head.merge(lathe([(0.0, 0.0), (0.25, 0.0), (0.25, 0.04), (0.20, 0.06), (0.0, 0.06)], 32, V((0, 0, 2.50)), Z_AXIS,
@@ -2525,13 +2566,14 @@ def build_heli(cfg):
         head.merge(cylinder(g.hub + er * 0.30 - et * 0.10 + V((0, 0, 0.02)), g.hub + er * 0.55 - et * 0.06 + V((0, 0, 0.02)),
                             0.025, 12, M["dark"]))
         key = f"Blade_{k + 1}"
-        asm.pivot(key, g.hub + er * 0.62, er, parent="MainRotor")
+        asm.pivot(key, g.hub + er * 0.62, er, parent="MainRotor", orient=True,
+                  positive="Blattanstellwinkel: Vorderkante nach oben")
         bl = blade_proto.copy().transform(Matrix.Translation(g.hub) @ rot)
         blades.append(asm.add(bl, key, key, smooth=40))
     asm.add(head, "RotorHead", "MainRotor", mods=[bevel_s])
 
     # ------------------------------------------------------------- Heckrotor
-    asm.pivot("TailRotor", g.tr, Y_AXIS)
+    asm.pivot("TailRotor", g.tr, Y_AXIS, positive="Rotordrehung")
     trm = MeshData()
     tsecs = rotor_blade_sections(0.12, g.tr_R, 0.17, 0.15, 6.0, 0.0, 0.0, 0.08, 0.13, 0.03, n=16, t_root=0.14)
     tproto = airfoil_loft(tsecs, 16, M["tblade"])
@@ -2624,7 +2666,7 @@ def build_heli(cfg):
 
     if cfg.heli_color == "police":
         # Wärmebildkamera (drehbar) und Suchscheinwerfer
-        asm.pivot("FLIR", V((2.12, 0.0, 0.44)), Z_AXIS)
+        asm.pivot("FLIR", V((2.12, 0.0, 0.44)), Z_AXIS, positive="Kamera schwenkt nach links")
         cam = MeshData()
         cam.merge(cylinder(V((2.12, 0, 0.56)), V((2.12, 0, 0.46)), 0.05, 16, M["dark_paint"]))
         cam.merge(lathe([(0.0, -0.13), (0.07, -0.115), (0.12, -0.06), (0.13, 0.0), (0.12, 0.06), (0.09, 0.10),
@@ -2640,7 +2682,7 @@ def build_heli(cfg):
                        c0 + V((0.06, 0, -0.14)), X_AXIS, M["dark_paint"]))
         sl.merge(lathe([(0.0, 0.0), (0.098, 0.0), (0.0, 0.004)], 24, c0 + V((0.12, 0, -0.14)), X_AXIS, M["landing"]))
         asm.add(sl, "Searchlight", mods=[bevel_s], detail=1)
-        asm.socket("Searchlight", c0 + V((0.13, 0, -0.14)))
+        asm.socket("Searchlight", c0 + V((0.13, 0, -0.14)), forward=X_AXIS)
 
     # ------------------------------------------------------------- Sockets & Kollision
     asm.socket("Pilot", (1.30, -0.42, 1.05))
@@ -2648,8 +2690,8 @@ def build_heli(cfg):
     for i, y in enumerate((-0.52, 0.0, 0.52)):
         asm.socket(f"Passenger_{i + 1}", (-0.40, y, 1.05))
     asm.socket("RotorHub", g.hub)
-    asm.socket("Exhaust", ex1)
-    asm.socket("LandingLight", ll)
+    asm.socket("Exhaust", ex1, forward=ex1 - ex0)
+    asm.socket("LandingLight", ll, forward=V((0.3, 0, -1)))
     asm.socket("Winch", (0.3, -0.95, 1.95))
     body = [o for o in asm.meshes() if o["pivot"] == "root" and o.name.split("_")[-1] not in ("Skids",)]
     skids = [o for o in asm.meshes() if o.name.endswith("Skids")]
@@ -2686,12 +2728,12 @@ def plane_materials(prefix, liv, dirt):
                            dirt=dirt * 0.3, dirt_z=(0.2, 0.8), seams=PlaneGeo.SEAMS),
         # Flügel, Leitwerk, Streben, Radverkleidungen: gleicher Lack, aber ohne Rumpfstreifen
         "plain": mat_paint(P + "PaintPlain", liv["base"], liv["rough"], coat=liv["coat"], dirt=dirt * 0.3,
-                           dirt_z=(0.2, 0.8), seams=PlaneGeo.SEAMS),
+                           dirt_z=(0.2, 0.8), seams=[sm for sm in PlaneGeo.SEAMS if sm[0] == 1]),
         "accent": mat_paint(P + "Accent", liv["accent"], 0.3, coat=liv["coat"]),
-        "decal": mat_paint(P + "Decal", liv["text"], 0.3, coat=liv["coat"]),
-        "interior": mat_plastic(P + "Interior", (0.06, 0.06, 0.065), 0.75, grain=0.15),
-        "fabric": mat_plastic(P + "SeatFabric", (0.05, 0.045, 0.04), 0.9, grain=0.3),
-        "floor": mat_rubber(P + "Floor", (0.03, 0.03, 0.03), 0.85),
+        "decal": uv_weight(mat_paint(P + "Decal", liv["text"], 0.3, coat=liv["coat"]), 2.0),
+        "interior": uv_weight(mat_plastic(P + "Interior", (0.06, 0.06, 0.065), 0.75, grain=0.15), 0.5),
+        "fabric": uv_weight(mat_plastic(P + "SeatFabric", (0.05, 0.045, 0.04), 0.9, grain=0.3), 0.5),
+        "floor": uv_weight(mat_rubber(P + "Floor", (0.03, 0.03, 0.03), 0.85), 0.5),
         "seal": mat_rubber(P + "Seal", (0.012, 0.012, 0.012), 0.6),
         "glass": mat_glass(P + "Glass", (0.70, 0.76, 0.78)),
         "metal": mat_metal(P + "Metal", (0.62, 0.62, 0.64), 0.3),
@@ -2703,8 +2745,8 @@ def plane_materials(prefix, liv, dirt):
         "grille": mat_metal(P + "Intake", (0.02, 0.02, 0.02), 0.6),
         "prop": mat_rotor_blade(P + "Propeller", (0.03, 0.03, 0.035), [(0.86, 0.97, (0.85, 0.62, 0.0))], 0.4,
                                 axis="X"),
-        "panel": mat_plastic(P + "Panel", (0.02, 0.02, 0.022), 0.55),
-        "screen": mat_emit(P + "Screen", (0.10, 0.22, 0.32), 1.5, base=(0.01, 0.01, 0.012)),
+        "panel": uv_weight(mat_plastic(P + "Panel", (0.02, 0.02, 0.022), 0.55), 0.5),
+        "screen": uv_weight(mat_emit(P + "Screen", (0.10, 0.22, 0.32), 1.5, base=(0.01, 0.01, 0.012)), 0.5),
         "nav_red": mat_emit(P + "NavRed", (1.0, 0.02, 0.01), 12.0),
         "nav_green": mat_emit(P + "NavGreen", (0.02, 1.0, 0.1), 12.0),
         "nav_white": mat_emit(P + "NavWhite", (1.0, 1.0, 1.0), 10.0),
@@ -2715,16 +2757,17 @@ def plane_materials(prefix, liv, dirt):
 class PlaneGeo:
     """Rumpf-Spanten, Flügel-Grundriss (Rechteck innen, Trapez außen) und Fahrwerksmaße."""
 
+    # Kabinendach zwischen Flügelnase und -hinterkante wird in __init__ aus der Profilunterseite erzeugt
     STATIONS = [
-        dict(x=-6.00, hw=0.045, zt=1.40, zb=1.25, et=2.2, eb=2.2),
-        dict(x=-5.20, hw=0.11, zt=1.46, zb=1.14, et=2.6, eb=2.4),
-        dict(x=-4.20, hw=0.20, zt=1.54, zb=1.02, et=3.0, eb=2.8),
-        dict(x=-3.00, hw=0.33, zt=1.66, zb=0.88, et=3.4, eb=3.2),
+        dict(x=-5.75, hw=0.045, zt=1.40, zb=1.25, et=2.2, eb=2.2),
+        dict(x=-5.00, hw=0.11, zt=1.46, zb=1.14, et=2.6, eb=2.4),
+        dict(x=-4.065, hw=0.20, zt=1.54, zb=1.02, et=3.0, eb=2.8),
+        dict(x=-2.942, hw=0.33, zt=1.66, zb=0.88, et=3.4, eb=3.2),
         dict(x=-2.10, hw=0.46, zt=1.82, zb=0.76, zm=1.25, et=3.6, eb=3.4),
         dict(x=-1.55, hw=0.54, zt=1.915, zb=0.70, zm=1.25, et=4.0, eb=3.6),
         dict(x=-0.60, hw=0.575, zt=1.935, zb=0.66, zm=1.24, et=4.2, eb=3.8),
-        dict(x=0.20, hw=0.575, zt=1.935, zb=0.66, zm=1.22, et=4.2, eb=3.8),
-        dict(x=0.62, hw=0.565, zt=1.78, zb=0.68, zm=1.20, et=3.8, eb=3.6),
+        dict(x=0.46, hw=0.575, zt=1.935, zb=0.66, zm=1.22, et=4.2, eb=3.8),
+        dict(x=0.76, hw=0.565, zt=1.75, zb=0.69, zm=1.20, et=3.8, eb=3.6),
         dict(x=1.00, hw=0.545, zt=1.60, zb=0.72, zm=1.18, et=3.4, eb=3.4),
         dict(x=1.50, hw=0.49, zt=1.53, zb=0.80, zm=1.18, et=3.0, eb=3.0),
         dict(x=1.82, hw=0.40, zt=1.47, zb=0.90, zm=1.19, et=2.6, eb=2.6),
@@ -2732,16 +2775,16 @@ class PlaneGeo:
     ]
     # Panel-Fugen: Motorhaube, Rumpfsegmente, Flügelbeplankung
     SEAMS = [(0, 1.0, 0.6, 1.62), (0, 1.55, 0.7, 1.6), (0, -2.35, 0.7, 1.85), (0, -3.75, 0.85, 1.75),
-             (0, -5.0, 1.0, 1.6), (1, 1.45, 1.85, 2.3), (1, -1.45, 1.85, 2.3), (1, 3.9, 1.9, 2.3),
+             (0, -4.75, 1.0, 1.6), (1, 1.45, 1.85, 2.3), (1, -1.45, 1.85, 2.3), (1, 3.9, 1.9, 2.3),
              (1, -3.9, 1.9, 2.3)]
 
     def __init__(self):
-        self.wing_le_root = 0.18
+        self.wing_le_root = 0.45          # Flügelnase innen (Brandschott bei x = 1,0)
         self.wing_z_root = 1.98
         self.semispan = 5.5
         self.taper_start = 2.6
         self.chord_root, self.chord_tip = 1.63, 1.13
-        self.sweep_tip = 0.35
+        self.sweep_tip = 0.50              # gesamte Zuspitzung an der Vorderkante → gerade Hinterkante
         self.dihedral = math.radians(1.73)
         self.twist_root, self.twist_tip = 1.5, -1.5          # Schränkung (Washout)
         self.camber = 0.02                                    # NACA 2412
@@ -2751,10 +2794,24 @@ class PlaneGeo:
         self.main_r = 0.215
         self.nose_axle = V((1.22, 0.0, 0.185))
         self.nose_r = 0.185
+        self.stations = list(self.STATIONS)
+        self._build_ip()
+        # Kabinendach exakt unter die Flügelunterseite legen (kein Spalt, kein Durchstoßen)
+        le, te = self.wing_le_root, self.wing_le_root - self.chord_root
+        roof = []
+        for i in range(8):
+            x = lerp(le - 0.02, te + 0.02, i / 7)
+            hw, _, zb, zm, _, eb = self.section(x)
+            zt = self.wing_point(0.0, clamp((le - x) / self.chord_root), -1.0).z - 0.003
+            roof.append(dict(x=x, hw=hw, zt=zt, zb=zb, zm=zm, et=8.0, eb=eb))
+        self.stations = [s for s in self.STATIONS if not (te - 0.05 < s["x"] < le + 0.05)] + roof
+        self._build_ip()
+
+    def _build_ip(self):
         self.ip = {}
         for k in ("hw", "zt", "zb", "zm", "et", "eb"):
             xs, ys = [], []
-            for s in self.STATIONS:
+            for s in self.stations:
                 xs.append(s["x"])
                 ys.append(s.get(k, (s["zt"] + s["zb"]) / 2) if k == "zm" else s.get(k, 2.0) if k in ("et", "eb") else s[k])
             self.ip[k] = Pchip(xs, ys)
@@ -2769,8 +2826,8 @@ class PlaneGeo:
         return hw * max(0.0, 1 - t ** e) ** (1 / e)
 
     def xs(self):
-        return (cosine_spacing(-6.0, -2.2, 26, 0.3, 0.0)[:-1] + cosine_spacing(-2.2, 0.0, 18)[:-1]
-                + cosine_spacing(0.0, 1.1, 18)[:-1] + cosine_spacing(1.1, 1.95, 16, 0.0, 0.6))
+        return (cosine_spacing(-5.75, -2.2, 26, 0.3, 0.0)[:-1] + cosine_spacing(-2.2, 0.0, 18)[:-1]
+                + cosine_spacing(0.0, 1.1, 20)[:-1] + cosine_spacing(1.1, 1.95, 16, 0.0, 0.6))
 
     # --- Flügel
     def wing_frac(self, a):
@@ -2832,7 +2889,7 @@ def build_plane(cfg):
     shell_t = 0.02
 
     # ------------------------------------------------------------- Rumpf-Loft + Hülle
-    fus_md = loft_stations(g.STATIONS, g.xs(), 64, V((-6.03, 0.0, 1.33)), V((1.975, 0.0, 1.20)), M["paint"])
+    fus_md = loft_stations(g.stations, g.xs(), 64, V((-5.78, 0.0, 1.33)), V((1.975, 0.0, 1.20)), M["paint"])
     normals = vertex_normals(fus_md)
     shell = fus_md.to_object(f"{name}_Fuselage", smooth=60)
     shell.data.materials.append(M["interior"])
@@ -2841,15 +2898,15 @@ def build_plane(cfg):
     apply_modifiers(shell)
     src = shell.data.copy()
 
-    windshield = rounded_poly_2d([(0.99, 1.50), (0.99, 2.4), (0.17, 2.4), (0.20, 1.92), (0.92, 1.52)],
+    windshield = rounded_poly_2d([(0.99, 1.50), (0.99, 2.4), (0.43, 2.4), (0.46, 1.92), (0.92, 1.52)],
                                  [0.0, 0.0, 0.0, 0.06, 0.08], 4)
-    door = rounded_poly_2d([(-0.20, 0.78), (0.86, 0.78), (0.86, 1.48), (0.30, 1.88), (-0.20, 1.88)],
+    door = rounded_poly_2d([(-0.20, 0.78), (0.86, 0.78), (0.86, 1.50), (0.56, 1.86), (-0.20, 1.86)],
                            [0.05, 0.05, 0.10, 0.05, 0.05], 4)
-    win_door = rounded_poly_2d([(-0.12, 1.24), (0.78, 1.24), (0.78, 1.47), (0.32, 1.80), (-0.12, 1.80)],
+    win_door = rounded_poly_2d([(-0.12, 1.24), (0.78, 1.24), (0.78, 1.49), (0.57, 1.79), (-0.12, 1.79)],
                                [0.06, 0.06, 0.08, 0.06, 0.06], 5)
-    win_rear = rounded_poly_2d([(-0.32, 1.24), (-0.32, 1.80), (-1.30, 1.78), (-1.62, 1.42), (-1.45, 1.24)],
+    win_rear = rounded_poly_2d([(-0.32, 1.24), (-0.32, 1.79), (-1.30, 1.77), (-1.62, 1.42), (-1.45, 1.24)],
                                [0.06, 0.06, 0.12, 0.08, 0.08], 5)
-    win_top = rounded_poly_2d([(-1.70, 1.82), (-1.70, 2.4), (-2.65, 2.4), (-2.65, 1.62)], [0.0, 0.0, 0.0, 0.05], 4)
+    win_top = rounded_poly_2d([(-1.32, 1.86), (-1.32, 2.4), (-2.45, 2.4), (-2.45, 1.66)], [0.0, 0.0, 0.0, 0.05], 4)
     gap = 0.004
 
     # ------------------------------------------------------------- Türen (vorne links/rechts)
@@ -2863,13 +2920,14 @@ def build_plane(cfg):
         transfer_normals(d, src)
         p_lo = V((0.84, side * g.half_width(0.84, 0.90), 0.90))
         p_hi = V((0.84, side * g.half_width(0.84, 1.40), 1.40))
-        asm.pivot(f"Door_{dk}", (p_lo + p_hi) / 2, (p_hi - p_lo).normalized())
+        hinge_ax = (p_hi - p_lo).normalized() * (-1.0 if side > 0 else 1.0)    # positiv = öffnet nach außen
+        asm.pivot(f"Door_{dk}", (p_lo + p_hi) / 2, hinge_ax, orient=True, positive="Tür öffnet nach außen")
         asm.add(d, f"Door_{dk}", f"Door_{dk}")
         asm.add(glass_patch(fus_md, normals, offset_poly(win_door, 0.04), shell_t * 0.45, M["glass"],
                             (lambda y, s=side: y * s > 0.2)), f"Glass_Door_{dk}", f"Door_{dk}", smooth=80)
         hx = -0.10
-        asm.add(box((hx, side * (g.half_width(hx, 1.12) + 0.012), 1.12), (0.10, 0.02, 0.022), M["metal"]),
-                f"DoorHandle_{dk}", f"Door_{dk}", mods=[bevel_s], detail=2)
+        asm.add(box((hx, side * (g.half_width(hx, 1.12) + 0.007), 1.12), (0.10, 0.02, 0.022), M["metal"]),
+                f"DoorHandle_{dk}", f"Door_{dk}", mods=[bevel_s], detail=3)
 
     # ------------------------------------------------------------- Fenster
     cutters = [prism_y(windshield, -0.8, 0.8, M["seal"]).to_object("_c"),
@@ -2923,13 +2981,36 @@ def build_plane(cfg):
         tip = [g.wing_sec(s * 5.35), g.wing_sec(s * 5.42, 0.97, 0.115, 0.01), g.wing_sec(s * 5.47, 0.86, 0.10, 0.045),
                g.wing_sec(s * 5.50, 0.55, 0.075, 0.16)]
         wing.merge(airfoil_loft(tip, mat=M["plain"], ring=full))
-    asm.add(wing, "Wing", smooth=40)
+    asm.add(wing.copy(), "Wing", smooth=40)
+    wing_bvh = BVHTree.FromPolygons(wing.verts, [(f[0], f[i], f[i + 1]) for f in wing.faces for i in range(1, len(f) - 1)])
+
+    def on_wing(p, direction):
+        """Punkt entlang ``direction`` auf die Flügeloberfläche setzen (Lichter bündig einbauen)."""
+        hit = wing_bvh.ray_cast(p - direction * 0.3, direction, 0.6)
+        return hit[0] if hit[0] is not None else p
+
+    # Flügelwurzel-Verkleidung: schließt den Spalt zwischen Dachkante und Flügelunterseite
+    def fairing(s):
+        le, te = g.wing_le_root, g.wing_le_root - g.chord_root
+
+        def fn(u, v):
+            x = lerp(le - 0.01, te + 0.01, u)
+            top = g.wing_point(s * 0.60, clamp((le - x) / g.chord_root), -1.0) + V((0, 0, 0.004))
+            zr = g.section(x)[1]
+            bot = V((x, s * g.half_width(x, zr - 0.04), zr - 0.04))
+            ctrl = V((x, s * 0.585, zr))
+            return bot * (1 - v) ** 2 + ctrl * (2 * v * (1 - v)) + top * (v * v)
+        return surface_grid(fn, 26, 6, M["plain"], flip=s > 0)
+    asm.add(fairing(1).merge(fairing(-1)), "WingFairing", smooth=50)
     for s, key in ((1, "L"), (-1, "R")):
         for kind, (ya, yb), ring, xc in (("Flap", (0.61, 2.74), flap_ring, 0.71),
                                           ("Aileron", (2.86, 5.04), ail_ring, 0.755)):
             h0, h1 = hinge(s * ya, xc), hinge(s * yb, xc)
             pk = f"{kind}_{key}"
-            asm.pivot(pk, (h0 + h1) / 2, (h1 - h0).normalized())
+            ax = (h1 - h0).normalized()
+            ax = -ax if ax.y > 0 else ax                     # alle Achsen nach −Y: positiv = Hinterkante runter
+            asm.pivot(pk, (h0 + h1) / 2, ax, orient=True,
+                      positive="Hinterkante nach unten" + (" (L/R gegensinnig ansteuern)" if kind == "Aileron" else ""))
             ys = [s * ya, s * 2.6, s * yb] if kind == "Flap" else [s * ya, s * yb]
             asm.add(wl(ys, ring), pk, pk, smooth=40)
 
@@ -2937,7 +3018,7 @@ def build_plane(cfg):
     wd = MeshData()
     for s in (1, -1):
         a = V((-0.32, s * (g.half_width(-0.32, 0.80) - 0.01), 0.80))
-        b = g.wing_point(s * 2.80, 0.27, -1.0) + V((0, 0, 0.005))
+        b = g.wing_point(s * 2.80, 0.27, -1.0) + V((0, 0, 0.03))
         wd.merge(tube([a, b], (0.016, 0.048), 16, M["plain"]))
         for p, d in ((a, (b - a).normalized()), (b, (a - b).normalized())):
             wd.merge(tube([p, p + d * 0.12], lambda t: (lerp(0.024, 0.017, t), lerp(0.055, 0.048, t)), 16, M["plain"]))
@@ -2945,11 +3026,11 @@ def build_plane(cfg):
         n = g.wing_sec(s * 2.3)["thick_dir"]
         wd.merge(lathe([(0.0, 0.0), (0.035, 0.0), (0.035, 0.006), (0.028, 0.012), (0.0, 0.013)], 20, cap - n * 0.004, n,
                        M["metal"]))
-        tipc = g.wing_point(s * 5.47, 0.06, 0.0) + V((0, s * 0.02, 0))
+        tipc = on_wing(g.wing_point(s * 5.47, 0.06, 0.0) + V((0, s * 0.1, 0)), -Y_AXIS * s) - Y_AXIS * s * 0.006
         wd.merge(lathe([(0.0, 0.0), (0.028, 0.0), (0.024, 0.03), (0.0, 0.04)], 12, tipc, Y_AXIS * s,
                        M["nav_red"] if s > 0 else M["nav_green"]))
-        wd.merge(lathe([(0.0, 0.0), (0.012, 0.0), (0.01, 0.015), (0.0, 0.02)], 10, g.wing_point(s * 5.40, 0.85, 0.0)
-                       + V((0, s * 0.10, 0)), Y_AXIS * s, M["nav_white"]))
+        strobe = on_wing(g.wing_point(s * 5.40, 0.85, 0.0) + V((0, s * 0.2, 0)), -Y_AXIS * s) - Y_AXIS * s * 0.006
+        wd.merge(lathe([(0.0, 0.0), (0.012, 0.0), (0.01, 0.015), (0.0, 0.02)], 10, strobe, Y_AXIS * s, M["nav_white"]))
     for yy in (1.95, 2.18):
         sec = g.wing_sec(yy)
         p = sec["le"] + sec["chord_dir"] * 0.004
@@ -2957,51 +3038,55 @@ def build_plane(cfg):
     pit = g.wing_point(3.45, 0.18, -1.0)
     wd.merge(tube(fillet_path([pit + V((0, 0, 0.01)), pit - V((0, 0, 0.09)), pit - V((-0.32, 0, 0.09))], 0.03), 0.007, 8,
                   M["chrome"]))
-    asm.add(wd, "WingDetails", mods=[bevel_s])
+    wdo = asm.add(wd, "WingDetails", mods=[bevel_s])
 
     # ------------------------------------------------------------- Leitwerk
     def ht_sec(y):
         f = abs(y) / 1.72
-        return dict(le=V((-5.05 - 0.18 * f, y, 1.30)), chord_dir=V((-1, 0, 0)), thick_dir=Z_AXIS,
+        # Vorderkante so gepfeilt, dass die Höhenruder-Scharnierlinie (59 %) exakt gerade verläuft
+        return dict(le=V((-4.80 - 0.59 * (1.18 - 0.82) * f, y, 1.30)), chord_dir=V((-1, 0, 0)), thick_dir=Z_AXIS,
                     chord=lerp(1.18, 0.82, f), t=0.10)
 
     def vt_sec(z, c_scale=1.0, le_back=0.0):
-        f = (z - 1.42) / (2.72 - 1.42)
-        return dict(le=V((lerp(-4.70, -5.58, f) - le_back, 0.0, z)), chord_dir=V((-1, 0, 0)), thick_dir=Y_AXIS,
+        f = (z - 1.42) / (2.62 - 1.42)
+        return dict(le=V((lerp(-4.45, -5.26, f) - le_back, 0.0, z)), chord_dir=V((-1, 0, 0)), thick_dir=Y_AXIS,
                     chord=lerp(1.38, 0.74, f) * c_scale, t=0.11)
     tail = MeshData()
     tail.merge(airfoil_loft([ht_sec(y) for y in (-1.72, 0.0, 1.72)], mat=M["plain"],
                             ring=airfoil_ring(18, 0.12, 0.0, 0.0, 0.58)))
     for s in (1, -1):
-        tail.merge(airfoil_loft([dict(ht_sec(s * 1.72), le=ht_sec(s * 1.72)["le"] + V((-0.02, s * 0.0, 0))),
+        tail.merge(airfoil_loft([ht_sec(s * 1.72),
                                  dict(ht_sec(s * 1.77), chord=0.70, t=0.08, le=ht_sec(s * 1.72)["le"] + V((-0.08, s * 0.05, 0)))],
                                 mat=M["plain"], ring=airfoil_ring(18, 0.12, 0.0)))
-    tail.merge(airfoil_loft([vt_sec(1.38), vt_sec(2.72)], mat=M["plain"], ring=airfoil_ring(18, 0.12, 0.0, 0.0, 0.62)))
-    tail.merge(airfoil_loft([vt_sec(2.72), vt_sec(2.76, 0.92, 0.03), vt_sec(2.79, 0.70, 0.12)], mat=M["plain"],
+    tail.merge(airfoil_loft([vt_sec(1.38), vt_sec(2.62)], mat=M["plain"], ring=airfoil_ring(18, 0.12, 0.0, 0.0, 0.62)))
+    tail.merge(airfoil_loft([vt_sec(2.62), vt_sec(2.66, 0.92, 0.03), vt_sec(2.69, 0.70, 0.12)], mat=M["plain"],
                             ring=airfoil_ring(18, 0.12, 0.0)))
-    zt = lambda x: g.section(x)[1]
+
+    def zt(x):
+        return g.section(x)[1]
     tail.merge(loft_stations([dict(x=-3.35, hw=0.012, zt=zt(-3.35) + 0.004, zb=zt(-3.35) - 0.08, et=2.5, eb=2.5),
-                              dict(x=-4.30, hw=0.035, zt=zt(-4.30) + 0.13, zb=zt(-4.30) - 0.08, et=2.5, eb=2.5),
-                              dict(x=-4.85, hw=0.05, zt=1.74, zb=zt(-4.85) - 0.08, et=2.5, eb=2.5)],
-                             cosine_spacing(-4.85, -3.35, 18), 16, "ngon", "ngon", M["plain"]))
+                              dict(x=-4.10, hw=0.035, zt=zt(-4.10) + 0.13, zb=zt(-4.10) - 0.08, et=2.5, eb=2.5),
+                              dict(x=-4.70, hw=0.05, zt=1.74, zb=zt(-4.70) - 0.08, et=2.5, eb=2.5)],
+                             cosine_spacing(-4.70, -3.35, 18), 16, "ngon", "ngon", M["plain"]))
     asm.add(tail, "Tail", smooth=45)
     el_ring = airfoil_ring(10, 0.12, 0.0, 0.59, 1.0)
-    el_hinge = V((-5.05 - 0.59 * 1.18, 0.0, 1.30))
-    asm.pivot("Elevator", el_hinge, Y_AXIS)
+    el_hinge = V((-4.80 - 0.59 * 1.18, 0.0, 1.30))
+    asm.pivot("Elevator", el_hinge, -Y_AXIS, orient=True, positive="Hinterkante nach unten")
     el = MeshData()
     for s in (1, -1):
         el.merge(airfoil_loft([ht_sec(s * 0.07), ht_sec(s * 1.715)], mat=M["plain"], ring=el_ring))
     el.merge(cylinder(el_hinge - Y_AXIS * 0.08, el_hinge + Y_AXIS * 0.08, 0.012, 10, M["steel"]))
     asm.add(el, "Elevator", "Elevator", smooth=40)
-    r0, r1 = vt_sec(1.42), vt_sec(2.70)
+    r0, r1 = vt_sec(1.42), vt_sec(2.60)
     rh0 = r0["le"] + V((-0.63 * r0["chord"], 0, 0))
     rh1 = r1["le"] + V((-0.63 * r1["chord"], 0, 0))
-    asm.pivot("Rudder", (rh0 + rh1) / 2, (rh1 - rh0).normalized())
+    asm.pivot("Rudder", (rh0 + rh1) / 2, (rh1 - rh0).normalized(), orient=True, positive="Hinterkante nach rechts")
     asm.add(airfoil_loft([r0, r1], mat=M["plain"], ring=airfoil_ring(10, 0.12, 0.0, 0.63, 1.0)), "Rudder", "Rudder",
             smooth=40)
 
     # ------------------------------------------------------------- Propeller + Spinner
-    asm.pivot("Propeller", g.prop, X_AXIS)
+    asm.pivot("Propeller", g.prop, X_AXIS, positive="Drehrichtung (von hinten gesehen im Uhrzeigersinn)")
+    blade_x = X_AXIS * 0.06                           # Blattebene im Spinner, vor der Motorhaube
     pr = MeshData()
     secs = []
     et = X_AXIS.cross(Z_AXIS)                         # Drehrichtung im Uhrzeigersinn (von hinten gesehen)
@@ -3013,14 +3098,15 @@ def build_plane(cfg):
         c *= math.sqrt(max(0.12, 1.0 - smoothstep(0.90, 1.0, f) ** 2))
         cd = -math.cos(beta) * et - math.sin(beta) * X_AXIS
         td = math.cos(beta) * X_AXIS - math.sin(beta) * et
-        secs.append(dict(le=g.prop + Z_AXIS * r - cd * (0.30 * c), chord_dir=cd, thick_dir=td, chord=c,
-                         t=lerp(0.30, 0.08, smoothstep(0.0, 0.6, f))))
-    blade = airfoil_loft(secs, mat=M["prop"], ring=airfoil_ring(16, 0.12, 0.04))
+        t = lerp(0.30, 0.08, smoothstep(0.0, 0.6, f))
+        secs.append(dict(le=g.prop + blade_x + Z_AXIS * r - cd * (0.30 * c), chord_dir=cd, thick_dir=td, chord=c,
+                         t=t, ring=airfoil_ring(16, t, 0.04)))
+    blade = airfoil_loft(secs, mat=M["prop"])
     for k in range(2):
         rot = Matrix.Translation(g.prop) @ Matrix.Rotation(math.radians(60) + math.pi * k, 4, "X") @ Matrix.Translation(-g.prop)
         pr.merge(blade.copy().transform(rot))
         d = rot.to_3x3() @ Z_AXIS
-        pr.merge(cylinder(g.prop + d * 0.08, g.prop + d * 0.17, 0.026, 12, M["dark"]))
+        pr.merge(cylinder(g.prop + blade_x + d * 0.08, g.prop + blade_x + d * 0.17, 0.026, 12, M["dark"]))
     pr.merge(lathe([(0.0, -0.012), (0.17, -0.012), (0.17, 0.02), (0.165, 0.08), (0.14, 0.16), (0.09, 0.24),
                     (0.04, 0.285), (0.0, 0.30)], 40, g.prop, X_AXIS, M["accent"]))
     asm.add(pr, "Propeller", "Propeller", smooth=45)
@@ -3029,47 +3115,49 @@ def build_plane(cfg):
     gear = MeshData()
     for s, key in ((1, "L"), (-1, "R")):
         ax = V((g.main_axle.x, s * g.main_axle.y, g.main_axle.z))
-        leg = spline([(-0.40, s * 0.42, 0.68), (-0.44, s * 0.85, 0.44), (ax.x, s * 1.16, 0.24)], 8)
+        leg = spline([(-0.40, s * 0.30, 0.74), (-0.44, s * 0.85, 0.44), (ax.x, s * 1.16, 0.24)], 8)
         gear.merge(tube(leg, lambda t: (lerp(0.016, 0.011, t), lerp(0.042, 0.028, t)), 12, M["steel"], exponent=3.0))
         gear.merge(cylinder(V((ax.x, s * 1.12, ax.z)), V((ax.x, s * 1.36, ax.z)), 0.016, 12, M["steel"]))
         stp = leg[len(leg) // 3]
         gear.merge(box(stp + V((0.0, 0.0, 0.02)), (0.13, 0.09, 0.012), M["dark"]))
-        gear.merge(loft_stations([dict(x=ax.x + 0.43, hw=0.02, zt=0.31, zb=0.24),
-                                  dict(x=ax.x + 0.28, hw=0.10, zt=0.40, zb=0.10, et=2.3, eb=2.3),
-                                  dict(x=ax.x, hw=0.125, zt=0.445, zb=0.075, et=2.3, eb=2.3),
-                                  dict(x=ax.x - 0.25, hw=0.11, zt=0.40, zb=0.10, et=2.3, eb=2.3),
-                                  dict(x=ax.x - 0.43, hw=0.025, zt=0.31, zb=0.25)],
-                                 cosine_spacing(ax.x - 0.43, ax.x + 0.43, 24, 0.5, 0.5), 32,
-                                 V((ax.x - 0.44, s * 1.27, 0.28)), V((ax.x + 0.44, s * 1.27, 0.275)), M["plain"],
+        # Radverkleidung als Tropfen: stumpfe Nase, lang auslaufendes Heck
+        gear.merge(loft_stations([dict(x=ax.x + 0.40, hw=0.06, zt=0.35, zb=0.18),
+                                  dict(x=ax.x + 0.30, hw=0.11, zt=0.43, zb=0.10, et=2.3, eb=2.3),
+                                  dict(x=ax.x + 0.05, hw=0.125, zt=0.45, zb=0.075, et=2.3, eb=2.3),
+                                  dict(x=ax.x - 0.25, hw=0.10, zt=0.43, zb=0.12),
+                                  dict(x=ax.x - 0.62, hw=0.012, zt=0.40, zb=0.31)],
+                                 cosine_spacing(ax.x - 0.62, ax.x + 0.40, 24, 0.5, 0.5), 32,
+                                 V((ax.x - 0.63, s * 1.27, 0.355)), V((ax.x + 0.42, s * 1.27, 0.265)), M["plain"],
                                  y_center=s * 1.27))
-        asm.pivot(f"WheelMain_{key}", ax, Y_AXIS)
+        asm.pivot(f"WheelMain_{key}", ax, Y_AXIS, positive="Rad rollt vorwärts")
         asm.add(plane_wheel(M, ax, g.main_r, 0.15, 0.10), f"WheelMain_{key}", f"WheelMain_{key}", smooth=40)
     asm.add(gear, "MainGear", mods=[bevel_s])
-    asm.pivot("NoseGear", V((1.235, 0.0, 0.62)), Z_AXIS)
-    asm.pivot("WheelNose", g.nose_axle, Y_AXIS, parent="NoseGear")
+    asm.pivot("NoseGear", V((1.235, 0.0, 0.62)), Z_AXIS, positive="Bugrad lenkt nach links")
+    asm.pivot("WheelNose", g.nose_axle, Y_AXIS, parent="NoseGear", positive="Rad rollt vorwärts")
     ng = MeshData()
+    n = g.nose_axle
     ng.merge(cylinder(V((1.245, 0, 0.86)), V((1.235, 0, 0.50)), 0.034, 16, M["steel"]))
-    ng.merge(cylinder(V((1.235, 0, 0.52)), V((1.226, 0, 0.33)), 0.024, 16, M["chrome"]))
-    ng.merge(box(V((1.225, 0, 0.335)), (0.08, 0.21, 0.04), M["steel"]))
+    ng.merge(cylinder(V((1.235, 0, 0.52)), V((1.228, 0, 0.42)), 0.024, 16, M["chrome"]))
+    ng.merge(box(V((1.226, 0, 0.42)), (0.08, 0.21, 0.04), M["steel"]))           # Gabelbrücke über der Verkleidung
     for sd in (1, -1):
-        ng.merge(cylinder(V((1.224, sd * 0.088, 0.34)), V((1.22, sd * 0.088, g.nose_axle.z)), 0.013, 10, M["steel"]))
-    ng.merge(tube([V((1.27, 0, 0.50)), V((1.30, 0, 0.43)), V((1.25, 0, 0.36))], (0.008, 0.02), 8, M["steel"], exponent=4))
-    ng.merge(loft_stations([dict(x=g.nose_axle.x + 0.32, hw=0.02, zt=0.28, zb=0.22),
-                            dict(x=g.nose_axle.x + 0.18, hw=0.095, zt=0.36, zb=0.09, et=2.3, eb=2.3),
-                            dict(x=g.nose_axle.x, hw=0.11, zt=0.385, zb=0.07, et=2.3, eb=2.3),
-                            dict(x=g.nose_axle.x - 0.22, hw=0.09, zt=0.35, zb=0.10, et=2.3, eb=2.3),
-                            dict(x=g.nose_axle.x - 0.32, hw=0.02, zt=0.29, zb=0.24)],
-                           cosine_spacing(g.nose_axle.x - 0.32, g.nose_axle.x + 0.32, 20, 0.5, 0.5), 32,
-                           V((g.nose_axle.x - 0.33, 0, 0.265)), V((g.nose_axle.x + 0.33, 0, 0.25)), M["plain"]))
+        ng.merge(cylinder(V((1.224, sd * 0.088, 0.42)), V((1.22, sd * 0.088, n.z)), 0.013, 10, M["steel"]))
+    ng.merge(tube([V((1.27, 0, 0.50)), V((1.30, 0, 0.47)), V((1.255, 0, 0.44))], (0.008, 0.02), 8, M["steel"], exponent=4))
+    ng.merge(loft_stations([dict(x=n.x + 0.34, hw=0.05, zt=0.31, zb=0.155),
+                            dict(x=n.x + 0.255, hw=0.095, zt=0.37, zb=0.085, et=2.3, eb=2.3),
+                            dict(x=n.x + 0.04, hw=0.11, zt=0.39, zb=0.065, et=2.3, eb=2.3),
+                            dict(x=n.x - 0.21, hw=0.09, zt=0.37, zb=0.10, et=2.3, eb=2.3),
+                            dict(x=n.x - 0.53, hw=0.012, zt=0.345, zb=0.265)],
+                           cosine_spacing(n.x - 0.53, n.x + 0.34, 20, 0.5, 0.5), 32,
+                           V((n.x - 0.54, 0, 0.305)), V((n.x + 0.355, 0, 0.23)), M["plain"]))
     asm.add(ng, "NoseGear", "NoseGear", mods=[bevel_s])
     asm.add(plane_wheel(M, g.nose_axle, g.nose_r, 0.125, 0.085), "WheelNose", "WheelNose", smooth=40)
 
     # ------------------------------------------------------------- Innenraum
     it = MeshData()
-    it.merge(box((-0.30, 0.0, 0.71), (2.4, 1.06, 0.03), M["floor"]))
-    panel = rounded_poly_2d([(0.80, 0.82), (0.98, 0.82), (0.98, 1.40), (0.86, 1.48), (0.64, 1.48), (0.66, 1.39),
+    it.merge(box((-0.33, 0.0, 0.76), (1.9, 0.80, 0.03), M["floor"]))
+    panel = rounded_poly_2d([(0.80, 0.88), (0.98, 0.88), (0.98, 1.40), (0.86, 1.48), (0.64, 1.48), (0.66, 1.39),
                              (0.78, 1.35)], 0.03, 3)
-    it.merge(extrude(panel, 1.04, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
+    it.merge(extrude(panel, 0.94, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
     for yy in (0.26, -0.26):
         sm = frame_matrix(V((0.775, yy, 1.16)), Y_AXIS * -1, V((0.1, 0, 0.995)).normalized(), V((-0.995, 0, 0.1)))
         it.merge(box((0, 0, 0), (0.26, 0.17, 0.012), M["screen"], sm))
@@ -3083,7 +3171,7 @@ def build_plane(cfg):
     def seat(x, y):
         sm_ = MeshData()
         sm_.merge(box((x, y, 0.98), (0.48, 0.44, 0.10), M["fabric"]))
-        sm_.merge(box((x, y, 0.84), (0.40, 0.38, 0.18), M["dark"]))
+        sm_.merge(box((x, y, 0.855), (0.40, 0.38, 0.16), M["dark"]))
         bm = Matrix.Translation((x - 0.24, y, 1.02)) @ Matrix.Rotation(math.radians(-12), 4, "Y")
         sm_.merge(box((0.0, 0.0, 0.32), (0.10, 0.44, 0.64), M["fabric"], bm))
         sm_.merge(box((0.0, 0.0, 0.74), (0.09, 0.26, 0.16), M["fabric"], bm))
@@ -3104,17 +3192,22 @@ def build_plane(cfg):
     sm.merge(extrude(list(reversed([(-1.0, belly + 0.01), (-0.89, belly + 0.01), (-0.98, belly - 0.16),
                                     (-1.02, belly - 0.16)])), 0.01, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS),
                      M["dark"]))
-    sm.merge(lathe([(0.0, 0.0), (0.04, 0.0), (0.035, 0.03), (0.0, 0.035)], 16, vt_sec(2.79)["le"] + V((-0.18, 0, 0)),
-                   Z_AXIS, M["nav_red"]))
-    sm.merge(lathe([(0.0, 0.0), (0.03, 0.0), (0.025, 0.025), (0.0, 0.03)], 12, V((-6.035, 0, 1.33)), -X_AXIS,
-                   M["nav_white"]))
     asm.add(sm, "Details", mods=[bevel_s], detail=2)
+    lights = MeshData()          # Leuchten bleiben in allen LODs sichtbar (wie die Positionslichter am Flügel)
+    lights.merge(lathe([(0.0, 0.0), (0.04, 0.0), (0.035, 0.03), (0.0, 0.035)], 16, vt_sec(2.69)["le"] + V((-0.18, 0, 0)),
+                       Z_AXIS, M["nav_red"]))
+    lights.merge(lathe([(0.0, 0.0), (0.03, 0.0), (0.025, 0.025), (0.0, 0.03)], 12, V((-5.785, 0, 1.33)), -X_AXIS,
+                       M["nav_white"]))
+    asm.add(lights, "TailLights", mods=[bevel_s])
     rng = random.Random(cfg.seed)
     reg = "D-E" + "".join(rng.choice("ABCDEFGHKLMNPRSTUVWXYZ") for _ in range(3))
     txt = MeshData()
     for side in (1, -1):
-        fm = frame_matrix(V((-3.15, side * 0.8, 1.28)), -X_AXIS * side, Z_AXIS, Y_AXIS * side)
-        txt.merge(project_onto(text_md(reg, 0.30, fm, M["decal"], bold=0.035), fus_md, -Y_AXIS * side, 0.0015))
+        # parallel zu den schrägen Zierstreifen, oberhalb davon
+        fm = frame_matrix(V((-2.75, side * 0.8, 1.42)), V((-side, 0.0, 0.06 * side)).normalized(),
+                          V((0.06, 0.0, 1.0)).normalized(), Y_AXIS * side)
+        txt.merge(project_onto(text_md(reg, 0.26, fm, M["decal"], bold=0.035), fus_md, -Y_AXIS * side, 0.0015,
+                               max_edge=0.06))
     asm.add(txt, "Decals", smooth=60, detail=1)
 
     # ------------------------------------------------------------- Sockets & Kollision
@@ -3122,20 +3215,28 @@ def build_plane(cfg):
     asm.socket("CoPilot", (0.05, -0.27, 1.10))
     asm.socket("Passenger_1", (-0.95, 0.27, 1.10))
     asm.socket("Passenger_2", (-0.95, -0.27, 1.10))
-    asm.socket("PropHub", g.prop)
-    asm.socket("Exhaust", ex1)
-    asm.socket("LandingLight", g.wing_sec(2.06)["le"])
-    asm.socket("TowBar", g.nose_axle)
+    asm.socket("PropHub", g.prop, forward=X_AXIS)
+    asm.socket("Exhaust", ex1, forward=ex1 - ex0)
+    asm.socket("LandingLight", g.wing_sec(2.06)["le"], forward=X_AXIS)
+    asm.socket("TowBar", g.nose_axle, forward=X_AXIS)
     for s, key in ((1, "L"), (-1, "R")):
-        asm.socket(f"TieDown_{key}", g.wing_point(s * 3.8, 0.3, -1.0))
+        asm.socket(f"TieDown_{key}", g.wing_point(s * 3.8, 0.3, -1.0), forward=-Z_AXIS)
     allm = asm.meshes()
-    asm.collide("Cabin", allm, lambda p: p.x > -1.8 and abs(p.y) < 0.6 and 0.6 < p.z < 1.95)
-    asm.collide("Tailcone", allm, lambda p: -6.1 < p.x < -1.6 and abs(p.y) < 0.6 and p.z < 1.6)
+
+    def cabin(p):
+        blade = p.x > 1.98 and p.y * p.y + (p.z - g.prop.z) ** 2 > 0.17 ** 2   # Propellerblätter (feste Stellung) weglassen
+        return p.x > -1.8 and abs(p.y) < 0.6 and 0.6 < p.z < 2.3 and not blade
+    asm.collide("Cabin", allm, cabin, 64)
+    asm.collide("Tailcone", allm, lambda p: -5.9 < p.x < -1.6 and abs(p.y) < 0.6 and p.z < 1.6)
     asm.collide("Wing_L", allm, lambda p: p.y > 0.6 and p.z > 1.85)
     asm.collide("Wing_R", allm, lambda p: p.y < -0.6 and p.z > 1.85)
-    asm.collide("Tail", allm, lambda p: p.x < -4.6 and (p.z > 1.55 or abs(p.y) > 0.25))
-    asm.collide("MainGear", allm, lambda p: -1.0 < p.x < 0.1 and p.z < 0.66 and abs(p.y) > 0.3, 32)
-    asm.collide("NoseGear", allm, lambda p: 0.85 < p.x < 1.6 and p.z < 0.72 and abs(p.y) < 0.2, 24)
+    asm.collide("Fin", allm, lambda p: p.x < -4.35 and p.z >= 1.45 and abs(p.y) < 0.12, 32)
+    asm.collide("Stab_L", allm, lambda p: p.x < -4.6 and p.y > 0.12 and 1.15 < p.z < 1.45, 32)
+    asm.collide("Stab_R", allm, lambda p: p.x < -4.6 and p.y < -0.12 and 1.15 < p.z < 1.45, 32)
+    for s, key in ((1, "L"), (-1, "R")):
+        asm.collide(f"MainGear_{key}", allm, lambda p, s=s: -1.15 < p.x < 0.1 and p.z < 0.66 and s * p.y > 0.3, 32)
+        asm.collide(f"Strut_{key}", [wdo], lambda p, s=s: 0.4 < s * p.y < 2.9 and p.z < 2.08 and -0.5 < p.x < 0.15, 24)
+    asm.collide("NoseGear", allm, lambda p: 0.65 < p.x < 1.6 and p.z < 0.72 and abs(p.y) < 0.2, 24)
     return asm
 
 
@@ -3184,22 +3285,58 @@ def tag_detail(obj):
     attr.data.foreach_set("value", [int(obj.get("detail", 0))] * len(me.polygons))
 
 
+def _hull_bm(points):
+    bm = bmesh.new()
+    for p in points:
+        bm.verts.new(p)
+    res = bmesh.ops.convex_hull(bm, input=bm.verts[:], use_existing_faces=False)
+    junk = list({g for g in res["geom_interior"] + res["geom_unused"] if isinstance(g, bmesh.types.BMVert)})
+    bmesh.ops.delete(bm, geom=junk, context="VERTS")
+    return bm
+
+
 def convex_hull_obj(name, points, max_verts=48):
-    cell = 0.02
-    while True:
-        grid = {}
-        for p in points:
-            grid.setdefault((round(p.x / cell), round(p.y / cell), round(p.z / cell)), p)
-        bm = bmesh.new()
-        for p in grid.values():
-            bm.verts.new(p)
-        res = bmesh.ops.convex_hull(bm, input=bm.verts[:], use_existing_faces=False)
-        junk = list({g for g in res["geom_interior"] + res["geom_unused"] if isinstance(g, bmesh.types.BMVert)})
-        bmesh.ops.delete(bm, geom=junk, context="VERTS")
-        if len(bm.verts) <= max_verts or cell > 2.0:
-            break
+    """Konvexe Kollisionshülle, konservativ vereinfacht: umschließt garantiert alle Punkte.
+
+    1. exakte Hülle, 2. Vertices per Raster ausdünnen (je Zelle der Punkt mit dem größten Abstand
+    zum Schwerpunkt), 3. die Flächenebenen der vereinfachten Hülle so weit nach außen schieben,
+    bis alle Punkte der exakten Hülle innen liegen (Schnitt der Halbräume).
+    """
+    bm = _hull_bm(points)
+    exact = [v.co.copy() for v in bm.verts]
+    if len(exact) > max_verts:
+        ctr = sum(exact, V()) / len(exact)
+        cell = 0.02
+        while len(bm.verts) > max_verts and cell < 4.0:
+            grid = {}
+            for p in exact:
+                k = (round(p.x / cell), round(p.y / cell), round(p.z / cell))
+                if k not in grid or (p - ctr).length > (grid[k] - ctr).length:
+                    grid[k] = p
+            bm.free()
+            bm = _hull_bm(list(grid.values()))
+            cell *= 1.35
+        planes = []
+        for f in bm.faces:
+            n = f.normal.copy()
+            if n.length > 0.5 and not any(n.dot(m) > 0.9995 for m, _ in planes):
+                planes.append((n, max(n.dot(p) for p in exact)))
         bm.free()
-        cell *= 1.35
+        lo = V([min(p[i] for p in exact) for i in range(3)]) - V((1, 1, 1))
+        hi = V([max(p[i] for p in exact) for i in range(3)]) + V((1, 1, 1))
+        bm = bmesh.new()
+        bmesh.ops.create_cube(bm, size=1.0)
+        for v in bm.verts:
+            v.co = V([lerp(lo[i], hi[i], v.co[i] + 0.5) for i in range(3)])
+        for n, d in planes:
+            bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-7,
+                                   plane_co=n * d, plane_no=n, clear_outer=True)
+            boundary = [e for e in bm.edges if e.is_boundary]
+            if boundary:
+                bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
+        pts = [v.co.copy() for v in bm.verts]
+        bm.free()
+        bm = _hull_bm(pts)
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
@@ -3243,6 +3380,54 @@ def smart_uv(objs):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+def scale_uv_islands(obj):
+    """UV-Inseln nach Material gewichten (Material-Eigenschaft ``uv_scale``): z.B. Innenraum 0.5
+    (weniger Texel für kaum sichtbare Flächen), Decals 2.0 (scharfe Schrift)."""
+    me = obj.data
+    factors = [float(m.get("uv_scale", 1.0)) if m else 1.0 for m in me.materials]
+    if not me.uv_layers or all(abs(f - 1.0) < 1e-6 for f in factors):
+        return
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    uvl = bm.loops.layers.uv.active
+    bm.faces.ensure_lookup_table()
+    parent = list(range(len(bm.faces)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for e in bm.edges:
+        if len(e.link_loops) != 2:
+            continue
+        l0, l1 = e.link_loops
+        a0, b0 = l0[uvl].uv, l0.link_loop_next[uvl].uv
+        a1, b1 = l1[uvl].uv, l1.link_loop_next[uvl].uv
+        if l0.vert == l1.vert:
+            same = (a0 - a1).length < 1e-6 and (b0 - b1).length < 1e-6
+        else:
+            same = (a0 - b1).length < 1e-6 and (b0 - a1).length < 1e-6
+        if same:
+            parent[find(l0.face.index)] = find(l1.face.index)
+    islands = {}
+    for f in bm.faces:
+        islands.setdefault(find(f.index), []).append(f)
+    for faces in islands.values():
+        fac = factors[faces[0].material_index] if faces[0].material_index < len(factors) else 1.0
+        if abs(fac - 1.0) < 1e-6:
+            continue
+        loops = [lp for f in faces for lp in f.loops]
+        c = V((0.0, 0.0))
+        for lp in loops:
+            c += lp[uvl].uv
+        c /= len(loops)
+        for lp in loops:
+            lp[uvl].uv = c + (lp[uvl].uv - c) * fac
+    bm.to_mesh(me)
+    bm.free()
+
+
 def pack_atlas(objs, margin=0.003):
     """Alle Teile eines Fahrzeugs in einen gemeinsamen, überlappungsfreien UV-Atlas packen."""
     select_only(objs)
@@ -3250,6 +3435,13 @@ def pack_atlas(objs, margin=0.003):
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.average_islands_scale()
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for o in objs:
+        scale_uv_islands(o)
+    select_only(objs)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.pack_islands(**op_kwargs(bpy.ops.uv.pack_islands, margin=margin, rotate=True, shape_method="AABB",
                                         margin_method="FRACTION"))
     bpy.ops.object.mode_set(mode="OBJECT")
@@ -3304,20 +3496,56 @@ def clear_custom_normals(obj):
             bpy.ops.mesh.customdata_custom_splitnormals_clear()
 
 
+def _reorient_materials(objs, angle):
+    """Prozedurale Materialien, die Welt-/Objektkoordinaten lesen (Lackstreifen, Fugen, Blattspitzen),
+    nach dem Drehen auf die ursprünglichen Koordinaten zurückrechnen (wichtig bei --bake 0)."""
+    mats = {m for o in objs if o.type == "MESH" for m in o.data.materials
+            if m and m.get("generator") == "vehicle_generator" and not m.get("reoriented")}
+    for m in mats:
+        nt = m.node_tree
+        for link in list(nt.links):
+            fn, tn = link.from_node, link.to_node
+            world = fn.type == "NEW_GEOMETRY" and link.from_socket.name == "Position"
+            local = fn.type == "TEX_COORD" and link.from_socket.name == "Object" and tn.type == "SEPXYZ"
+            if not (world or local):
+                continue
+            rot = nt.nodes.new("ShaderNodeVectorRotate")
+            rot.rotation_type = "Z_AXIS"
+            rot.inputs["Angle"].default_value = -angle
+            src, dst = link.from_socket, link.to_socket
+            nt.links.remove(link)
+            nt.links.new(src, rot.inputs["Vector"])
+            nt.links.new(rot.outputs["Vector"], dst)
+        m["reoriented"] = True
+
+
 def reorient(asm, extra, angle):
-    """Fahrzeug für die Ziel-Engine drehen und Rotation in die Geometrie backen."""
+    """Fahrzeug für die Ziel-Engine drehen und Rotation in die Geometrie backen.
+
+    Orientierte Pivots/Sockets drehen mit (ihre lokale Achse bleibt die Scharnierachse),
+    alle anderen Empties behalten Einheitsrotation; die Meshes werden passend umgerechnet.
+    """
     if abs(angle) < 1e-9:
         return
     R = Matrix.Rotation(angle, 4, "Z")
     objs = list(asm.coll.all_objects) + [o for o in extra if o.name not in asm.coll.all_objects]
     world = {o: o.matrix_world.copy() for o in objs}
+
+    def depth(o):
+        return 0 if o.parent is None else 1 + depth(o.parent)
+    new = {}
+    for o in sorted((o for o in objs if o.type != "MESH"), key=depth):
+        new[o] = R @ world[o] if o.get("oriented") else Matrix.Translation(R @ world[o].translation)
+        o.matrix_world = new[o]
     for o in objs:
-        if o.type == "MESH":
-            o.data.transform(R)
-    depth = lambda o: 0 if o.parent is None else 1 + depth(o.parent)
-    for o in sorted(objs, key=depth):
-        o.matrix_world = Matrix.Translation(R @ world[o].translation)
+        if o.type != "MESH":
+            continue
+        p1 = new.get(o.parent, o.parent.matrix_world.copy()) if o.parent else Matrix.Identity(4)
+        o.data.transform(p1.inverted() @ R @ world[o])
+        o.matrix_world = p1
     asm.axes = {k: (R.to_3x3() @ v) for k, v in asm.axes.items()}
+    asm.socket_fwd = {k: (R.to_3x3() @ v) for k, v in asm.socket_fwd.items()}
+    _reorient_materials(objs, angle)
 
 
 @__import__("contextlib").contextmanager
@@ -3541,6 +3769,7 @@ def build_lods(asm, parts, n):
             dec.ratio = ratio
             dec.use_collapse_triangulate = True
             apply_modifiers(c)
+            c.data.validate(clean_customdata=False)        # Decimate kann doppelte Faces erzeugen
             clear_custom_normals(c)
             set_smoothing(c, 50)
             out.append(c)
@@ -3624,6 +3853,10 @@ def finalize(asm, cfg, out_dir):
     short = asm.name[3:] if asm.name.startswith("SM_") else asm.name
     os.makedirs(out_dir, exist_ok=True)
     bpy.context.view_layer.update()
+    for k, e in asm.sockets.items():
+        e.name = f"SOCKET_{k}"
+    if 0 < cfg.bake < 1024:
+        log(f"Warnung: --bake {cfg.bake} ist sehr klein – Decals und Kleinteile werden im Atlas unscharf.")
     meshes = asm.meshes()
     for o in meshes:
         # Solidify (identische UVs innen/außen) und Bevel (Facetten über UV-Nähte) → neu abwickeln
@@ -3685,8 +3918,10 @@ def finalize(asm, cfg, out_dir):
         units="Meter", dimensions_m=[round(s, 3) for s in size],
         lods={f"LOD{k}": dict(triangles=tri_count(v), meshes=[o.name for o in v]) for k, v in lods.items()},
         pivots={k: dict(location=[round(c, 4) for c in p.matrix_world.translation], axis=[round(c, 4) for c in asm.axes[k]],
-                        parent=asm.parents[k]) for k, p in asm.pivots.items()},
-        sockets={k: [round(c, 4) for c in s.matrix_world.translation] for k, s in asm.sockets.items()},
+                        parent=asm.parents[k], oriented=bool(p.get("oriented")), positive=asm.notes.get(k, ""))
+                for k, p in asm.pivots.items()},
+        sockets={k: dict(location=[round(c, 4) for c in s.matrix_world.translation],
+                         forward=[round(c, 4) for c in asm.socket_fwd[k]]) for k, s in asm.sockets.items()},
         collision=[dict(name=h.name, group=h["collision_group"], verts=len(h.data.vertices)) for h in hulls],
         textures=textures, bones=bones,
         materials=sorted({m.name for o in lods[0] for m in o.data.materials if m}),
