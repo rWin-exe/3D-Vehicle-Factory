@@ -1,6 +1,6 @@
-# 3D-Heli – prozedurale Game-Ready-Fahrzeuge (Enduro & Hubschrauber)
+# 3D-Heli – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber & Flugzeug)
 
-`vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das zwei detaillierte,
+`vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das drei detaillierte,
 realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 **engine-fertige Assets** exportiert:
 
@@ -8,6 +8,10 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 |---|---|
 | ![Enduro](docs/enduro_34.jpg) | ![Heli](docs/heli_34.jpg) |
 | ![Enduro Heck](docs/enduro_rear.jpg) | ![Heli Seite](docs/heli_side.jpg) |
+
+| Flugzeug (einmotoriger Hochdecker) | |
+|---|---|
+| ![Flugzeug](docs/plane_34.jpg) | ![Flugzeug Seite](docs/plane_side.jpg) |
 
 Die Vorschaubilder sind mit `--preview` direkt aus dem Script gerendert (Cycles).
 
@@ -36,12 +40,23 @@ Antennen, Drahtschneider, Pitotrohr, Panel-Fugen, Kennzeichen/Schriftzug als Mes
 Lackierungen: `civil`, `police` (inkl. drehbarer Wärmebildkamera + Suchscheinwerfer),
 `rescue`, `military`.
 
+**Flugzeug** – viersitziger Hochdecker der Cessna-172-Klasse (8,3 m lang, 11 m Spannweite):
+Rumpf-Loft mit Motorhaube, Lufteinlässen und Auspuff, **Fenster und Türen als echte Ausschnitte**
+(Windschutzscheibe, Türscheiben, hintere Seitenfenster, Heckscheibe), zwei bewegliche Türen,
+Innenraum (vier Sitze, Instrumentenbrett mit Displays, zwei Steuerhörner), gewölbter Flügel
+(NACA 2412, rechteckig innen / trapezförmig außen, V-Stellung, Schränkung) mit **separaten Klappen
+und Querrudern an Scharnier-Pivots**, Flügelstreben, Randbögen mit Positionslichtern,
+Landescheinwerfer, Tankdeckel, Pitotrohr, Höhenleitwerk mit Höhenruder, Seitenleitwerk mit
+Seitenruder und Rückenflosse, **Zweiblatt-Propeller mit realer Steigungsverteilung**, Spinner,
+Bugradfahrwerk (lenkbar) und Federstahl-Hauptfahrwerk mit Radverkleidungen, Antennen,
+Panel-Fugen und Kennzeichen (Mesh-Decal). Lackierungen: `classic`, `trainer`, `bush`, `military`.
+
 ## Game-Ready-Pipeline
 
 | Schritt | Ergebnis |
 |---|---|
 | Maßstab | Meter, Ursprung am Boden; Ausrichtung je Ziel-Engine (`--target`) |
-| Hierarchie | Jedes bewegliche Teil hängt an einem Pivot (Lenkung, Gabel, Räder, Schwinge, Rotoren, Blätter, Türen …) mit Drehpunkt an der physikalisch richtigen Stelle |
+| Hierarchie | Jedes bewegliche Teil hängt an einem Pivot (Lenkung, Gabel, Räder, Schwinge, Rotoren, Blätter, Türen, Klappen, Quer-/Höhen-/Seitenruder, Propeller, Bugrad …) mit Drehpunkt bzw. Scharnierachse an der physikalisch richtigen Stelle |
 | Skelett (`--rig`) | Zusätzliches Skeletal Mesh `SK_*` mit Knochen pro Pivot, starr gewichtet – direkt für Chaos Vehicles / Unity-Animator nutzbar |
 | Meshes | Modifier angewendet, trianguliert, pro Pivot zusammengeführt (wenige Draw Calls), Glas separat |
 | UV | Ein gemeinsamer, überlappungsfreier UV-Atlas pro Fahrzeug |
@@ -58,6 +73,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke; Heli mit `police`-Lackier
 |---|---|---|---|---|
 | Enduro | 137 958 | 67 839 | 31 172 | 14 848 |
 | Hubschrauber | 72 222 | 36 107 | 17 658 | 7 477 |
+| Flugzeug | 64 930 | 32 463 | 16 099 | 6 151 |
 
 ---
 
@@ -71,7 +87,7 @@ Getestet mit Blender/bpy **5.2.2**; ausgelegt für Blender 4.2 und neuer (4.x se
 ## Benutzung
 
 ```bash
-# Beide Fahrzeuge für Unreal exportieren (Standard: FBX + GLB + .blend, 2K-Bake, 3 LODs)
+# Alle drei Fahrzeuge für Unreal exportieren (Standard: FBX + GLB + .blend, 2K-Bake, 3 LODs)
 blender --background --python vehicle_generator.py -- --out export
 
 # Nur den Heli, Polizei-Lackierung, mit Skelett, 4K-Texturen, für Unity
@@ -79,17 +95,20 @@ blender -b -P vehicle_generator.py -- --vehicle heli --heli-livery police --rig 
 
 # Enduro in Blau, schneller Test ohne Bake, mit Vorschaubildern
 python vehicle_generator.py --vehicle enduro --enduro-color blue --bake 0 --preview
+
+# Flugzeug als Schulflugzeug-Lackierung mit Skelett (Ruder, Klappen, Propeller, Räder als Knochen)
+blender -b -P vehicle_generator.py -- --vehicle plane --plane-livery trainer --rig
 ```
 
 **In der Blender-Oberfläche:** Tab *Scripting* → `vehicle_generator.py` öffnen → *Run Script*.
-Beide Modelle werden (ohne Export) nebeneinander in die aktuelle Szene gebaut – ideal zum
+Alle Modelle werden (ohne Export) nebeneinander in die aktuelle Szene gebaut – ideal zum
 Anschauen und Weiterbearbeiten.
 
 ### Optionen
 
 | Option | Standard | Beschreibung |
 |---|---|---|
-| `--vehicle {enduro,heli,all}` | `all` | Welche Modelle gebaut werden |
+| `--vehicle {enduro,heli,plane,all}` | `all` | Welche Modelle gebaut werden |
 | `--out DIR` | `export` | Ausgabeordner |
 | `--target {unreal,unity,godot,generic}` | `unreal` | Ausrichtung (Unreal: +X vorne; sonst Blender −Y vorne = Unity +Z / glTF +Z), FBX-Skalierung, Textur-Packing |
 | `--formats` | `fbx,glb,blend` | Exportformate |
@@ -102,13 +121,14 @@ Anschauen und Weiterbearbeiten.
 | `--gpu` | aus | Cycles auf der GPU (Bake & Preview) |
 | `--enduro-color` | `orange` | `orange`, `blue`, `red`, `green`, `yellow` |
 | `--heli-livery` | `civil` | `civil`, `police`, `rescue`, `military` |
+| `--plane-livery` | `classic` | `classic`, `trainer`, `bush`, `military` |
 | `--blades N` | `4` | Anzahl Hauptrotorblätter (2–7) |
 | `--dirt F` | `0.35` | Verschmutzungsgrad 0–1 (Schlamm/Staub, im Bake enthalten) |
 | `--seed N` | `7` | Variation (Stollenmuster, Startnummer, Kennzeichen) |
-| `--enduro-name`, `--heli-name` | `SM_Enduro`, `SM_Heli` | Asset-Namen |
+| `--enduro-name`, `--heli-name`, `--plane-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane` | Asset-Namen |
 
-Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 1,5 min (Enduro) bzw. 3 min (Heli),
-der größte Teil ist der Textur-Bake. Mit `--bake 0` dauert ein Fahrzeug nur wenige Sekunden.
+Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 1,5 min (Enduro), 3 min (Heli) und
+4 min (Flugzeug), der größte Teil ist der Textur-Bake. Mit `--bake 0` dauert ein Fahrzeug nur wenige Sekunden.
 
 ### Ausgabe
 
@@ -136,7 +156,9 @@ export/
   Ohne Combine bleiben die Teile einzeln (z. B. für Blueprint-Animation an den Pivots).
 - *Fahrzeug (Chaos Vehicles):* `SK_*.fbx` als Skeletal Mesh importieren. Knochen: `root`,
   `Steering`, `ForkLower`, `WheelFront`, `Swingarm`, `WheelRear` bzw. `MainRotor`, `Blade_1..n`,
-  `TailRotor`, `Door_*`, `FLIR`. Physics Asset in Unreal erzeugen.
+  `TailRotor`, `Door_*`, `FLIR` bzw. `Propeller`, `Aileron_L/R`, `Flap_L/R`, `Elevator`, `Rudder`,
+  `NoseGear`, `WheelNose`, `WheelMain_L/R`, `Door_L/R`. Physics Asset in Unreal erzeugen.
+  Ruder und Klappen drehen um die Y-Achse ihres Knochens (= Scharnierlinie).
 - Material: `T_*_Normal_DX.png` als Normal Map, `T_*_ORM.png` mit *sRGB aus*.
 - LODs: `SM_*_LOD1..3.fbx` im Static-Mesh-Editor als LOD importieren.
 
@@ -155,8 +177,11 @@ export/
   Alle Teile referenzieren diese Werte.
 - **Rumpfform Heli:** `HeliGeo.STATIONS` – Spantentabelle (Halbbreite, Ober-/Unterkante,
   Superellipsen-Exponenten). Fenster/Türen sind 2D-Konturen in der Seitenansicht in `build_heli`.
-- **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES` (Farbbänder über Welt-Höhe,
-  Schriftzug, Textfarbe).
+- **Flugzeug:** `PlaneGeo` – Rumpfspanten, Flügelgrundriss (Profiltiefe innen/außen, Pfeilung,
+  V-Stellung, Schränkung, Wölbung), Propeller und Fahrwerksmaße; Klappen-/Querruder-Spannweiten
+  und Ruder-Scharnierlinien in `build_plane`.
+- **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES` (Farbbänder über
+  Welt-Höhe, beim Flugzeug schräg ansteigend, Schriftzug, Textfarbe).
 - **Neue Teile:** Baukasten-Funktionen `loft_stations`, `lathe`, `tube`, `extrude`, `surface_grid`,
   `airfoil_loft`, `text_md` + `project_onto` (Decals) und `Assembly.add(mesh, name, pivot)`.
 
@@ -166,6 +191,6 @@ Die Modelle sind vollständig aus Code entstanden – mit echten Maßen, saubere
 PBR-Materialien und kompletter Engine-Pipeline. Ein von Hand gebautes AAA-Hero-Asset enthält
 zusätzlich typischerweise: High-Poly-Sculpt → Normal-Bake, Trim-Sheets und mehrere
 Texture-Sets mit höherer Texeldichte, Schadens-/Verschleißstufen, ein voll ausmodelliertes Cockpit
-sowie Fahrzeug-Setup (Federung, Rotor-Blur-Meshes) in der Engine. Dafür ist dieses Script die
+sowie Fahrzeug-Setup (Federung, Rotor-/Propeller-Blur-Meshes, Flugphysik) in der Engine. Dafür ist dieses Script die
 Grundlage: alle Maße, Pivots, LODs und Exporte stehen, und jedes Teil lässt sich in Blender oder
 im Code weiter verfeinern.
