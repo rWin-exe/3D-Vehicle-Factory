@@ -52,12 +52,12 @@ Lackierungen: `civil`, `police` (inkl. drehbarer Wärmebildkamera + Suchscheinwe
 | Sockets | `SOCKET_*`-Empties: Fahrer-/Pilotensitz, Fußrasten, Griffe, Auspuff, Scheinwerfer, Winde, Rotornabe … |
 | Export | FBX, GLB (glTF 2.0) und `.blend` + JSON-Report mit Polycounts, Pivots, Sockets, Dateien |
 
-Polycounts (Standardeinstellungen, Dreiecke):
+Gemessene Polycounts (Standardeinstellungen, Dreiecke; Heli mit `police`-Lackierung):
 
 | Asset | LOD0 | LOD1 | LOD2 | LOD3 |
 |---|---|---|---|---|
-| Enduro | ~138 000 | ~68 000 | ~31 000 | ~15 000 |
-| Hubschrauber | ~81 000 | ~40 000 | ~19 000 | ~8 000 |
+| Enduro | 137 958 | 67 839 | 31 172 | 14 848 |
+| Hubschrauber | 72 222 | 36 107 | 17 658 | 7 477 |
 
 ---
 
@@ -107,8 +107,8 @@ Anschauen und Weiterbearbeiten.
 | `--seed N` | `7` | Variation (Stollenmuster, Startnummer, Kennzeichen) |
 | `--enduro-name`, `--heli-name` | `SM_Enduro`, `SM_Heli` | Asset-Namen |
 
-Laufzeit (CPU, 4 Kerne, Standardeinstellungen): ca. 2 min (Enduro) bzw. 3 min (Heli),
-der größte Teil ist der Textur-Bake.
+Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 1,5 min (Enduro) bzw. 3 min (Heli),
+der größte Teil ist der Textur-Bake. Mit `--bake 0` dauert ein Fahrzeug nur wenige Sekunden.
 
 ### Ausgabe
 
