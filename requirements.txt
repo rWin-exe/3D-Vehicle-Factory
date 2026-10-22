@@ -1,0 +1,3 @@
+# Nur nötig, wenn das Script OHNE Blender-Installation mit normalem Python laufen soll.
+# bpy 5.2.x benötigt Python 3.13.
+bpy==5.2.2
