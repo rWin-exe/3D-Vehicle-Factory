@@ -63,7 +63,7 @@ Panel-Fugen und Kennzeichen (Mesh-Decal). Lackierungen: `classic`, `trainer`, `b
 | Texturen | Bake aller prozeduralen Materialien in **BaseColor, Normal (OpenGL + DirectX für Unreal), ORM (AO/Roughness/Metallic), Emissive**; für Unity zusätzlich `MetallicSmoothness` und HDRP-`MaskMap` |
 | Material | Ein Engine-Material pro Fahrzeug (+ Glas) |
 | LODs | LOD0–LOD3 (50 % / 25 % / 12 %), Kleinteile (Speichen, Kette, Leitungen, Decals …) werden stufenweise entfernt |
-| Kollision | Konvexe `UCX_*`-Hüllen (Unreal-Konvention), konservativ vereinfacht (umschließen die Geometrie vollständig), max. 128 Vertices (≤ 252 Dreiecke); für andere Ziele separat als `SM_*_Collision.fbx` |
+| Kollision | Konvexe `UCX_*`-Hüllen (Unreal-Konvention), konservativ vereinfacht (umschließen die Geometrie vollständig), max. 128 Vertices (≤ 252 Dreiecke); für andere Ziele separat als `SM_*_Collision.fbx`. Drehende Rotor-/Propellerblätter bewusst ohne Hülle |
 | Sockets | `SOCKET_*`-Empties: Fahrer-/Pilotensitz, Fußrasten, Griffe, Auspuff, Scheinwerfer, Winde, Rotornabe … – lokale +X-Achse = Blick-/Austrittsrichtung (`sockets.*.forward` im Report) |
 | Export | FBX, GLB (glTF 2.0) und `.blend` + JSON-Report mit Polycounts, Pivots, Sockets, Dateien |
 
@@ -207,3 +207,7 @@ Texture-Sets mit höherer Texeldichte, Schadens-/Verschleißstufen, ein voll aus
 sowie Fahrzeug-Setup (Federung, Rotor-/Propeller-Blur-Meshes, Flugphysik) in der Engine. Dafür ist dieses Script die
 Grundlage: alle Maße, Pivots, LODs und Exporte stehen, und jedes Teil lässt sich in Blender oder
 im Code weiter verfeinern.
+
+## Lizenz
+
+MIT No Attribution – siehe [LICENSE](LICENSE).
