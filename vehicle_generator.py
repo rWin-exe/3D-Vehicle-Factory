@@ -10,6 +10,8 @@ Prozeduraler Generator für game-ready 3D-Fahrzeugmodelle auf Basis von Blender 
     mit Stollenreifen, Auspuffbirne, Kette, Kühler, Kunststoffteile, Bremsleitungen …)
   * ``heli``   – leichter Turbinen-Hubschrauber (Kabinen-Loft mit echten Fenster-
     ausschnitten, Türen, Innenraum, Hauptrotor mit Profilblättern, Heckrotor, Kufen …)
+  * ``plane``  – viersitziger Hochdecker der C172-Klasse (gewölbter Flügel mit Klappen und
+    Querrudern, Leitwerk mit Rudern, Propeller, Bugradfahrwerk mit Radverkleidungen …)
 
 Game-Ready-Pipeline:
   reale Maße (Meter) · saubere Pivots für alle beweglichen Teile · optionales Skelett
@@ -21,7 +23,7 @@ Aufruf (Beispiele):
   blender -b -P vehicle_generator.py -- --vehicle heli --bake 2048 --rig --target unreal
   python vehicle_generator.py --vehicle enduro --preview          (mit ``pip install bpy``)
 
-In der Blender-Oberfläche (Scripting-Tab → Öffnen → Ausführen) werden beide Modelle
+In der Blender-Oberfläche (Scripting-Tab → Öffnen → Ausführen) werden alle Modelle
 ohne Export direkt in der aktuellen Szene erzeugt.
 
 Konventionen beim Modellieren: +X = vorne, +Y = links, +Z = oben, Ursprung am Boden.
@@ -860,8 +862,8 @@ def new_mat(name):
 
 def mat_paint(name, color, rough=0.35, coat=0.0, metallic=0.0, dirt=0.0, dirt_z=(0.15, 0.7), livery=None,
               seams=None):
-    """Lack/glänzender Kunststoff. ``livery``: [(z_von, z_bis, farbe[, steigung])] Farbstreifen über
-    Welt-Z (mit Steigung: Streifen verläuft schräg, z_eff = z - steigung * x),
+    """Lack/glänzender Kunststoff. ``livery``: [(z_von, z_bis, farbe[, steigung[, x_ende]])] Farbstreifen
+    über Welt-Z (mit Steigung: Streifen verläuft schräg, z_eff = z - steigung * x; x_ende begrenzt nach hinten),
     ``seams``: gravierte Panel-Fugen (siehe _seam_mask)."""
     m, nd = new_mat(name)
     bsdf = _principled(nd)
@@ -878,6 +880,8 @@ def mat_paint(name, color, rough=0.35, coat=0.0, metallic=0.0, dirt=0.0, dirt_z=
                 z = nd.math("SUBTRACT", z, nd.math("MULTIPLY", pos.outputs["X"], band[3]))
             mask = nd.math("MULTIPLY", nd.map_range(z, z0 - 0.004, z0 + 0.004),
                            nd.map_range(z, z1 - 0.004, z1 + 0.004, 1.0, 0.0))
+            if len(band) > 4 and band[4] is not None:      # Streifen endet bei x_end (z.B. vor dem Heckkonus)
+                mask = nd.math("MULTIPLY", mask, nd.map_range(pos.outputs["X"], band[4] - 0.01, band[4] + 0.01))
             col = nd.mix_color(mask, col, c)
     _apply_surface(nd, bsdf, color, rough, metallic, 0.05, 0.015, 90.0, dirt, dirt_z, extra_color=col, seams=seams)
     if coat:
@@ -1039,16 +1043,18 @@ class Assembly:
         self.parents[key] = parent
         return e
 
-    def socket(self, key, loc, forward=None):
-        """Andockpunkte für die Engine (Fahrerposition, Kamera, Licht …); ``forward`` = lokale +X-Richtung.
+    def socket(self, key, loc, forward=None, parent="root"):
+        """Andockpunkte für die Engine (Fahrerposition, Kamera, Licht …); lokale +X-Achse = ``forward``
+        (Standard: Fahrzeugfront). ``parent``: Pivot, dem der Socket folgt (z.B. Scheinwerfer an der Lenkung).
         Der Name wird beim Export zu ``SOCKET_<key>`` (hier mit Asset-Präfix, damit mehrere
         Fahrzeuge in einer Szene keine Namenskonflikte haben)."""
+        fwd = V(forward).normalized() if forward is not None else X_AXIS.copy()
         e = self._empty(f"{self.name}_SOCKET_{key}", V(loc), 0.08, "SPHERE")
-        e.parent = self.root
-        e.matrix_world = forward_frame(V(loc), forward) if forward is not None else Matrix.Translation(V(loc))
-        e["oriented"] = forward is not None
+        e.parent = self.pivots[parent]
+        e.matrix_world = forward_frame(V(loc), fwd)
+        e["oriented"] = True
         self.sockets[key] = e
-        self.socket_fwd[key] = V(forward).normalized() if forward is not None else X_AXIS.copy()
+        self.socket_fwd[key] = fwd
         return e
 
     def add(self, md_or_obj, name, pivot="root", smooth=35.0, mods=(), detail=0):
@@ -1126,9 +1132,13 @@ def render_preview(objects, path, resolution=(1600, 900), samples=96, view=(-35.
     bpy.context.view_layer.update()
 
     pts = []
+    dg = bpy.context.evaluated_depsgraph_get()
     for o in objects:
         if o.type == "MESH":
-            pts.extend(o.matrix_world @ V(c) for c in o.bound_box)
+            ev = o.evaluated_get(dg)
+            me = ev.to_mesh()
+            pts.extend(o.matrix_world @ v.co for v in me.vertices)
+            ev.to_mesh_clear()
     lo = V((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
     hi = V((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
     ctr = (lo + hi) / 2
@@ -1964,7 +1974,7 @@ def build_enduro(cfg):
     asm.socket("Grip_L", bar_at(bar_c.y + 0.35))
     asm.socket("Grip_R", bar_at(bar_c.y - 0.35))
     asm.socket("Exhaust", s1 + sd * 0.03, forward=sd)
-    asm.socket("Headlight", g.fork(0.80) + g.fwd * 0.13, forward=g.fwd)
+    asm.socket("Headlight", g.fork(0.80) + g.fwd * 0.13, forward=V((1.0, 0.0, -0.03)), parent="Steering")
     wheels = [o for o in asm.meshes() if o["pivot"] in ("WheelFront", "WheelRear")]
     asm.collide("Body", [o for o in asm.meshes() if o not in wheels])
     asm.collide("WheelFront", [o for o in wheels if o["pivot"] == "WheelFront" and "Tire" in o.name], max_verts=32)
@@ -2159,26 +2169,44 @@ def subdivide_tris(md, max_edge=0.025):
             faces.append((f[0], f[i], f[i + 1]))
     verts = [v.copy() for v in md.verts]
     mat = md.mats[0] if md.mats else None
-    for _ in range(8):
-        mids, out, split = {}, [], False
 
-        def mid(a, b):
-            key = (min(a, b), max(a, b))
-            if key not in mids:
-                mids[key] = len(verts)
-                verts.append((verts[a] + verts[b]) / 2)
-            return mids[key]
+    def ek(a, b):
+        return (min(a, b), max(a, b))
+    for _ in range(10):
+        # konform unterteilen: geteilte Kanten werden in beiden angrenzenden Dreiecken geteilt (keine T-Risse)
+        split = set()
         for a, b, c in faces:
             if max((verts[a] - verts[b]).length, (verts[b] - verts[c]).length, (verts[c] - verts[a]).length) > max_edge:
-                ab, bc, ca = mid(a, b), mid(b, c), mid(c, a)
-                out += [(a, ab, ca), (ab, b, bc), (ca, bc, c), (ab, bc, ca)]
-                split = True
-            else:
-                out.append((a, b, c))
-        faces = out
+                split.update((ek(a, b), ek(b, c), ek(c, a)))
         if not split:
             break
-    # T-Kreuzungen sind bei flachen Decals unkritisch (Projektion entlang derselben Richtung)
+        mids = {}
+        for k in split:
+            mids[k] = len(verts)
+            verts.append((verts[k[0]] + verts[k[1]]) / 2)
+        out = []
+        for a, b, c in faces:
+            m = [mids.get(ek(a, b)), mids.get(ek(b, c)), mids.get(ek(c, a))]
+            n = sum(x is not None for x in m)
+            if n == 0:
+                out.append((a, b, c))
+                continue
+            # rotieren, sodass die Ausgangsform einheitlich behandelt werden kann
+            tri, mm = [a, b, c], m
+            for r in range(3):
+                if n == 1 and mm[0] is not None or n == 2 and mm[2] is None or n == 3:
+                    break
+                tri = tri[1:] + tri[:1]
+                mm = mm[1:] + mm[:1]
+            a_, b_, c_ = tri
+            ab, bc, ca = mm
+            if n == 3:
+                out += [(a_, ab, ca), (ab, b_, bc), (ca, bc, c_), (ab, bc, ca)]
+            elif n == 2:            # Kanten ab und bc geteilt
+                out += [(ab, b_, bc), (a_, ab, bc), (a_, bc, c_)]
+            else:                   # nur ab geteilt
+                out += [(a_, ab, c_), (ab, b_, c_)]
+        faces = out
     res = MeshData()
     res.verts, res.faces = verts, faces
     res.uvs, res.mats = [None] * len(faces), [mat] * len(faces)
@@ -2232,13 +2260,17 @@ def naca4(x, t=0.12, camber=0.0, camber_pos=0.4):
     return yc, yt
 
 
-def airfoil_ring(n=24, t=0.12, camber=0.0, x0=0.0, x1=1.0, nose=8):
+def airfoil_ring(n=24, t=0.12, camber=0.0, x0=0.0, x1=1.0, nose=8, stations=None):
     """Profil-Ring (CCW: Hinterkante → Oberseite → Nase → Unterseite) für den Sehnenbereich x0..x1.
 
     x1 < 1: stumpfer Schnitt hinten (Flügelkasten vor Klappe/Querruder),
     x0 > 0: abgerundete Nase am Scharnier (das Ruder selbst).
+    ``stations``: gemeinsame Sehnenpositionen, damit Teilringe exakt auf dem vollen Ring liegen
+    (aneinandergrenzende Flügelsegmente ohne Versatz).
     """
     xs = [x0 + (x1 - x0) * 0.5 * (1 - math.cos(math.pi * i / n)) for i in range(n + 1)]
+    if stations is not None:
+        xs = [x for x in stations if x0 - 1e-9 <= x <= x1 + 1e-9]
     up, lo = [], []
     for x in xs:
         yc, yt = naca4(x, t, camber)
@@ -2573,7 +2605,7 @@ def build_heli(cfg):
     asm.add(head, "RotorHead", "MainRotor", mods=[bevel_s])
 
     # ------------------------------------------------------------- Heckrotor
-    asm.pivot("TailRotor", g.tr, Y_AXIS, positive="Rotordrehung")
+    asm.pivot("TailRotor", g.tr, -Y_AXIS, positive="Rotordrehung (Blattvorderkante voraus)")
     trm = MeshData()
     tsecs = rotor_blade_sections(0.12, g.tr_R, 0.17, 0.15, 6.0, 0.0, 0.0, 0.08, 0.13, 0.03, n=16, t_root=0.14)
     tproto = airfoil_loft(tsecs, 16, M["tblade"])
@@ -2708,10 +2740,10 @@ def build_heli(cfg):
 
 PLANE_LIVERIES = {
     "classic": dict(base=(0.82, 0.82, 0.80), rough=0.26, coat=0.6,
-                    bands=[(0.97, 1.07, (0.015, 0.06, 0.30), -0.06), (1.10, 1.13, (0.70, 0.45, 0.03), -0.06)],
+                    bands=[(0.97, 1.07, (0.015, 0.06, 0.30), -0.06, -5.25), (1.10, 1.13, (0.70, 0.45, 0.03), -0.06, -5.10)],
                     text=(0.015, 0.06, 0.30), accent=(0.015, 0.06, 0.30)),
     "trainer": dict(base=(0.82, 0.82, 0.80), rough=0.26, coat=0.6,
-                    bands=[(0.95, 1.06, (0.55, 0.012, 0.01), -0.06), (1.09, 1.11, (0.02, 0.02, 0.02), -0.06)],
+                    bands=[(0.95, 1.06, (0.55, 0.012, 0.01), -0.06, -5.25), (1.09, 1.11, (0.02, 0.02, 0.02), -0.06, -5.10)],
                     text=(0.02, 0.02, 0.02), accent=(0.55, 0.012, 0.01)),
     "bush": dict(base=(0.80, 0.50, 0.0), rough=0.3, coat=0.4,
                  bands=[(-1.0, 0.90, (0.02, 0.02, 0.022), -0.06), (0.94, 0.98, (0.02, 0.02, 0.022), -0.06)],
@@ -2800,7 +2832,7 @@ class PlaneGeo:
         le, te = self.wing_le_root, self.wing_le_root - self.chord_root
         roof = []
         for i in range(8):
-            x = lerp(le - 0.02, te + 0.02, i / 7)
+            x = lerp(le - 0.004, te + 0.02, i / 7)
             hw, _, zb, zm, _, eb = self.section(x)
             zt = self.wing_point(0.0, clamp((le - x) / self.chord_root), -1.0).z - 0.003
             roof.append(dict(x=x, hw=hw, zt=zt, zb=zb, zm=zm, et=8.0, eb=eb))
@@ -2858,7 +2890,11 @@ def plane_wheel(M, center, R, width, rim_r):
     prof = []
     for i in range(29):
         phi = lerp(-phi0, phi0, i / 28)
-        h = hw * math.sin(phi) if abs(phi) < math.pi / 2 else math.copysign(hw - (hw - hw * 0.7) * ((abs(phi) - math.pi / 2) / (phi0 - math.pi / 2)) ** 1.5, phi)
+        if abs(phi) < math.pi / 2:
+            h = hw * math.sin(phi)
+        else:                                       # Flanke zieht zum Wulst hin ein
+            t = (abs(phi) - math.pi / 2) / (phi0 - math.pi / 2)
+            h = math.copysign(hw - 0.3 * hw * t ** 1.5, phi)
         r = rc + a * math.cos(phi)
         for g0 in (-0.28, 0.28):                  # Laufflächenrillen
             r -= 0.004 * math.exp(-((h / hw - g0) / 0.06) ** 2)
@@ -2900,9 +2936,10 @@ def build_plane(cfg):
 
     windshield = rounded_poly_2d([(0.99, 1.50), (0.99, 2.4), (0.43, 2.4), (0.46, 1.92), (0.92, 1.52)],
                                  [0.0, 0.0, 0.0, 0.06, 0.08], 4)
-    door = rounded_poly_2d([(-0.20, 0.78), (0.86, 0.78), (0.86, 1.50), (0.56, 1.86), (-0.20, 1.86)],
+    # Türvorderkante parallel zur Scheibe → durchgehende, ~7 cm breite A-Säule
+    door = rounded_poly_2d([(-0.20, 0.78), (0.86, 0.78), (0.86, 1.50), (0.45, 1.86), (-0.20, 1.86)],
                            [0.05, 0.05, 0.10, 0.05, 0.05], 4)
-    win_door = rounded_poly_2d([(-0.12, 1.24), (0.78, 1.24), (0.78, 1.49), (0.57, 1.79), (-0.12, 1.79)],
+    win_door = rounded_poly_2d([(-0.12, 1.24), (0.78, 1.24), (0.78, 1.49), (0.44, 1.79), (-0.12, 1.79)],
                                [0.06, 0.06, 0.08, 0.06, 0.06], 5)
     win_rear = rounded_poly_2d([(-0.32, 1.24), (-0.32, 1.79), (-1.30, 1.77), (-1.62, 1.42), (-1.45, 1.24)],
                                [0.06, 0.06, 0.12, 0.08, 0.08], 5)
@@ -2960,9 +2997,10 @@ def build_plane(cfg):
     asm.add(cw, "CowlDetails", mods=[bevel_s])
 
     # ------------------------------------------------------------- Flügel (Kasten + Klappen + Querruder)
-    full = airfoil_ring(26, 0.12, g.camber)
-    box_flap = airfoil_ring(22, 0.12, g.camber, 0.0, 0.70)
-    box_ail = airfoil_ring(22, 0.12, g.camber, 0.0, 0.75)
+    wst = sorted({round(0.5 * (1 - math.cos(math.pi * i / 26)), 9) for i in range(27)} | {0.70, 0.75})
+    full = airfoil_ring(26, 0.12, g.camber, stations=wst)
+    box_flap = airfoil_ring(22, 0.12, g.camber, 0.0, 0.70, stations=wst)
+    box_ail = airfoil_ring(22, 0.12, g.camber, 0.0, 0.75, stations=wst)
     flap_ring = airfoil_ring(10, 0.12, g.camber, 0.71, 1.0)
     ail_ring = airfoil_ring(10, 0.12, g.camber, 0.755, 1.0)
 
@@ -2977,9 +3015,8 @@ def build_plane(cfg):
         wing.merge(wl([s * 0.60, s * 2.6, s * 2.75], box_flap))
         wing.merge(wl([s * 2.75, s * 2.85], full))
         wing.merge(wl([s * 2.85, s * 5.05], box_ail))
-        wing.merge(wl([s * 5.05, s * 5.35], full))
-        tip = [g.wing_sec(s * 5.35), g.wing_sec(s * 5.42, 0.97, 0.115, 0.01), g.wing_sec(s * 5.47, 0.86, 0.10, 0.045),
-               g.wing_sec(s * 5.50, 0.55, 0.075, 0.16)]
+        tip = [g.wing_sec(s * 5.05), g.wing_sec(s * 5.35), g.wing_sec(s * 5.42, 0.97, 0.115, 0.01),
+               g.wing_sec(s * 5.47, 0.86, 0.10, 0.045), g.wing_sec(s * 5.50, 0.55, 0.075, 0.16)]
         wing.merge(airfoil_loft(tip, mat=M["plain"], ring=full))
     asm.add(wing.copy(), "Wing", smooth=40)
     wing_bvh = BVHTree.FromPolygons(wing.verts, [(f[0], f[i], f[i + 1]) for f in wing.faces for i in range(1, len(f) - 1)])
@@ -2999,6 +3036,8 @@ def build_plane(cfg):
             zr = g.section(x)[1]
             bot = V((x, s * g.half_width(x, zr - 0.04), zr - 0.04))
             ctrl = V((x, s * 0.585, zr))
+            k = smoothstep(0.0, 0.15, u)                       # vorne aus der Flügelnase herauswachsen
+            bot, ctrl = top.lerp(bot, k), top.lerp(ctrl, k)
             return bot * (1 - v) ** 2 + ctrl * (2 * v * (1 - v)) + top * (v * v)
         return surface_grid(fn, 26, 6, M["plain"], flip=s > 0)
     asm.add(fairing(1).merge(fairing(-1)), "WingFairing", smooth=50)
@@ -3011,8 +3050,7 @@ def build_plane(cfg):
             ax = -ax if ax.y > 0 else ax                     # alle Achsen nach −Y: positiv = Hinterkante runter
             asm.pivot(pk, (h0 + h1) / 2, ax, orient=True,
                       positive="Hinterkante nach unten" + (" (L/R gegensinnig ansteuern)" if kind == "Aileron" else ""))
-            ys = [s * ya, s * 2.6, s * yb] if kind == "Flap" else [s * ya, s * yb]
-            asm.add(wl(ys, ring), pk, pk, smooth=40)
+            asm.add(wl([s * ya, s * yb], ring), pk, pk, smooth=40)    # zwei Sektionen: Scharnierlinie exakt gerade
 
     # Streben, Tankdeckel, Lichter, Pitot
     wd = MeshData()
@@ -3031,10 +3069,10 @@ def build_plane(cfg):
                        M["nav_red"] if s > 0 else M["nav_green"]))
         strobe = on_wing(g.wing_point(s * 5.40, 0.85, 0.0) + V((0, s * 0.2, 0)), -Y_AXIS * s) - Y_AXIS * s * 0.006
         wd.merge(lathe([(0.0, 0.0), (0.012, 0.0), (0.01, 0.015), (0.0, 0.02)], 10, strobe, Y_AXIS * s, M["nav_white"]))
-    for yy in (1.95, 2.18):
-        sec = g.wing_sec(yy)
-        p = sec["le"] + sec["chord_dir"] * 0.004
-        wd.merge(lathe([(0.0, 0.0), (0.045, 0.0), (0.0, 0.004)], 20, p, -sec["chord_dir"], M["landing"]))
+    for yy in (1.95, 2.18):          # Linse folgt der Flügelnase (Lampenausschnitt in der Vorderkante)
+        wd.merge(surface_decal(lambda u, v: g.wing_point(u, 0.03 * (2 * v - 1) ** 2, 1.0 if v >= 0.5 else -1.0),
+                               yy - 0.05, yy + 0.05, lambda u: 0.0, lambda u: 1.0, 6, 12, M["landing"], offset=0.0012,
+                               side=1.0))
     pit = g.wing_point(3.45, 0.18, -1.0)
     wd.merge(tube(fillet_path([pit + V((0, 0, 0.01)), pit - V((0, 0, 0.09)), pit - V((-0.32, 0, 0.09))], 0.03), 0.007, 8,
                   M["chrome"]))
@@ -3155,9 +3193,9 @@ def build_plane(cfg):
     # ------------------------------------------------------------- Innenraum
     it = MeshData()
     it.merge(box((-0.33, 0.0, 0.76), (1.9, 0.80, 0.03), M["floor"]))
-    panel = rounded_poly_2d([(0.80, 0.88), (0.98, 0.88), (0.98, 1.40), (0.86, 1.48), (0.64, 1.48), (0.66, 1.39),
+    panel = rounded_poly_2d([(0.80, 0.88), (0.98, 0.88), (0.98, 1.42), (0.90, 1.565), (0.68, 1.565), (0.68, 1.45),
                              (0.78, 1.35)], 0.03, 3)
-    it.merge(extrude(panel, 0.94, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
+    it.merge(extrude(panel, 0.84, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
     for yy in (0.26, -0.26):
         sm = frame_matrix(V((0.775, yy, 1.16)), Y_AXIS * -1, V((0.1, 0, 0.995)).normalized(), V((-0.995, 0, 0.1)))
         it.merge(box((0, 0, 0), (0.26, 0.17, 0.012), M["screen"], sm))
@@ -3187,12 +3225,13 @@ def build_plane(cfg):
         z0 = zt(x0)
         sm.merge(extrude([(x0, z0 - 0.01), (x0 + 0.11, z0 - 0.01), (x0 + 0.02, z0 + h), (x0 - 0.02, z0 + h)], 0.01,
                          frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["dark"]))
-    sm.merge(cylinder(V((-3.9, 0.0, zt(-3.9) - 0.01)), V((-3.98, 0.0, zt(-3.9) + 0.42)), 0.003, 6, M["dark"]))
+    whip = cylinder(V((-3.9, 0.0, zt(-3.9) - 0.01)), V((-3.98, 0.0, zt(-3.9) + 0.42)), 0.004, 6, M["dark"])
     belly = g.section(-1.0)[2]
     sm.merge(extrude(list(reversed([(-1.0, belly + 0.01), (-0.89, belly + 0.01), (-0.98, belly - 0.16),
                                     (-1.02, belly - 0.16)])), 0.01, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS),
                      M["dark"]))
     asm.add(sm, "Details", mods=[bevel_s], detail=2)
+    asm.add(whip, "Antenna", detail=2, smooth=60)                  # dünn → ohne Bevel (sonst degenerierte Faces)
     lights = MeshData()          # Leuchten bleiben in allen LODs sichtbar (wie die Positionslichter am Flügel)
     lights.merge(lathe([(0.0, 0.0), (0.04, 0.0), (0.035, 0.03), (0.0, 0.035)], 16, vt_sec(2.69)["le"] + V((-0.18, 0, 0)),
                        Z_AXIS, M["nav_red"]))
@@ -3227,7 +3266,10 @@ def build_plane(cfg):
         blade = p.x > 1.98 and p.y * p.y + (p.z - g.prop.z) ** 2 > 0.17 ** 2   # Propellerblätter (feste Stellung) weglassen
         return p.x > -1.8 and abs(p.y) < 0.6 and 0.6 < p.z < 2.3 and not blade
     asm.collide("Cabin", allm, cabin, 64)
-    asm.collide("Tailcone", allm, lambda p: -5.9 < p.x < -1.6 and abs(p.y) < 0.6 and p.z < 1.6)
+    asm.collide("Tailcone", allm, lambda p: -6.05 < p.x < -1.6 and abs(p.y) < 0.6 and p.z < 1.6)
+    body = [o for o in allm if not o.name.endswith(("_Details", "_Antenna"))]     # Antennen nicht einhüllen
+    asm.collide("UpperAft", body, lambda p: -3.4 < p.x < -1.6 and abs(p.y) < 0.6 and p.z >= 1.5, 32)
+    asm.collide("DorsalFin", body, lambda p: -4.75 < p.x < -3.3 and p.z >= 1.5 and abs(p.y) < 0.07, 24)
     asm.collide("Wing_L", allm, lambda p: p.y > 0.6 and p.z > 1.85)
     asm.collide("Wing_R", allm, lambda p: p.y < -0.6 and p.z > 1.85)
     asm.collide("Fin", allm, lambda p: p.x < -4.35 and p.z >= 1.45 and abs(p.y) < 0.12, 32)
@@ -3285,6 +3327,9 @@ def tag_detail(obj):
     attr.data.foreach_set("value", [int(obj.get("detail", 0))] * len(me.polygons))
 
 
+HULL_MAX_VERTS = 128       # ≤ 252 Dreiecke: Limit für konvexe MeshCollider (Unity) und PhysX
+
+
 def _hull_bm(points):
     bm = bmesh.new()
     for p in points:
@@ -3305,38 +3350,62 @@ def convex_hull_obj(name, points, max_verts=48):
     bm = _hull_bm(points)
     exact = [v.co.copy() for v in bm.verts]
     if len(exact) > max_verts:
+        bm.free()
         ctr = sum(exact, V()) / len(exact)
-        cell = 0.02
-        while len(bm.verts) > max_verts and cell < 4.0:
-            grid = {}
-            for p in exact:
-                k = (round(p.x / cell), round(p.y / cell), round(p.z / cell))
-                if k not in grid or (p - ctr).length > (grid[k] - ctr).length:
-                    grid[k] = p
+        target = max_verts
+        while True:
+            # 2. ausdünnen
+            cell, simp = 0.02, _hull_bm(exact)
+            while len(simp.verts) > target and cell < 4.0:
+                grid = {}
+                for p in exact:
+                    k = (round(p.x / cell), round(p.y / cell), round(p.z / cell))
+                    if k not in grid or (p - ctr).length > (grid[k] - ctr).length:
+                        grid[k] = p
+                simp.free()
+                simp = _hull_bm(list(grid.values()))
+                cell *= 1.35
+            # 3. Ebenen (zuerst die 6 Achsen-Stützebenen gegen Spitzen) bis an die exakte Hülle schieben
+            planes = [(V(d), max(V(d).dot(p) for p in exact))
+                      for d in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
+            for f in simp.faces:
+                n = f.normal.copy()
+                if f.calc_area() > 1e-9 and n.length > 0.5 and not any(n.dot(m) > 0.9995 for m, _ in planes):
+                    planes.append((n, max(n.dot(p) for p in exact)))
+            simp.free()
+            lo = V([min(p[i] for p in exact) for i in range(3)]) - V((1, 1, 1))
+            hi = V([max(p[i] for p in exact) for i in range(3)]) + V((1, 1, 1))
+            bm = bmesh.new()
+            bmesh.ops.create_cube(bm, size=1.0)
+            for v in bm.verts:
+                v.co = V([lerp(lo[i], hi[i], v.co[i] + 0.5) for i in range(3)])
+            for n, d in planes:
+                bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-7,
+                                       plane_co=n * d, plane_no=n, clear_outer=True)
+                boundary = [e for e in bm.edges if e.is_boundary]
+                if boundary:
+                    bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
+            pts = [v.co.copy() for v in bm.verts]
             bm.free()
-            bm = _hull_bm(list(grid.values()))
-            cell *= 1.35
-        planes = []
-        for f in bm.faces:
-            n = f.normal.copy()
-            if n.length > 0.5 and not any(n.dot(m) > 0.9995 for m, _ in planes):
-                planes.append((n, max(n.dot(p) for p in exact)))
-        bm.free()
-        lo = V([min(p[i] for p in exact) for i in range(3)]) - V((1, 1, 1))
-        hi = V([max(p[i] for p in exact) for i in range(3)]) + V((1, 1, 1))
-        bm = bmesh.new()
-        bmesh.ops.create_cube(bm, size=1.0)
-        for v in bm.verts:
-            v.co = V([lerp(lo[i], hi[i], v.co[i] + 0.5) for i in range(3)])
-        for n, d in planes:
-            bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-7,
-                                   plane_co=n * d, plane_no=n, clear_outer=True)
-            boundary = [e for e in bm.edges if e.is_boundary]
-            if boundary:
-                bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
-        pts = [v.co.copy() for v in bm.verts]
-        bm.free()
-        bm = _hull_bm(pts)
+            bm = _hull_bm(pts)
+            # Sicherheitsnetz: Punkte, die numerisch doch außerhalb liegen, aufnehmen
+            hc = sum((v.co for v in bm.verts), V()) / max(len(bm.verts), 1)
+            fpl = []
+            for f in bm.faces:
+                if f.calc_area() < 1e-9:
+                    continue
+                n, d = f.normal.copy(), f.normal.dot(f.verts[0].co)
+                if n.dot(hc) - d > 0:
+                    n, d = -n, -d
+                fpl.append((n, d))
+            extra = [p for p in exact if max(n.dot(p) - d for n, d in fpl) > 1e-5]
+            if extra:
+                bm.free()
+                bm = _hull_bm(pts + extra)
+            if len(bm.verts) <= HULL_MAX_VERTS or target <= 8:
+                break
+            bm.free()
+            target -= 4
     bmesh.ops.triangulate(bm, faces=bm.faces[:])
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
@@ -3632,7 +3701,18 @@ def bake_textures(asm, objs, cfg, tex_dir):
     for m in mats:
         node = m.node_tree.nodes.new("ShaderNodeTexImage")
         node.name = "_bake_target"
-    select_only(objs)
+    # Alle Teile als EIN temporäres Objekt backen: Blender wendet den Bake-Rand pro Objekt an – bei
+    # mehreren Objekten überschreibt der Rand eines Teils sonst bereits gebackene Texel des nächsten.
+    copies = []
+    for o in objs:
+        c = o.copy()
+        c.data = o.data.copy()
+        asm.coll.objects.link(c)
+        copies.append(c)
+    tmp = join_objects(copies, "_bake_tmp")
+    for o in objs:
+        o.hide_render = True           # Originale verdecken sonst die AO der deckungsgleichen Kopie
+    select_only([tmp])
     imgs = {}
     for key, kind, socket in channels:
         t = time.time()
@@ -3655,6 +3735,11 @@ def bake_textures(asm, objs, cfg, tex_dir):
         log(f"  bake {key:6s} {res}px  {time.time() - t:5.1f}s")
     for m in mats:
         m.node_tree.nodes.remove(m.node_tree.nodes["_bake_target"])
+    tmp_me = tmp.data
+    bpy.data.objects.remove(tmp, do_unlink=True)
+    bpy.data.meshes.remove(tmp_me)
+    for o in objs:
+        o.hide_render = False
 
     px = {k: _pixels(v) for k, v in imgs.items()}
     one = np.ones(px["ao"].shape[:2], dtype=np.float32)
@@ -3869,7 +3954,7 @@ def finalize(asm, cfg, out_dir):
     smart_uv([o for o in meshes if not o.get("uv_ready")])
     parts = join_by_pivot(asm, meshes)
     opaque = [o for o in parts if not is_glass(o)]
-    pack_atlas(opaque, 0.004 if cfg.bake >= 2048 else 0.006)
+    pack_atlas(opaque, 0.003 if cfg.bake >= 2048 else 0.004 if cfg.bake >= 1024 else 0.006)
     textures = {}
     if cfg.bake > 0:
         log(f"{short}: Textur-Bake ({cfg.bake}px) …")
@@ -3885,8 +3970,12 @@ def finalize(asm, cfg, out_dir):
     for L, objs in lods.items():
         suffix = "" if L == 0 else f"_LOD{L}"
         if "fbx" in cfg.formats:
-            export_fbx(base + suffix + ".fbx", hierarchy + objs + (hulls if L == 0 else []), tgt)
+            ucx = hulls if (L == 0 and cfg.target == "unreal") else []      # UCX ist eine Unreal-Konvention
+            export_fbx(base + suffix + ".fbx", hierarchy + objs + ucx, tgt)
             files.append(base + suffix + ".fbx")
+            if L == 0 and hulls and cfg.target != "unreal":
+                export_fbx(base + "_Collision.fbx", [asm.root] + hulls, tgt)
+                files.append(base + "_Collision.fbx")
         if "glb" in cfg.formats:
             export_glb(base + suffix + ".glb", hierarchy + objs)
             files.append(base + suffix + ".glb")
@@ -3911,7 +4000,7 @@ def finalize(asm, cfg, out_dir):
         path = os.path.join(out_dir, f"{asm.name}.blend")
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(path), relative_remap=True, compress=True)
         files.append(path)
-    pts = [o.matrix_world @ V(c) for o in lods[0] for c in o.bound_box]
+    pts = [o.matrix_world @ v.co for o in lods[0] for v in o.data.vertices]
     size = [max(p[i] for p in pts) - min(p[i] for p in pts) for i in range(3)]
     report = dict(
         asset=asm.name, target=cfg.target, forward_axis="+X" if tgt["rot"] == 0 else "-Y (Blender)",
@@ -3940,7 +4029,7 @@ def finalize(asm, cfg, out_dir):
 def parse_args(argv):
     p = argparse.ArgumentParser(
         prog="vehicle_generator.py",
-        description="Prozedurale, game-ready 3D-Modelle: Enduro und Hubschrauber (Blender/bpy).")
+        description="Prozedurale, game-ready 3D-Modelle: Enduro, Hubschrauber und Flugzeug (Blender/bpy).")
     p.add_argument("--vehicle", choices=["enduro", "heli", "plane", "all"], default="all")
     p.add_argument("--out", default="export", help="Ausgabeordner (Standard: ./export)")
     p.add_argument("--target", choices=sorted(TARGETS), default="unreal",

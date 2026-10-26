@@ -11,7 +11,7 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 
 | Flugzeug (einmotoriger Hochdecker) | |
 |---|---|
-| ![Flugzeug](docs/plane_34.jpg) | ![Flugzeug Seite](docs/plane_side.jpg) |
+| ![Flugzeug](docs/plane_34.jpg) | ![Flugzeug Heck](docs/plane_rear.jpg) |
 
 Die Vorschaubilder sind mit `--preview` direkt aus dem Script gerendert (Cycles).
 
@@ -63,17 +63,17 @@ Panel-Fugen und Kennzeichen (Mesh-Decal). Lackierungen: `classic`, `trainer`, `b
 | Texturen | Bake aller prozeduralen Materialien in **BaseColor, Normal (OpenGL + DirectX für Unreal), ORM (AO/Roughness/Metallic), Emissive**; für Unity zusätzlich `MetallicSmoothness` und HDRP-`MaskMap` |
 | Material | Ein Engine-Material pro Fahrzeug (+ Glas) |
 | LODs | LOD0–LOD3 (50 % / 25 % / 12 %), Kleinteile (Speichen, Kette, Leitungen, Decals …) werden stufenweise entfernt |
-| Kollision | Konvexe `UCX_*`-Hüllen (Unreal-Konvention), max. 48 Vertices |
-| Sockets | `SOCKET_*`-Empties: Fahrer-/Pilotensitz, Fußrasten, Griffe, Auspuff, Scheinwerfer, Winde, Rotornabe … |
+| Kollision | Konvexe `UCX_*`-Hüllen (Unreal-Konvention), konservativ vereinfacht (umschließen die Geometrie vollständig), max. 128 Vertices (≤ 252 Dreiecke); für andere Ziele separat als `SM_*_Collision.fbx` |
+| Sockets | `SOCKET_*`-Empties: Fahrer-/Pilotensitz, Fußrasten, Griffe, Auspuff, Scheinwerfer, Winde, Rotornabe … – lokale +X-Achse = Blick-/Austrittsrichtung (`sockets.*.forward` im Report) |
 | Export | FBX, GLB (glTF 2.0) und `.blend` + JSON-Report mit Polycounts, Pivots, Sockets, Dateien |
 
-Gemessene Polycounts (Standardeinstellungen, Dreiecke; Heli mit `police`-Lackierung):
+Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 
 | Asset | LOD0 | LOD1 | LOD2 | LOD3 |
 |---|---|---|---|---|
-| Enduro | 137 958 | 67 839 | 31 172 | 14 848 |
-| Hubschrauber | 72 222 | 36 107 | 17 658 | 7 477 |
-| Flugzeug | 64 930 | 32 463 | 16 099 | 6 151 |
+| Enduro | 137 978 | 67 850 | 31 178 | 14 848 |
+| Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
+| Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 
 ---
 
@@ -127,14 +127,15 @@ Anschauen und Weiterbearbeiten.
 | `--seed N` | `7` | Variation (Stollenmuster, Startnummer, Kennzeichen) |
 | `--enduro-name`, `--heli-name`, `--plane-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane` | Asset-Namen |
 
-Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 1,5 min (Enduro), 3 min (Heli) und
-4 min (Flugzeug), der größte Teil ist der Textur-Bake. Mit `--bake 0` dauert ein Fahrzeug nur wenige Sekunden.
+Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 1 min (Enduro), 1,5 min (Heli) und
+2 min (Flugzeug), alle drei zusammen rund 4,5 min; der größte Teil ist der Textur-Bake. Mit `--bake 0` dauert ein Fahrzeug nur wenige Sekunden.
 
 ### Ausgabe
 
 ```
 export/
-├── SM_Enduro.fbx / .glb          LOD0 mit Pivot-Hierarchie, Sockets, UCX-Kollision (FBX)
+├── SM_Enduro.fbx / .glb          LOD0 mit Pivot-Hierarchie, Sockets, UCX-Kollision (FBX, nur --target unreal)
+├── SM_Enduro_Collision.fbx       Kollisionshüllen separat (alle anderen Ziele)
 ├── SM_Enduro_LOD1..3.fbx / .glb
 ├── SK_Enduro.fbx / .glb          (--rig) Skeletal Mesh + Skelett
 ├── SM_Enduro.blend               bearbeitbare Szene
@@ -158,17 +159,29 @@ export/
   `Steering`, `ForkLower`, `WheelFront`, `Swingarm`, `WheelRear` bzw. `MainRotor`, `Blade_1..n`,
   `TailRotor`, `Door_*`, `FLIR` bzw. `Propeller`, `Aileron_L/R`, `Flap_L/R`, `Elevator`, `Rudder`,
   `NoseGear`, `WheelNose`, `WheelMain_L/R`, `Door_L/R`. Physics Asset in Unreal erzeugen.
-  Ruder und Klappen drehen um die Y-Achse ihres Knochens (= Scharnierlinie).
 - Material: `T_*_Normal_DX.png` als Normal Map, `T_*_ORM.png` mit *sRGB aus*.
 - LODs: `SM_*_LOD1..3.fbx` im Static-Mesh-Editor als LOD importieren.
 
+**Drehachsen und Vorzeichen** (alle Engines)
+- Jeder Knochen in `SK_*` und jeder Pivot in `SM_*.fbx` dreht um seine **lokale +Y-Achse**; bei schrägen
+  Scharnieren (Türen, Ruder, Klappen, Lenkkopf, Rotorblätter) ist das Pivot entsprechend gedreht.
+  In `SM_*.glb` wandelt der glTF-Export die Achsen nach Y-oben um – dort ist die Drehachse der
+  Pivot-Knoten die **lokale −Z-Achse** (Knochen im `SK_*.glb` bleiben +Y).
+- Vorzeichen (rechtshändig wie in Blender/FBX, Details unter `pivots.*.positive` im JSON-Report):
+  Klappen, Querruder und Höhenruder positiv = Hinterkante nach unten (Querruder L/R gegensinnig
+  ansteuern), Seitenruder positiv = Hinterkante nach rechts, Türen öffnen nach außen, Räder rollen
+  vorwärts. In linkshändigen Engines (Unity) ggf. das Vorzeichen umdrehen.
+
 **Unity** (`--target unity`)
 - FBX importieren; die Front zeigt nach +Z (bei Bedarf *Bake Axis Conversion* aktivieren).
+- Kollision: `SM_*_Collision.fbx` importieren, je Hülle einen *MeshCollider* (Convex) anlegen und den
+  MeshRenderer entfernen.
 - URP/Built-in: `T_*_MetallicSmoothness.png` + `T_*_Normal.png`; HDRP: `T_*_MaskMap.png`.
 - LODs per *LOD Group* mit den `_LOD1..3`-Dateien zusammenstellen.
 
 **Godot / Web / andere** (`--target godot`)
-- `*.glb` direkt verwenden – Materialien, Texturen (inkl. AO) und Hierarchie sind enthalten.
+- `*.glb` direkt verwenden – Materialien, Texturen (inkl. AO) und Hierarchie sind enthalten
+  (Drehachse der Pivot-Knoten: lokale −Z, siehe oben).
 - Glas wird als `KHR_materials_transmission` exportiert.
 
 ## Anpassen & Erweitern
