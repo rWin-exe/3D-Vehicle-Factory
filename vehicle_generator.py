@@ -15,6 +15,8 @@ Prozeduraler Generator für game-ready 3D-Fahrzeugmodelle auf Basis von Blender 
   * ``offroad`` – 5-türiger Geländewagen (Leiterrahmen, Starrachsen mit Verschränkung, lenkbare
     Achsschenkel, teleskopierende Federbeine, Motorraum mit Reihen-Sechszylinder-Turbodiesel,
     AT-Reifen 265/75 R16, Seilwinde, Schnorchel, Dachträger, Reserverad an der Hecktür …)
+  * ``boat``   – Bowrider-Motorboot (Tiefen-V-Rumpf mit Spritzleisten, Cockpit mit Teakdeck, gebogene
+    Windschutzscheibe mit Durchgangstür, Außenborder mit Kipp-, Lenk- und Propeller-Pivot, Badeplattformen …)
 
 Game-Ready-Pipeline:
   reale Maße (Meter) · saubere Pivots für alle beweglichen Teile (inkl. Aim-Pivots und geprüften
@@ -4180,6 +4182,609 @@ def build_offroad(cfg):
 
 
 # =============================================================================
+# 8d) Motorboot (Bowrider ~6,4 m, Tiefen-V-Rumpf, Außenborder ~200 PS)
+# =============================================================================
+
+BOAT_LIVERIES = {
+    "navy": dict(top=(0.015, 0.035, 0.12), stripe=(0.45, 0.02, 0.015), bottom=(0.80, 0.80, 0.78),
+                 accent=(0.015, 0.035, 0.12), cowl=(0.02, 0.02, 0.022)),
+    "white": dict(top=(0.80, 0.80, 0.78), stripe=(0.01, 0.10, 0.36), bottom=(0.80, 0.80, 0.78),
+                  accent=(0.01, 0.10, 0.36), cowl=(0.80, 0.80, 0.78)),
+    "red": dict(top=(0.42, 0.02, 0.015), stripe=(0.02, 0.02, 0.022), bottom=(0.80, 0.80, 0.78),
+                accent=(0.42, 0.02, 0.015), cowl=(0.02, 0.02, 0.022)),
+    "graphite": dict(top=(0.05, 0.055, 0.06), stripe=(0.85, 0.32, 0.02), bottom=(0.025, 0.025, 0.03),
+                     accent=(0.85, 0.32, 0.02), cowl=(0.02, 0.02, 0.022)),
+}
+
+
+def mat_teak(name):
+    """Teak-Laufdeck: Planken längs (Maserung über gestreckte Noise), dunkle Fugen alle ~6,5 cm."""
+    m, nd = new_mat(name)
+    bsdf = _principled(nd)
+    co = nd.coords("Object")
+    wave = nd.new("ShaderNodeTexWave", wave_type="BANDS", bands_direction="Y")
+    wave.inputs["Scale"].default_value = 4.8
+    nd.link(co, wave.inputs["Vector"])
+    caulk = nd.map_range(wave.outputs["Fac"], 0.965, 0.985)
+    grain = nd.noise(nd.coords("Object", (1.5, 40.0, 40.0)), 3.0, 4.0, 0.6)
+    wood = nd.mix_color(grain, (0.30, 0.17, 0.075), (0.20, 0.11, 0.045))
+    nd.link(nd.mix_color(caulk, wood, (0.02, 0.02, 0.02)), bsdf.inputs["Base Color"])
+    nd.link(nd.map_range(caulk, 0.0, 1.0, 0.62, 0.45), bsdf.inputs["Roughness"])
+    b = nd.new("ShaderNodeBump")
+    b.inputs["Strength"].default_value = 0.4
+    b.inputs["Distance"].default_value = 0.002
+    nd.link(nd.math("MULTIPLY", caulk, -1.0), b.inputs["Height"])
+    nd.link(b.outputs["Normal"], bsdf.inputs["Normal"])
+    m.diffuse_color = (0.28, 0.16, 0.07, 1.0)
+    return m
+
+
+def boat_materials(prefix, liv, dirt):
+    P = f"M_{prefix}_"
+    bands = [(-9.0, 0.03, liv["bottom"]), (0.03, 0.085, liv["stripe"]), (0.105, 0.12, liv["stripe"])]  # Wasserpass
+    dark_top = sum(liv["top"]) < 0.9
+    return {
+        "hull": mat_paint(P + "Hull", liv["top"], 0.22, coat=0.8, livery=bands, dirt=dirt * 0.4, dirt_z=(-0.35, 0.05)),
+        "deck": mat_plastic(P + "Deck", (0.82, 0.82, 0.80), 0.45, grain=0.25),           # rutschfest strukturiert
+        "liner": mat_paint(P + "Liner", (0.80, 0.80, 0.78), 0.28, coat=0.4),
+        "vinyl": uv_weight(mat_plastic(P + "Vinyl", (0.83, 0.82, 0.77), 0.42, grain=0.12), 0.6),
+        "accent": uv_weight(mat_plastic(P + "VinylAccent", liv["accent"], 0.42, grain=0.12), 0.6),
+        "teak": uv_weight(mat_teak(P + "Teak"), 0.8),
+        "steel": mat_metal(P + "Stainless", (0.80, 0.80, 0.82), 0.12),
+        "black": mat_plastic(P + "PlasticBlack", (0.02, 0.02, 0.022), 0.5, grain=0.1),
+        "rubber": mat_rubber(P + "Rubber", (0.015, 0.015, 0.015), 0.7),
+        "glass": mat_glass(P + "Windshield", (0.45, 0.50, 0.52)),
+        "lens": mat_glass(P + "Lens", (0.95, 0.95, 0.95)),
+        "red": mat_emit(P + "NavRed", (1.0, 0.03, 0.02), 4.0, base=(0.5, 0.01, 0.01)),
+        "green": mat_emit(P + "NavGreen", (0.02, 1.0, 0.15), 4.0, base=(0.01, 0.4, 0.05)),
+        "white": mat_emit(P + "NavWhite", (1.0, 0.97, 0.9), 4.0),
+        "panel": uv_weight(mat_plastic(P + "Dash", (0.025, 0.025, 0.028), 0.55), 0.5),
+        "screen": uv_weight(mat_emit(P + "Screen", (0.10, 0.22, 0.32), 1.5, base=(0.01, 0.01, 0.012)), 0.5),
+        "cowl": mat_paint(P + "Cowling", liv["cowl"], 0.25, coat=0.7),
+        "motor": mat_paint(P + "LowerUnit", (0.03, 0.03, 0.033), 0.35, coat=0.3, dirt=dirt * 0.5, dirt_z=(-0.7, -0.2)),
+        "prop": mat_metal(P + "Propeller", (0.75, 0.75, 0.77), 0.18),
+        "zinc": mat_metal(P + "Anode", (0.45, 0.45, 0.46), 0.6),
+        "decal": uv_weight(mat_paint(P + "Decal", (0.85, 0.85, 0.83) if dark_top else (0.02, 0.02, 0.022), 0.3), 2.0),
+        "cowl_decal": uv_weight(mat_paint(P + "CowlDecal", (0.75, 0.75, 0.76) if sum(liv["cowl"]) < 0.9
+                                          else (0.02, 0.02, 0.022), 0.3), 2.0),
+    }
+
+
+class BoatGeo:
+    """Bowrider ~6,4 m (Länge über alles mit Außenborder ≈ 7,1 m), Breite 2,42 m, Aufkimmung 20° am Spiegel.
+    Ursprung mittschiffs auf der Konstruktionswasserlinie (z = 0) – das Boot schwimmt, wenn man es mit dem
+    Ursprung auf die Wasseroberfläche setzt; Kiel und Unterwasserschiff liegen darunter."""
+
+    X_TR, X_BOW = -3.10, 3.25
+    KEEL = [(-3.10, -0.30), (0.0, -0.30), (1.5, -0.24), (2.4, -0.10), (2.9, 0.12), (3.15, 0.45), (3.25, 0.82)]
+    CHINE_Z = [(-3.10, 0.03), (0.0, 0.11), (1.5, 0.22), (2.4, 0.33), (2.9, 0.43), (3.15, 0.58), (3.25, 0.84)]
+    CHINE_W = [(-3.10, 0.92), (-1.0, 0.98), (0.5, 0.95), (1.5, 0.82), (2.4, 0.55), (2.9, 0.27), (3.15, 0.09),
+               (3.25, 0.01)]
+    SHEER_Z = [(-3.10, 0.76), (-1.0, 0.78), (0.5, 0.83), (1.5, 0.90), (2.4, 0.97), (2.9, 1.01), (3.15, 1.03),
+               (3.25, 1.04)]
+    SHEER_W = [(-3.10, 1.12), (-1.0, 1.20), (0.0, 1.21), (1.0, 1.15), (1.8, 1.00), (2.4, 0.78), (2.9, 0.46),
+               (3.15, 0.19), (3.25, 0.01)]
+
+    def __init__(self):
+        def tab(t):
+            return Pchip([p[0] for p in t], [p[1] for p in t])
+        self.zk, self.zc, self.wc, self.zs, self.ws = (tab(t) for t in (self.KEEL, self.CHINE_Z, self.CHINE_W,
+                                                                         self.SHEER_Z, self.SHEER_W))
+        self.crown, self.shell = 0.04, 0.03
+        self.gunwale = 0.17                          # Breite des Seitendecks neben dem Cockpit
+        self.x_cp0, self.x_cp1 = -2.45, 2.35         # Cockpit von achtern bis vorn
+        self.x_step, self.z_sole, self.z_sole_bow = 1.20, 0.10, 0.22
+        self.well = (-2.58, 0.40, 0.335)             # Motorschacht: Vorderwand x, halbe Breite, Boden (25"-Schaft)
+        self.tilt = V((-3.24, 0.0, 0.30))            # Kipprohr des Außenborders
+        self.steer = V((-3.34, 0.0, 0.30))           # Lenkachse (Schwenkrohr)
+        self.prop = V((-3.90, 0.0, -0.42))
+
+    def clampx(self, x):
+        return clamp(x, self.X_TR, self.X_BOW)
+
+    def sheer(self, x):
+        return self.zs(self.clampx(x))
+
+    def half(self, x):
+        """Halber Spant (y ≥ 0, z) von der Decksmitte über Deckskante, Bordwand, Kimm und Boden zum Kiel."""
+        zk, zc, wc, zs, ws = self.zk(x), self.zc(x), max(self.wc(x), 0.004), self.zs(x), max(self.ws(x), 0.005)
+        bow = smoothstep(1.4, 3.1, x)
+        pts = [(0.0, zs + self.crown)]
+        pts += [(ws * f, zs + self.crown * (1.0 - f * f)) for f in (0.3, 0.6, 0.85, 0.96)]
+        pts += [(ws, zs), (ws * 0.997, zs - 0.025)]
+        flare = lerp(1.15, 2.2, bow)                 # vorn stark ausgestellte Bordwand
+        for t in (0.85, 0.65, 0.45, 0.25, 0.1):
+            pts.append((wc + (ws * 0.997 - wc) * t ** flare, zc + (zs - 0.025 - zc) * t))
+        wf = lerp(0.07, 0.015, bow)                  # Kimmkante, leicht nach unten geneigt (Spritzabweiser)
+        pts += [(wc, zc), (max(wc - wf, wc * 0.6), zc - 0.012)]
+        yi, zi = pts[-1]
+        for f in (0.75, 0.5, 0.25):
+            pts.append((yi * f, zk + (zi - zk) * f))
+        pts.append((0.0, zk))
+        return pts
+
+    def ring(self, x):
+        h = self.half(x)
+        return [V((x, -y, z)) for y, z in h] + [V((x, y, z)) for y, z in reversed(h[1:-1])]
+
+    def hull_y(self, x, z):
+        """Halbe Außenbreite des Rumpfs auf Höhe z (zwischen Kiel und Deckskante)."""
+        x = self.clampx(x)
+        h = self.half(x)[5:]                          # ab Deckskante abwärts (z fällt monoton)
+        if z >= h[0][1]:
+            return h[0][0]
+        for (y0, z0), (y1, z1) in zip(h, h[1:]):
+            if z1 <= z <= z0:
+                return lerp(y1, y0, (z - z1) / max(z0 - z1, 1e-9))
+        return 0.0
+
+    def cockpit_w(self, x):
+        return max(self.ws(self.clampx(x)) - self.gunwale, 0.05)
+
+    def cockpit_outline(self):
+        """Draufsicht des Cockpit-Ausschnitts (CCW): gerade Achterkante, vorn halbelliptisch geschlossen."""
+        x0, x1 = self.x_cp0, self.x_cp1 - 0.22
+        xs = [lerp(x0 + 0.06, x1, i / 28) for i in range(29)]
+        w1 = self.cockpit_w(x1)
+        right = [(x, -self.cockpit_w(x)) for x in xs]
+        arc = [(x1 + 0.22 * math.sin(math.pi * k / 12), -w1 * math.cos(math.pi * k / 12)) for k in range(1, 12)]
+        left = [(x, self.cockpit_w(x)) for x in reversed(xs)]
+        w0 = self.cockpit_w(x0)
+        aft = [(x0, w0 - 0.06), (x0, -(w0 - 0.06))]
+        return ensure_ccw([V(p) for p in right + arc + left + aft])
+
+    def sole_z(self, x):
+        return self.z_sole if x < self.x_step else self.z_sole_bow
+
+
+def clip_x(poly, x, keep_below):
+    """Polygon (Draufsicht) an der Geraden x = const abschneiden (Sutherland–Hodgman)."""
+    def inside(p):
+        return p.x <= x if keep_below else p.x >= x
+    out = []
+    for a, b in zip(poly, poly[1:] + poly[:1]):
+        if inside(a):
+            out.append(a)
+        if inside(a) != inside(b):
+            t = (x - a.x) / (b.x - a.x)
+            out.append(a.lerp(b, t))
+    return out
+
+
+def boat_outboard(g, M):
+    """Außenborder (V6, ~200 PS, 25"-Schaft): Teile je Pivot. Gibt dict(tilt, steer, prop, decal) zurück."""
+    tilt, steer, prop = MeshData(), MeshData(), MeshData()
+    s = g.steer
+    tilt.merge(cylinder(V((g.tilt.x, -0.17, g.tilt.z)), V((g.tilt.x, 0.17, g.tilt.z)), 0.022, 14, M["steel"]))
+    tilt.merge(box((g.tilt.x - 0.05, 0.0, 0.25), (0.14, 0.20, 0.16), M["motor"]))           # Schwenklager
+    tilt.merge(cylinder(V((s.x, 0.0, 0.02)), V((s.x, 0.0, 0.56)), 0.036, 16, M["motor"]))     # Schwenkrohr
+    # Motorhaube (oben) und Unterwanne, Schaft als Profil, Antikavitationsplatte, Getriebe, Skeg
+    up = [dict(x=-4.05, hw=0.22, zt=1.03, zb=0.60, et=3.0, eb=6.0), dict(x=-3.95, hw=0.27, zt=1.10, zb=0.60, et=3.0, eb=6.0),
+          dict(x=-3.70, hw=0.285, zt=1.14, zb=0.60, et=3.2, eb=6.0), dict(x=-3.45, hw=0.27, zt=1.10, zb=0.60, et=3.2, eb=6.0),
+          dict(x=-3.33, hw=0.20, zt=0.99, zb=0.60, et=3.0, eb=6.0)]
+    cowl = loft_stations(up, cosine_spacing(-4.05, -3.33, 20, 0.6, 0.6), 40, "ngon", "ngon", M["cowl"])
+    steer.merge(cowl)
+    pan = [dict(x=-4.00, hw=0.25, zt=0.65, zb=0.44, et=5.0, eb=4.0), dict(x=-3.70, hw=0.275, zt=0.66, zb=0.42, et=5.0, eb=4.0),
+           dict(x=-3.37, hw=0.21, zt=0.65, zb=0.45, et=5.0, eb=4.0)]
+    steer.merge(loft_stations(pan, cosine_spacing(-4.00, -3.37, 12, 0.5, 0.5), 32, "ngon", "ngon", M["motor"]))
+    secs = []
+    for z, x_le, c, t in ((0.46, -3.36, 0.34, 0.20), (0.15, -3.37, 0.31, 0.18), (-0.20, -3.38, 0.30, 0.16),
+                          (-0.33, -3.39, 0.36, 0.13), (-0.44, -3.40, 0.40, 0.10)):
+        secs.append(dict(le=V((x_le, 0.0, z)), chord_dir=-X_AXIS, thick_dir=Y_AXIS, chord=c, t=t))
+    steer.merge(airfoil_loft(secs, 20, M["motor"]))
+    plate = rounded_poly_2d([(-3.38, -0.17), (-3.86, -0.14), (-3.86, 0.14), (-3.38, 0.17)], [0.06, 0.04, 0.04, 0.06], 3)
+    steer.merge(prism_z(plate, -0.285, -0.270, M["motor"]))
+    steer.merge(lathe([(0.0, 0.0), (0.035, 0.012), (0.06, 0.05), (0.072, 0.12), (0.072, 0.36), (0.064, 0.44),
+                       (0.052, 0.48)], 28, V((-3.38, 0.0, g.prop.z)), -X_AXIS, M["motor"]))   # Getriebegehäuse
+    steer.merge(prism_y([(-3.60, -0.47), (-3.84, -0.47), (-3.82, -0.66), (-3.70, -0.66)], -0.011, 0.011, M["motor"]))
+    steer.merge(box((-3.62, 0.0, -0.293), (0.12, 0.05, 0.016), M["zinc"]))                       # Anode
+    for side in (1, -1):                                                                            # Kühlwassereinlass
+        steer.merge(box((-3.47, side * 0.052, -0.36), (0.07, 0.006, 0.04), M["black"]))
+    # Propeller: Nabe mit Abgasaustritt, drei breite Blätter (Steigung 19")
+    p = g.prop
+    prop.merge(lathe([(0.052, 0.0), (0.056, 0.02), (0.056, 0.10), (0.046, 0.14), (0.028, 0.155)], 28, V((-3.86, 0.0, p.z)),
+                     -X_AXIS, M["prop"]))
+    et = X_AXIS.cross(Z_AXIS)                         # Drehrichtung im Uhrzeigersinn (von hinten gesehen)
+    blade_secs = []
+    R, pitch = 0.18, 0.48
+    for r in cosine_spacing(0.052, R, 12, 0.2, 0.9):
+        f = (r - 0.052) / (R - 0.052)
+        beta = math.atan(pitch / (TAU * r))
+        c = lerp(0.09, 0.16, smoothstep(0.0, 0.55, f)) * math.sqrt(max(0.1, 1.0 - smoothstep(0.75, 1.0, f) ** 2))
+        cd = -math.cos(beta) * et - math.sin(beta) * X_AXIS
+        td = math.cos(beta) * X_AXIS - math.sin(beta) * et
+        t = lerp(0.16, 0.05, f)
+        skew = -et * (0.03 * f * f)                   # Blattspitzen nach hinten gebogen (Skew)
+        blade_secs.append(dict(le=p + V((-0.07, 0.0, 0.0)) + Z_AXIS * r + skew - cd * (0.4 * c), chord_dir=cd,
+                               thick_dir=td, chord=c, t=t, ring=airfoil_ring(12, t, 0.03)))
+    blade = airfoil_loft(blade_secs, mat=M["prop"])
+    for k in range(3):
+        rot = Matrix.Translation(p) @ Matrix.Rotation(TAU * k / 3, 4, "X") @ Matrix.Translation(-p)
+        prop.merge(blade.copy().transform(rot))
+    # Schriftzug auf beiden Haubenseiten
+    decal = MeshData()
+    for side in (1, -1):
+        fm = frame_matrix(V((-3.69, side * 0.40, 0.90)), -X_AXIS * side, Z_AXIS, Y_AXIS * side)
+        decal.merge(project_onto(text_md("V6 200", 0.075, fm, M["cowl_decal"], bold=0.02), cowl, -Y_AXIS * side,
+                                 max_edge=0.02))
+    return dict(tilt=tilt, steer=steer, prop=prop, decal=decal)
+
+
+def build_boat(cfg):
+    g = BoatGeo()
+    liv = BOAT_LIVERIES.get(cfg.boat_color, BOAT_LIVERIES["navy"])
+    name = cfg.boat_name
+    M = boat_materials(name, liv, cfg.dirt)
+    asm = Assembly(name)
+    asm.ao_distance = 0.3
+    bevel_s = ("bevel", dict(width=0.0015, segments=1, angle=40))
+    bevel = ("bevel", dict(width=0.006, segments=2, angle=35))
+    rng = random.Random(cfg.seed)
+    st = g.shell
+
+    # ------------------------------------------------------------- Rumpf + Deck: geschlossener Loft → Schale
+    rings = [g.ring(x) for x in cosine_spacing(g.X_TR, g.X_BOW, 64, 0.3, 0.9)]
+    # Spiegel als Dreiecksfächer: ein konkaves N-Eck bringt den exakten Boolean nach dem Solidify durcheinander
+    hull_md = grid_rings(rings, True, sum(rings[0], V()) / len(rings[0]), "ngon", M["hull"])
+    hull_md.recalc = True
+    cols = len(rings[0])
+    deck_j = set(range(5)) | set(range(cols - 5, cols))                     # Segmente Decksmitte ↔ Deckskante
+    for i in range((len(rings) - 1) * cols):
+        if i % cols in deck_j:
+            hull_md.mats[i] = M["deck"]
+    body = hull_md.to_object(f"{name}_Hull", smooth=35)
+    asm.coll.objects.link(body)
+    for _ in range(2):
+        body.data.materials.append(M["liner"])     # Innenseite von Deck und Rumpf → Liner (Slot +2)
+    add_modifier(body, "solidify", thickness=st, material_offset=2)
+    apply_modifiers(body)
+    idx = [0] * len(body.data.polygons)              # beide Innenseiten auf einen Liner-Slot
+    body.data.polygons.foreach_get("material_index", idx)
+    body.data.polygons.foreach_set("material_index", [min(i, 2) for i in idx])
+    body.data.materials.pop()
+    src = body.data.copy()
+    outline = g.cockpit_outline()
+    wx, wy, wz = g.well
+    # Cockpit-Ausschnitt nur durch das Deck: Unterkante folgt der Deckslinie (vorn ist die ausgestellte
+    # Bordwand weiter unten schmaler als der Ausschnitt – ein flaches Prisma würde die Außenhaut lochen)
+    cut = grid_rings([[V((p.x, p.y, g.sheer(p.x) - 0.07)) for p in outline], [V((p.x, p.y, 2.0)) for p in outline]],
+                     True, "ngon", "ngon", M["deck"])
+    cut.recalc = True
+    notch = prism_x(rounded_poly_2d([(-wy, wz), (wy, wz), (wy, 1.4), (-wy, 1.4)], [0.06, 0.06, 0.0, 0.0], 3),
+                    g.X_TR - 0.2, wx, M["deck"])
+    # einzeln schneiden: mit einer Cutter-Sammlung übernimmt der exakte Boolean hier die Unterseite des
+    # Cockpit-Cutters als Fläche (ein 9-m²-„Deckel“ über dem Cockpit)
+    for c in (cut, notch):
+        boolean(body, [c.to_object("_c")], "DIFFERENCE")
+    transfer_normals(body, src)
+    bpy.data.meshes.remove(src)
+    asm.add(body, "Hull")
+
+    # Spritzleisten (je zwei pro Seite), Trimmklappen
+    strakes = MeshData()
+    for frac, x_end in ((0.62, 2.55), (0.30, 2.25)):
+        srings = []
+        for x in [lerp(g.X_TR, x_end, i / 40) for i in range(41)]:
+            h = g.half(x)
+            (yi, zi), (yk, zk) = h[-5], h[-1]
+            fade = smoothstep(x_end, x_end - 0.5, x)
+            pa = V((x, yk + (yi - yk) * frac, zk + (zi - zk) * frac))
+            pb = V((x, yk + (yi - yk) * (frac + 0.035 * fade + 0.002), zk + (zi - zk) * (frac + 0.035 * fade + 0.002)))
+            srings.append([pa, V((x, pb.y, pa.z)), pb])
+        md = grid_rings(srings, True, "ngon", "ngon", M["hull"])
+        md.recalc = True
+        strakes.merge(md)
+        strakes.merge(md.mirrored())
+    h = g.half(g.X_TR)
+    (yi, zi), (yk, zk) = h[-5], h[-1]
+    s_dir = V((0.0, yi, zi - zk)).normalized()
+    for sgn in (1, -1):
+        c = V((g.X_TR - 0.11, 0.0, zk)) + s_dir * (0.66 / s_dir.y)
+        n = X_AXIS.cross(s_dir)
+        tab = box((0, 0, 0), (0.22, 0.30, 0.012), M["steel"], frame_matrix(c - n * 0.006, X_AXIS, s_dir, n))
+        strakes.merge(tab if sgn > 0 else tab.mirrored())
+    asm.add(strakes, "Strakes", detail=1)
+
+    # ------------------------------------------------------------- Cockpit: Liner-Wände, Laufdeck, Motorschacht
+    def wall_top(x):
+        return g.sheer(x) - st - 0.005
+
+    def wall_y(x, z):
+        """Halbe Breite der Cockpitwand auf Höhe z: Gerade vom Laufdeck zur Deckskante, aber nie außerhalb
+        der (vorn konkav ausgestellten) Rumpfinnenseite."""
+        wt = g.cockpit_w(x) - 0.005
+        zb, zt = g.sole_z(x), wall_top(x)
+        wb = min(wt, g.hull_y(x, zb) - st - 0.03)
+        z = min(z, zt)
+        return min(lerp(wb, wt, clamp((z - zb) / max(zt - zb, 1e-6))), g.hull_y(x, z) - st - 0.02)
+
+    top = offset_poly(outline, -0.005)
+    wall_rings = []
+    for f in (1.0, 0.8, 0.6, 0.4, 0.2, 0.0):                  # von der Deckskante zum Laufdeck
+        ring = []
+        for p in top:
+            z = lerp(g.sole_z(p.x), wall_top(p.x), f)
+            ring.append(V((p.x, p.y * wall_y(p.x, z) / wall_y(p.x, 9.0), z)))
+        wall_rings.append(ring)
+    ring_b = wall_rings[-1]
+    a, b, c_ = wall_rings[0][0], wall_rings[0][1], wall_rings[1][0]
+    inward = V((0.0, -math.copysign(1.0, a.y), 0.0))
+    flip = (b - a).cross(c_ - a).dot(inward) < 0
+    liner = grid_rings(wall_rings, True, None, None, M["liner"], flip=flip)
+    soles = MeshData()
+    floor_poly = [V((p.x, p.y)) for p in ring_b]
+    for keep_below, z in ((True, g.z_sole), (False, g.z_sole_bow)):
+        poly = clip_x(floor_poly, g.x_step, keep_below)
+        soles.merge(prism_z(poly, z - 0.03, z, M["teak"]))
+    w_step = wall_y(g.x_step, g.z_sole)
+    liner.merge(box((g.x_step, 0.0, (g.z_sole + g.z_sole_bow) / 2), (0.02, 2 * w_step, g.z_sole_bow - g.z_sole), M["liner"]))
+    zd = g.sheer(g.X_TR) - st                                                   # Motorschacht (Splashwell)
+    liner.merge(box(((g.X_TR + 0.03 + wx) / 2, 0.0, wz - 0.015), (wx - g.X_TR - 0.03, 2 * wy, 0.03), M["liner"]))
+    for side in (1, -1):
+        liner.merge(box(((g.X_TR + 0.03 + wx) / 2, side * (wy + 0.01), (wz + zd) / 2), (wx - g.X_TR - 0.03, 0.02, zd - wz),
+                        M["liner"]))
+    liner.merge(box((wx + 0.02, 0.0, (wz + zd) / 2), (0.02, 2 * wy + 0.04, zd - wz), M["liner"]))
+    asm.add(liner, "Liner")
+    asm.add(soles, "Sole")
+
+    # Badeplattformen beidseits des Motors, Badeleiter (Pivot)
+    plat = MeshData()
+    for side in (1, -1):
+        poly = rounded_poly_2d([(g.X_TR + 0.01, side * 0.47), (-3.52, side * 0.47), (-3.52, side * 1.02),
+                                (g.X_TR + 0.01, side * 1.04)], [0.0, 0.03, 0.09, 0.0], 4)
+        plat.merge(prism_z(poly, 0.115, 0.17, M["deck"]))
+        plat.merge(prism_y([(g.X_TR + 0.02, -0.06), (g.X_TR + 0.02, 0.118), (-3.46, 0.118)], side * 0.50, side * 0.98,
+                           M["hull"]))
+    plat.merge(box((-3.515, -0.74, 0.18), (0.03, 0.22, 0.02), M["steel"]))                      # Leiterhalter
+    asm.add(plat, "Platforms", mods=[bevel_s])
+    lad_hinge = V((-3.545, -0.74, 0.19))
+    asm.pivot("SwimLadder", lad_hinge, -Y_AXIS, orient=True, positive="Badeleiter klappt nach hinten ins Wasser",
+              limits=(0, 180))
+    lad = MeshData()
+    for y in (-0.655, -0.825):
+        lad.merge(tube(fillet_path([(lad_hinge.x, y, 0.19), (lad_hinge.x, y, 0.70), (lad_hinge.x, -0.74, 0.70)], 0.04, 4),
+                       0.011, 10, M["steel"]))
+    for z in (0.32, 0.46, 0.60):
+        lad.merge(box((lad_hinge.x, -0.74, z), (0.06, 0.17, 0.016), M["black"]))
+    asm.add(lad, "SwimLadder", "SwimLadder", detail=1)
+
+    # ------------------------------------------------------------- Scheuerleiste, Bugreling, Klampen, Lichter
+    rail = MeshData()
+    xs_r = [lerp(g.X_TR, 3.18, i / 60) for i in range(61)]
+    stbd = [V((x, -(g.ws(x) + 0.012), g.zs(x) - 0.016)) for x in xs_r]
+    path = stbd + [V((3.262, 0.0, g.zs(3.25) - 0.016))] + [V((p.x, -p.y, p.z)) for p in reversed(stbd)]
+    rail.merge(tube(path, (0.022, 0.017), 10, M["rubber"], up=Z_AXIS, exponent=3.0))
+    ins = [p + V((0.0, math.copysign(0.017, p.y), 0.0)) if abs(p.y) > 1e-6 else p + X_AXIS * 0.017 for p in path]
+    rail.merge(tube(ins, 0.006, 6, M["steel"]))
+    pts = [V((x, -(g.ws(x) - 0.06), g.zs(x) + 0.30)) for x in (1.45, 1.9, 2.35, 2.75, 3.0)]
+    bow_rail = [V((1.40, pts[0].y, g.zs(1.40) + 0.02))] + pts + [V((3.10, 0.0, g.zs(3.1) + 0.30))]
+    bow_rail = bow_rail + [V((p.x, -p.y, p.z)) for p in reversed(bow_rail[:-1])]
+    rail.merge(tube(fillet_path(bow_rail, 0.08, 4), 0.0125, 10, M["steel"]))
+    for x in (1.9, 2.35, 2.75):
+        for side in (1, -1):
+            y = side * (g.ws(x) - 0.06)
+            rail.merge(cylinder(V((x, y, g.zs(x))), V((x, y, g.zs(x) + 0.30)), 0.011, 8, M["steel"]))
+            rail.merge(cylinder(V((x, y, g.zs(x))), V((x, y, g.zs(x) + 0.01)), 0.03, 12, M["steel"]))
+
+    def cleat(p, md):
+        u, w = X_AXIS, Y_AXIS
+        md.merge(box((0, 0, 0), (0.06, 0.03, 0.012), M["steel"], frame_matrix(p + Z_AXIS * 0.006, u, w, Z_AXIS)))
+        for d in (-0.022, 0.022):
+            md.merge(cylinder(p + u * d, p + u * d + Z_AXIS * 0.032, 0.009, 8, M["steel"]))
+        md.merge(tube([p + Z_AXIS * 0.036 - u * 0.075, p + Z_AXIS * 0.036, p + Z_AXIS * 0.036 + u * 0.075],
+                      lambda s: 0.006 + 0.006 * math.sin(math.pi * s), 10, M["steel"]))
+    for x in (2.55, -2.95):
+        for side in (1, -1):
+            cleat(V((x, side * (g.ws(x) - 0.09), g.zs(x) + g.crown * 0.3)), rail)
+    eye = [V((3.185 + 0.03 * math.cos(a), 0.0, 0.45 + 0.03 * math.sin(a))) for a in (TAU * i / 16 for i in range(17))]
+    rail.merge(tube(eye, 0.007, 8, M["steel"], caps=False))                                        # Bugauge
+    for side in (1, -1):                                                                             # Ski-Zugösen
+        rail.merge(tube([V((g.X_TR - 0.032 * math.cos(a), side * 0.88, 0.58 + 0.032 * math.sin(a)))
+                         for a in (math.pi * (i / 10 - 0.5) for i in range(11))], 0.006, 8, M["steel"]))
+    rail.merge(cylinder(V((-1.60, -(g.ws(-1.6) - 0.08), g.zs(-1.6))), V((-1.60, -(g.ws(-1.6) - 0.08), g.zs(-1.6) + 0.012)),
+                        0.04, 16, M["steel"]))                                                       # Tankstutzen
+    hatch = rounded_poly_2d([(2.52, -0.22), (2.88, -0.12), (2.88, 0.12), (2.52, 0.22)], 0.04, 3)
+    rail.merge(prism_z(hatch, g.zs(2.7) + g.crown * 0.9, g.zs(2.7) + g.crown + 0.012, M["liner"]))   # Ankerkasten
+    asm.add(rail, "Hardware", mods=[bevel_s], detail=1)
+    lights = MeshData()                                                                              # Positionslichter
+    zl = g.zs(2.98) + g.crown
+    lights.merge(box((2.98, 0.0, zl + 0.02), (0.08, 0.10, 0.04), M["black"]))
+    for side, mat in ((1, M["red"]), (-1, M["green"])):
+        lights.merge(box((2.99, side * 0.026, zl + 0.022), (0.05, 0.045, 0.026), mat, None))
+    asm.add(lights, "NavLights")
+    pole = MeshData()
+    pole_p = V((-2.95, 0.88, g.zs(-2.95)))
+    pole.merge(cylinder(pole_p, pole_p + Z_AXIS * 0.80, 0.012, 8, M["steel"]))
+    pole.merge(lathe([(0.0, 0.0), (0.03, 0.005), (0.032, 0.05), (0.02, 0.07), (0.0, 0.075)], 16, pole_p + Z_AXIS * 0.80,
+                     Z_AXIS, M["white"]))
+    stern_light = asm.add(pole, "SternLight", smooth=60)
+
+    # Kennzeichen am Bug (projiziert), Name am Spiegel
+    reg = "".join(rng.choice("ABDFHKMNRSTW") for _ in range(2)) + f"-{rng.randint(1000, 9999)}"
+    dec = MeshData()
+    for side in (1, -1):
+        fm = frame_matrix(V((1.75, side * 1.4, 0.62)), -X_AXIS * side, Z_AXIS, Y_AXIS * side)
+        dec.merge(project_onto(text_md(reg, 0.11, fm, M["decal"], bold=0.03), hull_md, -Y_AXIS * side, max_edge=0.03))
+    fm = frame_matrix(V((g.X_TR - 0.0015, 0.70, 0.44)), -Y_AXIS, Z_AXIS, -X_AXIS)
+    dec.merge(text_md("AURORA", 0.09, fm, M["decal"], bold=0.03))
+    asm.add(dec, "Decals", detail=2)
+
+    # ------------------------------------------------------------- Konsolen, Armaturen, Windschutzscheibe
+    def console(y_in, sgn, mat):
+        prof = [(0.45, g.z_sole), (1.12, g.z_sole), (1.12, 0.80), (1.02, 0.93), (0.62, 0.93), (0.47, 0.76)]
+        ring_in = [V((x, sgn * y_in, z)) for x, z in prof]
+        ring_out = [V((x, sgn * wall_y(x, z), z)) for x, z in prof]
+        md = grid_rings([ring_in, ring_out], True, "ngon", "ngon", mat)
+        md.recalc = True
+        return md
+    cons = MeshData()
+    cons.merge(console(0.30, -1, M["liner"]))
+    cons.merge(console(0.30, 1, M["liner"]))
+    p0, p1 = V((0.62, 0.0, 0.93)), V((0.47, 0.0, 0.76))
+    d3 = (p1 - p0).normalized()
+    n3 = V((d3.z, 0.0, -d3.x))
+    if n3.z < 0:
+        n3 = -n3
+    dash_c = (p0 + p1) / 2
+    for y, w, mat in ((-0.48, 0.20, M["screen"]), (-0.74, 0.16, M["screen"]), (-0.62, 0.62, M["panel"])):
+        th = 0.004 if mat is M["screen"] else 0.002
+        off = 0.004 if mat is M["screen"] else 0.001
+        cons.merge(box((0, 0, 0), (0.17 if mat is M["panel"] else 0.11, w, th), mat,
+                       frame_matrix(dash_c + Y_AXIS * y + n3 * off, -d3, Y_AXIS, n3)))
+    cons.merge(lathe([(0.0, 0.0), (0.045, 0.0), (0.045, 0.02)], 16, V((0.86, -0.62, 0.93)), Z_AXIS, M["black"]))
+    cons.merge(lathe([(0.04, 0.0), (0.03, 0.025), (0.0, 0.035)], 16, V((0.86, -0.62, 0.95)), Z_AXIS, M["lens"]))  # Kompass
+    cons.merge(tube(fillet_path([(0.60, 0.42, 0.93), (0.66, 0.42, 1.00), (0.94, 0.42, 1.00), (1.0, 0.42, 0.93)], 0.04, 4),
+                    0.011, 8, M["steel"]))                                                      # Haltegriff Beifahrer
+    cons.merge(box((0, 0, 0), (0.16, 0.30, 0.004), M["panel"], frame_matrix(dash_c + Y_AXIS * 0.62 + n3 * 0.002, -d3,
+                                                                                   Y_AXIS, n3)))  # Handschuhfach
+    asm.add(cons, "Consoles", mods=[bevel])
+    hub = dash_c + Y_AXIS * -0.60 + n3 * 0.22
+    asm.pivot("SteeringWheel", hub, n3, orient=True, positive="Lenkrad nach links (gegen den Uhrzeigersinn)",
+              limits=(-540, 540))
+    asm.add(cylinder(dash_c + Y_AXIS * -0.60, hub - n3 * 0.03, 0.022, 12, M["black"]), "SteeringColumn", detail=1)
+    u, w = basis_from(n3)
+    sw = lathe([(0.17 + 0.014 * math.cos(TAU * i / 10), 0.014 * math.sin(TAU * i / 10)) for i in range(10)], 40, hub, n3,
+               M["steel"], closed_profile=True)
+    sw.merge(lathe([(0.0, -0.03), (0.045, -0.025), (0.045, 0.01), (0.0, 0.02)], 20, hub, n3, M["black"]))
+    for k in range(3):
+        dk = u * math.cos(TAU * k / 3) + w * math.sin(TAU * k / 3)
+        sw.merge(cylinder(hub + dk * 0.04, hub + dk * 0.165, 0.008, 8, M["steel"]))
+    asm.add(sw, "SteeringWheel", "SteeringWheel", detail=1)
+    th_p = V((0.52, -0.86, p0.z + (0.52 - p0.x) / d3.x * d3.z)) + n3 * 0.04      # Gashebel auf dem Armaturenbrett
+    asm.pivot("Throttle", th_p, Y_AXIS, orient=True, positive="Gashebel nach vorn (Vorwärtsfahrt)", limits=(-35, 35))
+    asm.add(box((0, 0, 0), (0.12, 0.06, 0.04), M["black"], frame_matrix(th_p - n3 * 0.02, -d3, Y_AXIS, n3)),
+            "ThrottleBase", detail=1)
+    thr = cylinder(th_p, th_p + V((0.0, 0.0, 0.15)), 0.008, 8, M["steel"])
+    thr.merge(lathe([(0.0, -0.02), (0.02, 0.0), (0.0, 0.02)], 12, th_p + V((0.0, 0.0, 0.165)), Z_AXIS, M["black"]))
+    asm.add(thr, "Throttle", "Throttle", detail=1)
+
+    yb = 1.06                                                                   # Windschutzscheibe (gebogen)
+
+    def ws_point(y, v):
+        q = clamp(abs(y) / yb, 0.0, 1.0)
+        x = 0.62 + 0.50 * math.sqrt(max(1.0 - q * q, 0.0))
+        dxdy = -0.50 * (y / yb ** 2) / math.sqrt(max(1.0 - q * q, 1e-4))
+        n = V((1.0, -dxdy, 0.0)).normalized()
+        zdeck = g.sheer(x) + g.crown * (1.0 - min(abs(y) / g.ws(x), 1.0) ** 2)
+        zb = lerp(0.93, zdeck, smoothstep(0.96, yb, abs(y)))
+        hgt = lerp(0.40, 0.22, smoothstep(0.55, yb, abs(y)))
+        rake = math.radians(35)
+        return V((x, y, zb)) + (-n * math.sin(rake) + Z_AXIS * math.cos(rake)) * (hgt * v)
+
+    def ws_panel(y0, y1, nu):
+        return surface_grid(lambda u_, v_: ws_point(lerp(y0, y1, u_), v_), nu, 6, M["glass"])
+    glass = MeshData()
+    glass.merge(ws_panel(-yb + 0.01, -0.31, 18))
+    glass.merge(ws_panel(0.31, yb - 0.01, 18))
+    frame = MeshData()
+    for y0, y1 in ((-yb + 0.01, -0.31), (0.31, yb - 0.01)):
+        frame.merge(tube([ws_point(lerp(y0, y1, i / 24), 1.0) for i in range(25)], 0.012, 8, M["steel"]))
+        for y in (y0, y1):
+            frame.merge(tube([ws_point(y, v) for v in (0.0, 0.5, 1.0)], 0.009, 8, M["steel"]))
+    asm.add(glass, "Windshield", smooth=60)
+    asm.add(frame, "WindshieldFrame", detail=1)
+    h0, h1 = ws_point(0.29, 0.0), ws_point(0.29, 1.0)
+    asm.pivot("WindshieldDoor", (h0 + h1) / 2, (h0 - h1).normalized(), orient=True,
+              positive="Durchgangstür schwenkt nach achtern auf", limits=(0, 80))
+    asm.add(ws_panel(-0.29, 0.29, 10), "WindshieldDoorGlass", "WindshieldDoor", smooth=60)
+    door = MeshData()
+    door.merge(tube([ws_point(lerp(-0.29, 0.29, i / 10), 1.0) for i in range(11)], 0.011, 8, M["steel"]))
+    for z in (0.25, 0.75):
+        door.merge(cylinder(ws_point(0.29, z) - (h1 - h0).normalized() * 0.03, ws_point(0.29, z) + (h1 - h0).normalized() * 0.03,
+                            0.012, 10, M["steel"]))                                         # Scharniere
+    asm.add(door, "WindshieldDoorFrame", "WindshieldDoor", detail=1)
+
+    # ------------------------------------------------------------- Sitze
+    def block(x0, x1, z0, z1, y_a, y_b, mat, n=6, inset=0.008):
+        """Polsterblock x0..x1, z0..z1, quer von y_a bis y_b; None = bis an die Cockpitwand, Funktion f(x, z)."""
+        rs = []
+        for x in (lerp(x0, x1, i / n) for i in range(n + 1)):
+            def yy(v, z, sgn):
+                if v is None:
+                    return sgn * (wall_y(x, z) - inset)
+                return v(x, z) if callable(v) else v
+            rs.append([V((x, yy(y_a, z0, -1), z0)), V((x, yy(y_b, z0, 1), z0)), V((x, yy(y_b, z1, 1), z1)),
+                       V((x, yy(y_a, z1, -1), z1))])
+        md = grid_rings(rs, True, "ngon", "ngon", mat)
+        md.recalc = True
+        return md
+    seats = MeshData()
+    zs0, zb0 = g.z_sole, g.z_sole_bow
+    x0 = g.x_cp0
+    seats.merge(block(x0 + 0.01, -1.92, zs0, 0.45, None, None, M["liner"]))                    # Heckbank
+    seats.merge(block(x0 + 0.12, -1.90, 0.45, 0.55, None, None, M["vinyl"]))
+    seats.merge(block(x0 + 0.01, x0 + 0.12, 0.45, 0.80, None, None, M["vinyl"]))
+    seats.merge(block(x0 + 0.01, x0 + 0.125, 0.62, 0.66, None, None, M["accent"], inset=0.004))
+    seats.merge(block(-1.92, -0.95, zs0, 0.45, 0.50, None, M["liner"]))                         # Seitenbank Bb
+    seats.merge(block(-1.90, -0.97, 0.45, 0.55, 0.52, None, M["vinyl"]))
+    back = (lambda x, z: wall_y(x, z) - 0.09)
+    seats.merge(block(-1.90, -0.97, 0.56, 0.76, back, None, M["vinyl"]))
+    for sgn in (1, -1):                                                                          # Bugsitze
+        inner, outer = (0.20, None) if sgn > 0 else (None, -0.20)
+        seats.merge(block(g.x_step + 0.03, 2.12, zb0, 0.46, inner, outer, M["liner"]))
+        seats.merge(block(g.x_step + 0.05, 2.10, 0.46, 0.56, *((0.22, None) if sgn > 0 else (None, -0.22)), M["vinyl"]))
+        bk = (lambda x, z, s_=sgn: s_ * (wall_y(x, z) - 0.09))
+        seats.merge(block(g.x_step + 0.05, 2.10, 0.57, 0.80, *((bk, None) if sgn > 0 else (None, bk)), M["vinyl"]))
+    for sgn in (1, -1):                                                                          # Fahrer-/Beifahrersitz
+        c = V((-0.10, sgn * 0.55, 0.0))
+        seats.merge(cylinder(c + Z_AXIS * zs0, c + Z_AXIS * 0.50, 0.04, 16, M["steel"]))
+        seats.merge(cylinder(c + Z_AXIS * zs0, c + Z_AXIS * (zs0 + 0.012), 0.16, 24, M["steel"]))
+        seats.merge(box(c + V((0.0, 0.0, 0.565)), (0.48, 0.48, 0.11), M["vinyl"]))
+        seats.merge(box(c + V((0.20, 0.0, 0.57)), (0.08, 0.485, 0.115), M["accent"]))
+        bm = Matrix.Translation(c + V((-0.22, 0.0, 0.62))) @ Matrix.Rotation(math.radians(-12), 4, "Y")
+        seats.merge(box((0.0, 0.0, 0.28), (0.10, 0.46, 0.56), M["vinyl"], bm))
+        seats.merge(box((0.002, 0.0, 0.45), (0.105, 0.465, 0.06), M["accent"], bm))
+    for sgn in (1, -1):                                                                          # Sonnenpolster achtern
+        pad = rounded_poly_2d([(-3.03, sgn * 0.47), (-2.62, sgn * 0.47), (-2.62, sgn * 0.82), (-3.03, sgn * 0.82)], 0.04, 3)
+        z_pad = g.sheer(-2.8) + g.crown * (1.0 - (0.47 / g.ws(-2.8)) ** 2)
+        seats.merge(prism_z(pad, z_pad - 0.005, z_pad + 0.055, M["vinyl"]))
+        seats.merge(box((-2.64, sgn * 0.645, z_pad + 0.025), (0.03, 0.352, 0.062), M["accent"]))
+    asm.add(seats, "Seats", mods=[bevel])
+
+    # ------------------------------------------------------------- Außenborder: Kippen → Lenken → Propeller
+    ob = boat_outboard(g, M)
+    brk = MeshData()                                                                             # Spiegelhalterung
+    for side in (1, -1):
+        brk.merge(box(((g.X_TR + g.tilt.x) / 2 - 0.01, side * 0.14, 0.20), (g.X_TR - g.tilt.x + 0.04, 0.02, 0.32), M["motor"]))
+        brk.merge(box((g.X_TR + 0.04, side * 0.14, wz + 0.02), (0.12, 0.02, 0.04), M["motor"]))
+    asm.add(brk, "OutboardBracket", mods=[bevel_s])
+    asm.pivot("Outboard_Tilt", g.tilt, Y_AXIS, orient=True, positive="Außenborder kippt hoch (Unterwasserteil nach hinten)",
+              limits=(0, 65))
+    asm.add(ob["tilt"], "Outboard_Tilt", "Outboard_Tilt", mods=[bevel_s])
+    asm.pivot("Outboard_Steer", g.steer, -Z_AXIS, orient=True, parent="Outboard_Tilt",
+              positive="Boot dreht nach Backbord (links)", limits=(-35, 35))
+    asm.add(ob["steer"], "Outboard", "Outboard_Steer", mods=[bevel_s])
+    asm.add(ob["decal"], "OutboardDecal", "Outboard_Steer", detail=2)
+    asm.pivot("Propeller", g.prop, X_AXIS, parent="Outboard_Steer", motion="spin",
+              positive="Vorwärtsschub (rechtsdrehend, von hinten gesehen im Uhrzeigersinn)")
+    asm.add(ob["prop"], "Propeller", "Propeller", smooth=45)
+
+    # ------------------------------------------------------------- Sockets & Kollision
+    asm.socket("Driver", (-0.10, -0.55, 0.64))
+    asm.socket("Passenger", (-0.10, 0.55, 0.64))
+    for sgn, k in ((1, "L"), (-1, "R")):
+        asm.socket(f"Rear_{k}", (-2.10, sgn * 0.45, 0.58))
+        asm.socket(f"Bow_{k}", (1.75, sgn * 0.36, 0.58))
+        asm.socket(f"TowEye_{k}", (g.X_TR - 0.03, sgn * 0.88, 0.58), forward=-X_AXIS)
+        for x, pos in ((-2.6, "Aft"), (-0.5, "Mid"), (1.6, "Fwd")):                  # Auftriebspunkte (Wasserlinie)
+            asm.socket(f"Float_{pos}{k}", (x, sgn * g.hull_y(x, 0.0), 0.0))
+    asm.socket("NavLight_Port", (2.99, 0.05, zl + 0.022), forward=Y_AXIS)
+    asm.socket("NavLight_Starboard", (2.99, -0.05, zl + 0.022), forward=-Y_AXIS)
+    asm.socket("SternLight", pole_p + Z_AXIS * 0.84, forward=Z_AXIS)
+    asm.socket("PropWash", g.prop, forward=-X_AXIS, parent="Outboard_Steer")
+    asm.socket("BowWave", (2.72, 0.0, 0.0))
+    motor_keys = {"Outboard_Tilt", "Outboard_Steer", "Propeller"}
+    allm = asm.meshes()
+    shell = [o for o in allm if o["pivot"] not in motor_keys and o is not stern_light]
+    asm.collide("Hull", shell, lambda p: p.z <= g.sheer(p.x) + 0.05, 96)
+    asm.collide("TopFwd", shell, lambda p: p.z >= g.sheer(p.x) - 0.03 and p.x > 0.3, 64)
+    asm.collide("TopAft", shell, lambda p: p.z >= g.sheer(p.x) - 0.03 and p.x <= 0.3, 48)
+    asm.collide("Outboard", [o for o in allm if o["pivot"] in motor_keys], None, 64)
+    asm.hull_exempt.append(([stern_light], "dünner Lichtmast"))
+    return asm
+
+
+# =============================================================================
 # 9) Game-Ready-Pipeline: UV-Atlas, Bake, LODs, Kollision, Rig, Export
 # =============================================================================
 
@@ -5092,7 +5697,7 @@ def parse_args(argv):
     p = argparse.ArgumentParser(
         prog="vehicle_generator.py",
         description="Prozedurale, game-ready 3D-Modelle: Enduro, Hubschrauber und Flugzeug (Blender/bpy).")
-    p.add_argument("--vehicle", choices=["enduro", "heli", "plane", "offroad", "all"], default="all")
+    p.add_argument("--vehicle", choices=["enduro", "heli", "plane", "offroad", "boat", "all"], default="all")
     p.add_argument("--out", default="export", help="Ausgabeordner (Standard: ./export)")
     p.add_argument("--target", choices=sorted(TARGETS), default="unreal",
                    help="Ziel-Engine: steuert Ausrichtung, FBX-Skalierung und Textur-Packing")
@@ -5112,12 +5717,14 @@ def parse_args(argv):
     p.add_argument("--heli-livery", dest="heli_color", choices=sorted(HELI_LIVERIES), default="civil")
     p.add_argument("--plane-livery", dest="plane_color", choices=sorted(PLANE_LIVERIES), default="classic")
     p.add_argument("--offroad-livery", dest="offroad_color", choices=sorted(OFFROAD_LIVERIES), default="sand")
+    p.add_argument("--boat-livery", dest="boat_color", choices=sorted(BOAT_LIVERIES), default="navy")
     p.add_argument("--blades", type=int, default=4, choices=range(2, 8), metavar="2-7",
                    help="Anzahl Hauptrotorblätter")
     p.add_argument("--enduro-name", default="SM_Enduro")
     p.add_argument("--heli-name", default="SM_Heli")
     p.add_argument("--plane-name", default="SM_Plane")
     p.add_argument("--offroad-name", default="SM_Offroad")
+    p.add_argument("--boat-name", default="SM_Boat")
     p.add_argument("--no-export", action="store_true", help="Nur Modelle bauen (z.B. in der Blender-GUI)")
     cfg = p.parse_args(argv)
     cfg.formats = {f.strip().lower() for f in cfg.formats.split(",") if f.strip()}
@@ -5158,9 +5765,11 @@ def main():
     summary = os.path.join(out_dir, "summary.json")
     if not cfg.no_export and os.path.isfile(summary):
         os.remove(summary)                   # erst nach erfolgreichem Lauf neu schreiben
-    builders = {"enduro": build_enduro, "heli": build_heli, "plane": build_plane, "offroad": build_offroad}
-    names = {"enduro": cfg.enduro_name, "heli": cfg.heli_name, "plane": cfg.plane_name, "offroad": cfg.offroad_name}
-    gui_y = {"enduro": 0.0, "heli": 8.0, "plane": 22.0, "offroad": 31.0}      # nebeneinander in der GUI-Szene
+    builders = {"enduro": build_enduro, "heli": build_heli, "plane": build_plane, "offroad": build_offroad,
+                "boat": build_boat}
+    names = {"enduro": cfg.enduro_name, "heli": cfg.heli_name, "plane": cfg.plane_name, "offroad": cfg.offroad_name,
+             "boat": cfg.boat_name}
+    gui_y = {"enduro": 0.0, "heli": 8.0, "plane": 22.0, "offroad": 31.0, "boat": 38.0}   # nebeneinander in der GUI
     keys = list(builders) if cfg.vehicle == "all" else [cfg.vehicle]
     reports = []
     for key in keys:
