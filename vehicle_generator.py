@@ -19,9 +19,10 @@ Game-Ready-Pipeline:
   LOD-Kette · UCX-Kollision · Export als FBX / GLB / .blend · JSON-Report
 
 Aufruf (Beispiele):
-  blender --background --python vehicle_generator.py -- --vehicle all --out export
+  blender --background --factory-startup --python-exit-code 1 --python vehicle_generator.py -- --out export
   blender -b -P vehicle_generator.py -- --vehicle heli --bake 2048 --rig --target unreal
-  python vehicle_generator.py --vehicle enduro --preview          (mit ``pip install bpy``)
+  python vehicle_generator.py --vehicle enduro --preview          (mit ``pip install bpy``; ohne bpy wird
+                                                                   ``blender`` aus dem PATH gestartet)
 
 In der Blender-Oberfläche (Scripting-Tab → Öffnen → Ausführen) werden alle Modelle
 ohne Export direkt in der aktuellen Szene erzeugt.
@@ -32,14 +33,28 @@ Die Ausrichtung für die Ziel-Engine wird erst beim Export angewendet (``--targe
 
 import argparse
 import bisect
+import hashlib
 import json
 import math
 import os
 import random
+import shutil
+import subprocess
 import sys
 import time
 
-import bpy
+try:
+    import bpy
+except ModuleNotFoundError as _err:
+    if __name__ != "__main__" or _err.name != "bpy":
+        raise
+    # Ohne bpy-Modul: dieselbe Kommandozeile an Blender (aus dem PATH) im Hintergrund weiterreichen.
+    # --python-exit-code 1: Python-Fehler → Exit-Code 1 (sonst meldet Blender trotz Absturz Erfolg)
+    _blender = shutil.which("blender")
+    if not _blender:
+        raise SystemExit("Weder das Python-Modul 'bpy' noch 'blender' im PATH gefunden – siehe README (Installation).")
+    raise SystemExit(subprocess.call([_blender, "--background", "--factory-startup", "--python-exit-code", "1",
+                                      "--python", os.path.abspath(__file__), "--", *sys.argv[1:]]))
 import bmesh
 from mathutils import Matrix, Quaternion, Vector
 from mathutils.bvhtree import BVHTree
@@ -48,6 +63,18 @@ from mathutils.interpolate import poly_3d_calc
 V = Vector
 TAU = math.tau
 X_AXIS, Y_AXIS, Z_AXIS = V((1, 0, 0)), V((0, 1, 0)), V((0, 0, 1))
+
+
+def _own_sha256():
+    """Prüfsumme dieses Scripts beim Laden (für den Report: welche Generator-Version hat exportiert?)."""
+    try:
+        with open(os.path.abspath(__file__), "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except (OSError, NameError):       # z.B. aus dem Blender-Texteditor gestartet
+        return None
+
+
+GENERATOR_SHA256 = _own_sha256()
 
 
 # =============================================================================
@@ -1015,10 +1042,13 @@ class Assembly:
         self.axes = {"root": Z_AXIS.copy()}
         self.parents = {"root": None}
         self.collision = []   # (name, [objects], keep(point) or None, max_verts)
+        self.hull_exempt = []           # ([objects], Grund): ragen bewusst aus den Hüllen (dünne Antennen …)
+        self.hull_exempt_pivots = {}    # Pivot → Grund: Teilbaum ohne Hülle (drehende Rotor-/Propellerblätter)
         self.ao_distance = 0.3
         self.sockets = {}
         self.socket_fwd = {}
         self.notes = {"root": ""}
+        self.motion = {"root": "none"}
 
     def _empty(self, name, loc, size=0.15, kind="PLAIN_AXES"):
         e = bpy.data.objects.new(name, None)
@@ -1028,16 +1058,20 @@ class Assembly:
         self.coll.objects.link(e)
         return e
 
-    def pivot(self, key, loc, axis=Z_AXIS, parent="root", orient=False, positive=""):
+    def pivot(self, key, loc, axis=Z_AXIS, parent="root", orient=False, positive="", motion="hinge"):
         """Drehpunkt. ``orient``: Empty so drehen, dass sein lokales +Y auf der Drehachse liegt
         (für schräge Scharniere wie Türen, Ruder, Lenkkopf) – dann reicht in der Engine eine
-        Rotation um die lokale Y-Achse."""
+        Rotation um die lokale Y-Achse. ``motion``: "spin" (dreht endlos: Räder, Rotoren, Propeller),
+        "hinge" (begrenzter Ausschlag) oder "slide" (Verschiebung entlang der Achse, z.B. Federung)."""
         e = self._empty(f"{self.name}_{key}_Pivot", V(loc), 0.12, "ARROWS")
         par = self.pivots[parent]
         e.parent = par
         e.matrix_world = axis_frame(V(loc), axis) if orient else Matrix.Translation(V(loc))
         e["oriented"] = bool(orient)
+        e["motion"] = motion                 # landet als Custom Property (FBX) bzw. extras (glTF) in der Engine
+        e["positive"] = positive
         self.notes[key] = positive
+        self.motion[key] = motion
         self.pivots[key] = e
         self.axes[key] = V(axis).normalized()
         self.parents[key] = parent
@@ -1186,15 +1220,33 @@ def render_preview(objects, path, resolution=(1600, 900), samples=96, view=(-35.
 
     cam_d = bpy.data.cameras.new("PreviewCam")
     cam_d.lens = lens
+    cam_d.sensor_fit = "HORIZONTAL"
     cam = bpy.data.objects.new("PreviewCam", cam_d)
     sc.collection.objects.link(cam)
     temp.append(cam)
     az, el = math.radians(view[0]), math.radians(view[1])
     dirv = V((math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)))
-    fov = 2 * math.atan(36.0 / 2 / lens) * min(1.0, resolution[1] / resolution[0] * 1.25)
-    dist = radius / math.sin(fov / 2) * 0.92 * dist_scale
-    cam.location = ctr + dirv * dist
-    cam.rotation_euler = (-dirv).to_track_quat("-Z", "Y").to_euler()
+    # Kamera auf die tatsächliche Silhouette einpassen (nicht auf die Bounding-Kugel): Abstand so wählen,
+    # dass alle Punkte ~88 % des Bildes füllen, und per Objektiv-Shift mittig ausrichten.
+    fwd = -dirv
+    right = fwd.cross(Z_AXIS) if abs(fwd.z) < 0.999 else X_AXIS.copy()
+    right.normalize()
+    up = right.cross(fwd)
+    tan_h = cam_d.sensor_width / 2 / lens
+    tan_v = tan_h * resolution[1] / resolution[0]
+    rel = [p - ctr for p in pts[::max(1, len(pts) // 20000)]]
+    px_, py_, pz_ = ([q.dot(a) for q in rel] for a in (right, up, fwd))
+    near = max(-z for z in pz_)
+    dist = radius / math.sin(math.atan(tan_v))
+    for _ in range(6):
+        xs = [x / (dist + z) for x, z in zip(px_, pz_)]
+        ys = [y / (dist + z) for y, z in zip(py_, pz_)]
+        need = max((max(xs) - min(xs)) / (2 * tan_h * 0.88), (max(ys) - min(ys)) / (2 * tan_v * 0.88))
+        dist = max(dist * need, near * 1.1 + 0.05)
+    cam_d.shift_x = (max(xs) + min(xs)) / 2 / (2 * tan_h)
+    cam_d.shift_y = (max(ys) + min(ys)) / 2 / (2 * tan_h)
+    cam.location = ctr + dirv * dist * dist_scale
+    cam.rotation_euler = fwd.to_track_quat("-Z", "Y").to_euler()
     sc.camera = cam
     tmp = os.path.abspath(path) + ".rgba.png"
     sc.render.filepath = tmp
@@ -1209,9 +1261,10 @@ def render_preview(objects, path, resolution=(1600, 900), samples=96, view=(-35.
     h, w = fg.shape[:2]
     yy = np.linspace(0.0, 1.0, h)[:, None]
     xx = np.linspace(-1.0, 1.0, w)[None, :]
-    top, bottom = np.array([0.80, 0.82, 0.85]), np.array([0.94, 0.94, 0.95])
+    # Blaugrauer Mittelton: helle Lackierungen (weißer Rumpf) heben sich ab, Schatten bleiben sichtbar
+    top, bottom = np.array([0.19, 0.225, 0.28]), np.array([0.40, 0.43, 0.48])
     bg = bottom + (top - bottom) * (yy[..., None] ** 1.3)
-    bg = bg * (1.0 - 0.10 * (xx[..., None] ** 2))
+    bg = bg * (1.0 - 0.16 * (xx[..., None] ** 2))
     a = fg[..., 3:4]
     out = np.concatenate([fg[..., :3] * a + bg * (1 - a), np.ones((h, w, 1), np.float32)], -1)
     final = _save_image(os.path.basename(path), out.astype(np.float32), os.path.abspath(path), "sRGB")
@@ -1467,12 +1520,32 @@ def disc_matrix(center, y):
     return frame_matrix(V((center.x, y, center.z)), Z_AXIS, X_AXIS, Y_AXIS)
 
 
+def slotted_ring(outer, r_in, r_s0, r_s1, period, slot, depth, matrix=None, mat=None):
+    """Ring wie ``extrude_ring`` (Innenkontur Kreis), aber mit echten Durchbrüchen: im Band r_s0..r_s1
+    bleiben die Segmente mit (Index % period) in ``slot`` offen; alle Randkanten bekommen Wände."""
+    n = len(outer)
+    rings = [[V((math.cos(TAU * i / n), math.sin(TAU * i / n))) * r for i in range(n)] for r in (r_in, r_s0, r_s1)]
+    rings.append([V(p) for p in outer])
+    bot = len(rings) * n
+    verts = ([V((p[0], p[1], depth / 2)) for ring in rings for p in ring]
+             + [V((p[0], p[1], -depth / 2)) for ring in rings for p in ring])
+    top = [((r + 1) * n + i, (r + 1) * n + (i + 1) % n, r * n + (i + 1) % n, r * n + i)
+           for r in range(len(rings) - 1) for i in range(n) if not (r == 1 and i % period in slot)]
+    faces = top + [tuple(bot + k for k in reversed(f)) for f in top]
+    edges = {(a, b) for f in top for a, b in zip(f, f[1:] + f[:1])}
+    faces += [(b, a, bot + a, bot + b) for a, b in edges if (b, a) not in edges]     # Randkante → Wand
+    md = MeshData().add(verts, faces, None, mat)
+    if matrix is not None:
+        md.transform(matrix)
+    return md
+
+
 def brake_disc(M, center, y, R, waves=18):
     m = disc_matrix(center, y)
     outer = [V((math.cos(t), math.sin(t))) * (R - 0.006 * (0.5 + 0.5 * math.cos(waves * t)))
              for t in (TAU * i / (waves * 6) for i in range(waves * 6))]
-    inner = circle_2d(R - 0.032, waves * 6)
-    md = extrude_ring(outer, inner, 0.004, m, M["steel"])
+    # Lüftungsschlitze (je Welle einer, unter dem Wellenberg) im Reibring
+    md = slotted_ring(outer, R - 0.032, R - 0.0245, R - 0.0145, 6, (2, 3), 0.004, m, M["steel"])
     md.merge(extrude(star_2d(0.040, R - 0.028, 6, 192, 0.6, 0.28), 0.005, m, M["hub"]))
     for i in range(6):
         t = TAU * i / 6 + TAU / 12
@@ -1518,10 +1591,10 @@ def build_enduro(cfg):
     asm.ao_distance = 0.25
     asm.pivot("Steering", g.steer(0.76), g.up, orient=True, positive="Lenkung nach links")
     asm.pivot("ForkLower", g.FA, g.up, parent="Steering", orient=True,
-              positive="Verschiebung entlang +Y = Gabel federt ein")
-    asm.pivot("WheelFront", g.FA, Y_AXIS, parent="ForkLower", positive="Rad rollt vorwärts")
+              positive="Verschiebung entlang +Y = Gabel federt ein", motion="slide")
+    asm.pivot("WheelFront", g.FA, Y_AXIS, parent="ForkLower", positive="Rad rollt vorwärts", motion="spin")
     asm.pivot("Swingarm", g.pivot, Y_AXIS, positive="Hinterachse nach oben (einfedern)")
-    asm.pivot("WheelRear", g.RA, Y_AXIS, parent="Swingarm", positive="Rad rollt vorwärts")
+    asm.pivot("WheelRear", g.RA, Y_AXIS, parent="Swingarm", positive="Rad rollt vorwärts", motion="spin")
     bevel = ("bevel", dict(width=0.0025, segments=2, angle=35))
     bevel_s = ("bevel", dict(width=0.0012, segments=1, angle=40))
 
@@ -1977,8 +2050,9 @@ def build_enduro(cfg):
     asm.socket("Headlight", g.fork(0.80) + g.fwd * 0.13, forward=V((1.0, 0.0, -0.03)), parent="Steering")
     wheels = [o for o in asm.meshes() if o["pivot"] in ("WheelFront", "WheelRear")]
     asm.collide("Body", [o for o in asm.meshes() if o not in wheels])
-    asm.collide("WheelFront", [o for o in wheels if o["pivot"] == "WheelFront" and "Tire" in o.name], max_verts=32)
-    asm.collide("WheelRear", [o for o in wheels if o["pivot"] == "WheelRear" and "Tire" in o.name], max_verts=32)
+    # ganzes Rad (Reifen, Nabe, Bremsscheibe, Kettenrad) – die Scheibe steht seitlich über den Reifen hinaus
+    asm.collide("WheelFront", [o for o in wheels if o["pivot"] == "WheelFront"], max_verts=48)
+    asm.collide("WheelRear", [o for o in wheels if o["pivot"] == "WheelRear"], max_verts=48)
     return asm
 
 
@@ -2573,7 +2647,8 @@ def build_heli(cfg):
     asm.add(tg, "TailGearbox", mods=[bevel_s])
 
     # ------------------------------------------------------------- Hauptrotor
-    asm.pivot("MainRotor", g.hub, Z_AXIS, positive="Drehrichtung des Rotors (von oben gegen den Uhrzeigersinn)")
+    asm.pivot("MainRotor", g.hub, Z_AXIS, positive="Drehrichtung des Rotors (von oben gegen den Uhrzeigersinn)",
+              motion="spin")
     head = MeshData()
     head.merge(cylinder(V((0, 0, 2.30)), V((0, 0, 3.0)), 0.075, 24, M["dark"]))
     head.merge(lathe([(0.0, 0.0), (0.25, 0.0), (0.25, 0.04), (0.20, 0.06), (0.0, 0.06)], 32, V((0, 0, 2.50)), Z_AXIS,
@@ -2605,7 +2680,7 @@ def build_heli(cfg):
     asm.add(head, "RotorHead", "MainRotor", mods=[bevel_s])
 
     # ------------------------------------------------------------- Heckrotor
-    asm.pivot("TailRotor", g.tr, -Y_AXIS, positive="Rotordrehung (Blattvorderkante voraus)")
+    asm.pivot("TailRotor", g.tr, -Y_AXIS, positive="Rotordrehung (Blattvorderkante voraus)", motion="spin")
     trm = MeshData()
     tsecs = rotor_blade_sections(0.12, g.tr_R, 0.17, 0.15, 6.0, 0.0, 0.0, 0.08, 0.13, 0.03, n=16, t_root=0.14)
     tproto = airfoil_loft(tsecs, 16, M["tblade"])
@@ -2725,8 +2800,10 @@ def build_heli(cfg):
     asm.socket("Exhaust", ex1, forward=ex1 - ex0)
     asm.socket("LandingLight", ll, forward=V((0.3, 0, -1)))
     asm.socket("Winch", (0.3, -0.95, 1.95))
-    body = [o for o in asm.meshes() if o["pivot"] == "root" and o.name.split("_")[-1] not in ("Skids",)]
     skids = [o for o in asm.meshes() if o.name.endswith("Skids")]
+    # Rumpf inkl. Türen und Wärmebildkamera; Rotoren drehen und bekommen bewusst keine Hülle
+    body = [o for o in asm.meshes() if o not in skids and not o["pivot"].startswith(("MainRotor", "TailRotor", "Blade_"))]
+    asm.hull_exempt_pivots.update(MainRotor="drehende Rotorblätter", TailRotor="drehende Rotorblätter")
     asm.collide("Cabin", body, lambda p: p.x > -2.3)
     asm.collide("TailBoom", body, lambda p: p.x < -2.0)
     asm.collide("Skid_L", skids, lambda p: p.y > 0.0, 24)
@@ -3123,7 +3200,8 @@ def build_plane(cfg):
             smooth=40)
 
     # ------------------------------------------------------------- Propeller + Spinner
-    asm.pivot("Propeller", g.prop, X_AXIS, positive="Drehrichtung (von hinten gesehen im Uhrzeigersinn)")
+    asm.pivot("Propeller", g.prop, X_AXIS, positive="Drehrichtung (von hinten gesehen im Uhrzeigersinn)",
+              motion="spin")
     blade_x = X_AXIS * 0.06                           # Blattebene im Spinner, vor der Motorhaube
     pr = MeshData()
     secs = []
@@ -3167,11 +3245,11 @@ def build_plane(cfg):
                                  cosine_spacing(ax.x - 0.62, ax.x + 0.40, 24, 0.5, 0.5), 32,
                                  V((ax.x - 0.63, s * 1.27, 0.355)), V((ax.x + 0.42, s * 1.27, 0.265)), M["plain"],
                                  y_center=s * 1.27))
-        asm.pivot(f"WheelMain_{key}", ax, Y_AXIS, positive="Rad rollt vorwärts")
+        asm.pivot(f"WheelMain_{key}", ax, Y_AXIS, positive="Rad rollt vorwärts", motion="spin")
         asm.add(plane_wheel(M, ax, g.main_r, 0.15, 0.10), f"WheelMain_{key}", f"WheelMain_{key}", smooth=40)
     asm.add(gear, "MainGear", mods=[bevel_s])
     asm.pivot("NoseGear", V((1.235, 0.0, 0.62)), Z_AXIS, positive="Bugrad lenkt nach links")
-    asm.pivot("WheelNose", g.nose_axle, Y_AXIS, parent="NoseGear", positive="Rad rollt vorwärts")
+    asm.pivot("WheelNose", g.nose_axle, Y_AXIS, parent="NoseGear", positive="Rad rollt vorwärts", motion="spin")
     ng = MeshData()
     n = g.nose_axle
     ng.merge(cylinder(V((1.245, 0, 0.86)), V((1.235, 0, 0.50)), 0.034, 16, M["steel"]))
@@ -3230,8 +3308,8 @@ def build_plane(cfg):
     sm.merge(extrude(list(reversed([(-1.0, belly + 0.01), (-0.89, belly + 0.01), (-0.98, belly - 0.16),
                                     (-1.02, belly - 0.16)])), 0.01, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS),
                      M["dark"]))
-    asm.add(sm, "Details", mods=[bevel_s], detail=2)
-    asm.add(whip, "Antenna", detail=2, smooth=60)                  # dünn → ohne Bevel (sonst degenerierte Faces)
+    details = asm.add(sm, "Details", mods=[bevel_s], detail=2)
+    antenna = asm.add(whip, "Antenna", detail=2, smooth=60)        # dünn → ohne Bevel (sonst degenerierte Faces)
     lights = MeshData()          # Leuchten bleiben in allen LODs sichtbar (wie die Positionslichter am Flügel)
     lights.merge(lathe([(0.0, 0.0), (0.04, 0.0), (0.035, 0.03), (0.0, 0.035)], 16, vt_sec(2.69)["le"] + V((-0.18, 0, 0)),
                        Z_AXIS, M["nav_red"]))
@@ -3267,7 +3345,9 @@ def build_plane(cfg):
         return p.x > -1.8 and abs(p.y) < 0.6 and 0.6 < p.z < 2.3 and not blade
     asm.collide("Cabin", allm, cabin, 64)
     asm.collide("Tailcone", allm, lambda p: -6.05 < p.x < -1.6 and abs(p.y) < 0.6 and p.z < 1.6)
-    body = [o for o in allm if not o.name.endswith(("_Details", "_Antenna"))]     # Antennen nicht einhüllen
+    body = [o for o in allm if o not in (details, antenna)]                      # Antennen nicht einhüllen
+    asm.hull_exempt.append(([details, antenna], "dünne Antennen"))
+    asm.hull_exempt_pivots["Propeller"] = "drehender Propeller"
     asm.collide("UpperAft", body, lambda p: -3.4 < p.x < -1.6 and abs(p.y) < 0.6 and p.z >= 1.5, 32)
     asm.collide("DorsalFin", body, lambda p: -4.75 < p.x < -3.3 and p.z >= 1.5 and abs(p.y) < 0.07, 24)
     asm.collide("Wing_L", allm, lambda p: p.y > 0.6 and p.z > 1.85)
@@ -3330,14 +3410,35 @@ def tag_detail(obj):
 HULL_MAX_VERTS = 128       # ≤ 252 Dreiecke: Limit für konvexe MeshCollider (Unity) und PhysX
 
 
-def _hull_bm(points):
+def _hull_bm(points, merge=2e-5):
+    """Konvexe Hülle (BMesh). Fast doppelte Punkte (< ``merge``) vorher zusammenfassen – sonst liefert
+    Blenders Quickhull bei nahezu koplanaren Punkten gelegentlich nicht-konvexe Flächen."""
     bm = bmesh.new()
+    seen = set()
     for p in points:
-        bm.verts.new(p)
+        k = (round(p[0] / merge), round(p[1] / merge), round(p[2] / merge))
+        if k not in seen:
+            seen.add(k)
+            bm.verts.new(p)
     res = bmesh.ops.convex_hull(bm, input=bm.verts[:], use_existing_faces=False)
     junk = list({g for g in res["geom_interior"] + res["geom_unused"] if isinstance(g, bmesh.types.BMVert)})
     bmesh.ops.delete(bm, geom=junk, context="VERTS")
+    bm.normal_update()
     return bm
+
+
+def _hull_planes(bm):
+    """Nach außen orientierte Flächenebenen (n, d) einer Hülle: innen gilt n·p ≤ d."""
+    hc = sum((v.co for v in bm.verts), V()) / max(len(bm.verts), 1)
+    planes = []
+    for f in bm.faces:
+        if f.calc_area() < 1e-9:
+            continue
+        n, d = f.normal.copy(), f.normal.dot(f.verts[0].co)
+        if n.dot(hc) - d > 0:
+            n, d = -n, -d
+        planes.append((n, d))
+    return planes
 
 
 def convex_hull_obj(name, points, max_verts=48):
@@ -3385,23 +3486,17 @@ def convex_hull_obj(name, points, max_verts=48):
                 boundary = [e for e in bm.edges if e.is_boundary]
                 if boundary:
                     bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
-            pts = [v.co.copy() for v in bm.verts]
-            bm.free()
-            bm = _hull_bm(pts)
-            # Sicherheitsnetz: Punkte, die numerisch doch außerhalb liegen, aufnehmen
-            hc = sum((v.co for v in bm.verts), V()) / max(len(bm.verts), 1)
-            fpl = []
-            for f in bm.faces:
-                if f.calc_area() < 1e-9:
-                    continue
-                n, d = f.normal.copy(), f.normal.dot(f.verts[0].co)
-                if n.dot(hc) - d > 0:
-                    n, d = -n, -d
-                fpl.append((n, d))
-            extra = [p for p in exact if max(n.dot(p) - d for n, d in fpl) > 1e-5]
-            if extra:
+            # Das Schnitt-Polyeder ist bereits konvex mit ebenen Flächen und enthält alle Punkte (jede Ebene
+            # ist Stützebene der exakten Hülle) → direkt verwenden. Eine Neuberechnung per Quickhull knickt
+            # große, fast ebene Flächen und liefert mit Punkten im Rundungsrauschen nicht-konvexe Dellen.
+            bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-4)       # Fast-Duplikate der Schnitte
+            bmesh.ops.dissolve_degenerate(bm, edges=bm.edges[:], dist=1e-6)
+            bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+            bm.normal_update()
+            if any(not e.is_manifold for e in bm.edges):                       # Notfall: Hülle der Schnittpunkte
+                pts = [v.co.copy() for v in bm.verts]
                 bm.free()
-                bm = _hull_bm(pts + extra)
+                bm = _hull_bm(pts)
             if len(bm.verts) <= HULL_MAX_VERTS or target <= 8:
                 break
             bm.free()
@@ -3436,6 +3531,46 @@ def build_collision(asm, asset_name):
         h["collision_group"] = cname
         hulls.append(h)
     return hulls
+
+
+def hull_exempt_regions(asm, hulls, angle):
+    """Bewusst nicht eingehüllte Teile (``asm.hull_exempt``): jede Insel, die tatsächlich aus allen Hüllen
+    ragt, als Bounding Box im Exportsystem (für den Report und tools/smoke_blender.py)."""
+    planes = []
+    for h in hulls:
+        bm = bmesh.new()
+        bm.from_mesh(h.data)
+        bm.normal_update()
+        planes.append(_hull_planes(bm))
+        bm.free()
+    rot = Matrix.Rotation(angle, 3, "Z")
+    regions = []
+    for objs, reason in asm.hull_exempt:
+        for o in objs:
+            bm = bmesh.new()
+            bm.from_mesh(o.data)
+            mw = o.matrix_world
+            seen = set()
+            for start in bm.verts:
+                if start.index in seen:
+                    continue
+                island, stack = [], [start]
+                seen.add(start.index)
+                while stack:
+                    v = stack.pop()
+                    island.append(mw @ v.co)
+                    for e in v.link_edges:
+                        w = e.other_vert(v)
+                        if w.index not in seen:
+                            seen.add(w.index)
+                            stack.append(w)
+                if any(all(max(n.dot(p) - d for n, d in pl) > 1e-3 for pl in planes if pl) for p in island):
+                    pts = [rot @ p for p in island]
+                    regions.append(dict(part=o.name, reason=reason,
+                                        min=[round(min(p[i] for p in pts), 4) for i in range(3)],
+                                        max=[round(max(p[i] for p in pts), 4) for i in range(3)]))
+            bm.free()
+    return regions
 
 
 def smart_uv(objs):
@@ -3931,12 +4066,39 @@ def tri_count(objs):
     return n
 
 
+REPORT_SCHEMA = 2
+TEXTURE_KEYS = ("BaseColor", "Normal", "Normal_DX", "ORM", "MetallicSmoothness", "MaskMap", "Emissive")
+
+
+def file_sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def remove_old_outputs(asm, short, out_dir):
+    """Bekannte Ausgabedateien dieses Assets vor dem Export löschen – zuerst den Report, damit ein
+    abgebrochener Lauf nicht vollständig aussieht und keine veralteten LODs/Formate liegen bleiben."""
+    names = [f"{asm.name}_report.json"]
+    names += [f"{asm.name}{suffix}.{ext}" for suffix in ["", *(f"_LOD{i}" for i in range(1, 5)), "_Collision"]
+              for ext in ("fbx", "glb")]
+    names += [f"SK_{short}.fbx", f"SK_{short}.glb", f"{asm.name}.blend"]
+    names += [os.path.join("Textures", f"T_{short}_{k}.png") for k in TEXTURE_KEYS]
+    for n in names:
+        path = os.path.join(out_dir, n)
+        if os.path.isfile(path):
+            os.remove(path)
+
+
 def finalize(asm, cfg, out_dir):
     """Rohmodell → engine-fertiges Asset (siehe Modul-Docstring)."""
     t0 = time.time()
     tgt = TARGETS[cfg.target]
     short = asm.name[3:] if asm.name.startswith("SM_") else asm.name
     os.makedirs(out_dir, exist_ok=True)
+    remove_old_outputs(asm, short, out_dir)
     bpy.context.view_layer.update()
     for k, e in asm.sockets.items():
         e.name = f"SOCKET_{k}"
@@ -3950,6 +4112,10 @@ def finalize(asm, cfg, out_dir):
         apply_modifiers(o)
         tag_detail(o)
     hulls = build_collision(asm, asm.name) if cfg.collision else []     # UCX_<Asset>_## (Unreal-Konvention)
+    exempt = hull_exempt_regions(asm, hulls, tgt["rot"]) if hulls else []
+    if cfg.target == "godot":
+        for h in hulls:
+            h.name += "-convcolonly"        # Godot-Importhinweis: konvexe Kollisionsform, Mesh wird verworfen
     log(f"{short}: {len(meshes)} Teile, {len(hulls)} Kollisionshüllen")
     smart_uv([o for o in meshes if not o.get("uv_ready")])
     parts = join_by_pivot(asm, meshes)
@@ -3965,20 +4131,27 @@ def finalize(asm, cfg, out_dir):
     lods = build_lods(asm, parts, cfg.lods)
     log(f"{short}: LODs " + ", ".join(f"LOD{k}={tri_count(v):,}".replace(",", ".") for k, v in lods.items()))
     hierarchy = [asm.root] + [p for k, p in asm.pivots.items() if k != "root"] + list(asm.sockets.values())
-    files = []
+    files, lod_files, collision_files = [], {L: [] for L in lods}, []
     base = os.path.join(out_dir, asm.name)
     for L, objs in lods.items():
         suffix = "" if L == 0 else f"_LOD{L}"
         if "fbx" in cfg.formats:
             ucx = hulls if (L == 0 and cfg.target == "unreal") else []      # UCX ist eine Unreal-Konvention
             export_fbx(base + suffix + ".fbx", hierarchy + objs + ucx, tgt)
-            files.append(base + suffix + ".fbx")
-            if L == 0 and hulls and cfg.target != "unreal":
+            lod_files[L].append(base + suffix + ".fbx")
+            if ucx:
+                collision_files.append(base + ".fbx")
+            elif L == 0 and hulls:
                 export_fbx(base + "_Collision.fbx", [asm.root] + hulls, tgt)
-                files.append(base + "_Collision.fbx")
+                collision_files.append(base + "_Collision.fbx")
         if "glb" in cfg.formats:
             export_glb(base + suffix + ".glb", hierarchy + objs)
-            files.append(base + suffix + ".glb")
+            lod_files[L].append(base + suffix + ".glb")
+            if L == 0 and hulls:                    # glTF kennt keine UCX-Konvention → Hüllen immer separat
+                export_glb(base + "_Collision.glb", [asm.root] + hulls)
+                collision_files.append(base + "_Collision.glb")
+        files += lod_files[L]
+    files += [f for f in collision_files if f not in files]
     bones = []
     if cfg.rig:
         arm, sk = build_rig(asm, lods[0], short)
@@ -4002,19 +4175,34 @@ def finalize(asm, cfg, out_dir):
         files.append(path)
     pts = [o.matrix_world @ v.co for o in lods[0] for v in o.data.vertices]
     size = [max(p[i] for p in pts) - min(p[i] for p in pts) for i in range(3)]
+
+    def rel(f):
+        return os.path.relpath(f, out_dir).replace(os.sep, "/")
+    seconds = round(time.time() - t0, 1)
     report = dict(
-        asset=asm.name, target=cfg.target, forward_axis="+X" if tgt["rot"] == 0 else "-Y (Blender)",
+        schema_version=REPORT_SCHEMA, asset=asm.name,
+        generator="vehicle_generator.py", generator_sha256=GENERATOR_SHA256,
+        blender_version=bpy.app.version_string,
+        options={k: (sorted(v) if isinstance(v, set) else v) for k, v in sorted(vars(cfg).items())},
+        target=cfg.target, forward_axis="+X" if tgt["rot"] == 0 else "-Y (Blender)",
         units="Meter", dimensions_m=[round(s, 3) for s in size],
-        lods={f"LOD{k}": dict(triangles=tri_count(v), meshes=[o.name for o in v]) for k, v in lods.items()},
+        lods={f"LOD{k}": dict(triangles=tri_count(v), meshes=[o.name for o in v], files=[rel(f) for f in lod_files[k]])
+              for k, v in lods.items()},
         pivots={k: dict(location=[round(c, 4) for c in p.matrix_world.translation], axis=[round(c, 4) for c in asm.axes[k]],
-                        parent=asm.parents[k], oriented=bool(p.get("oriented")), positive=asm.notes.get(k, ""))
+                        motion=asm.motion.get(k, "hinge"), parent=asm.parents[k], oriented=bool(p.get("oriented")),
+                        positive=asm.notes.get(k, ""))
                 for k, p in asm.pivots.items()},
         sockets={k: dict(location=[round(c, 4) for c in s.matrix_world.translation],
                          forward=[round(c, 4) for c in asm.socket_fwd[k]]) for k, s in asm.sockets.items()},
         collision=[dict(name=h.name, group=h["collision_group"], verts=len(h.data.vertices)) for h in hulls],
+        collision_files=[rel(f) for f in collision_files],
+        collision_exempt=dict(pivots=dict(asm.hull_exempt_pivots), regions=exempt) if hulls else {},
         textures=textures, bones=bones,
         materials=sorted({m.name for o in lods[0] for m in o.data.materials if m}),
-        files=[os.path.relpath(f, out_dir) for f in files], seconds=round(time.time() - t0, 1),
+        files=[dict(path=rel(f), bytes=os.path.getsize(f), sha256=file_sha256(f))
+               for f in files + [os.path.join(out_dir, t) for t in textures.values()]],
+        seconds=seconds,
+        provenance="Vollständig prozedural erzeugt (Geometrie, Materialien, Texturen); keine externen Modelle oder Bilder.",
     )
     with open(os.path.join(out_dir, f"{asm.name}_report.json"), "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
@@ -4035,9 +4223,10 @@ def parse_args(argv):
     p.add_argument("--target", choices=sorted(TARGETS), default="unreal",
                    help="Ziel-Engine: steuert Ausrichtung, FBX-Skalierung und Textur-Packing")
     p.add_argument("--formats", default="fbx,glb,blend", help="Kommagetrennt: fbx, glb, blend")
-    p.add_argument("--bake", type=int, default=2048, help="Texturauflösung für den PBR-Bake (0 = kein Bake)")
+    p.add_argument("--bake", type=int, default=2048, help="Texturauflösung für den PBR-Bake (0 = kein Bake, sonst 256–8192)")
     p.add_argument("--bake-samples", type=int, default=32, help="Samples für den AO-Bake")
-    p.add_argument("--lods", type=int, default=3, help="Anzahl zusätzlicher LOD-Stufen (0–4)")
+    p.add_argument("--lods", type=int, default=3, choices=range(0, 5), metavar="0-4",
+                   help="Anzahl zusätzlicher LOD-Stufen")
     p.add_argument("--rig", action="store_true", help="Zusätzlich Skeletal Mesh (SK_*) mit Knochen exportieren")
     p.add_argument("--no-collision", dest="collision", action="store_false", help="Keine UCX-Kollision erzeugen")
     p.add_argument("--preview", action="store_true", help="Studio-Vorschaubilder rendern (Cycles)")
@@ -4056,7 +4245,14 @@ def parse_args(argv):
     p.add_argument("--no-export", action="store_true", help="Nur Modelle bauen (z.B. in der Blender-GUI)")
     cfg = p.parse_args(argv)
     cfg.formats = {f.strip().lower() for f in cfg.formats.split(",") if f.strip()}
-    cfg.lods = max(0, min(4, cfg.lods))
+    unknown = cfg.formats - {"fbx", "glb", "blend"}
+    if unknown:
+        p.error(f"--formats: unbekannt {', '.join(sorted(unknown))} (erlaubt: fbx, glb, blend)")
+    if cfg.bake and not 256 <= cfg.bake <= 8192:
+        p.error("--bake muss 0 (kein Bake) oder 256–8192 sein")
+    for opt in ("bake_samples", "preview_samples"):
+        if not 1 <= getattr(cfg, opt) <= 4096:
+            p.error(f"--{opt.replace('_', '-')} muss 1–4096 sein")
     cfg.dirt = clamp(cfg.dirt)
     return cfg
 
@@ -4078,9 +4274,14 @@ def main():
         argv = []
     gui = not bpy.app.background
     cfg = parse_args(argv)
+    if bpy.app.version < (4, 2, 0):
+        raise SystemExit(f"Blender {bpy.app.version_string} ist zu alt – benötigt wird Blender/bpy 4.2 oder neuer.")
     if gui:
         cfg.no_export = True
     out_dir = os.path.abspath(cfg.out)
+    summary = os.path.join(out_dir, "summary.json")
+    if not cfg.no_export and os.path.isfile(summary):
+        os.remove(summary)                   # erst nach erfolgreichem Lauf neu schreiben
     builders = {"enduro": build_enduro, "heli": build_heli, "plane": build_plane}
     names = {"enduro": cfg.enduro_name, "heli": cfg.heli_name, "plane": cfg.plane_name}
     keys = list(builders) if cfg.vehicle == "all" else [cfg.vehicle]
@@ -4101,14 +4302,14 @@ def main():
             os.makedirs(os.path.join(out_dir, "previews"), exist_ok=True)
             for vname, view in (("34", (-35.0, 16.0)), ("side", (90.0, 5.0)), ("rear", (150.0, 22.0))):
                 render_preview(asm.meshes(), os.path.join(out_dir, "previews", f"{asm.name}_{vname}.png"),
-                               samples=cfg.preview_samples, view=view, dist_scale=0.85 if key == "enduro" else 0.8)
+                               samples=cfg.preview_samples, view=view)
         if gui:
             asm.root.location.y = (0.0, 8.0, 22.0)[i] if len(keys) == 3 else 8.0 * i
             continue
         if not cfg.no_export:
             reports.append(finalize(asm, cfg, out_dir))
     if reports:
-        with open(os.path.join(out_dir, "summary.json"), "w", encoding="utf-8") as fh:
+        with open(summary, "w", encoding="utf-8") as fh:
             json.dump(reports, fh, indent=2, ensure_ascii=False)
     return reports
 
