@@ -1,6 +1,6 @@
-# 3D Vehicle Factory – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber, Flugzeug & Geländewagen)
+# 3D Vehicle Factory – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber, Flugzeug, Geländewagen & Motorboot)
 
-`vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das vier detaillierte,
+`vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das fünf detaillierte,
 realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 **engine-fertige Assets** exportiert:
 
@@ -13,6 +13,10 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 |---|---|
 | ![Flugzeug](docs/plane_34.jpg) | ![Geländewagen](docs/offroad_34.jpg) |
 | ![Flugzeug Heck](docs/plane_rear.jpg) | ![Geländewagen geöffnet](docs/offroad_open.jpg) |
+
+| Motorboot (Bowrider mit Außenborder) | |
+|---|---|
+| ![Motorboot](docs/boat_34.jpg) | ![Motorboot Cockpit](docs/boat_top.jpg) |
 
 Die Vorschaubilder sind mit `--preview` direkt aus dem Script gerendert (Cycles); für das Bild mit
 geöffneten Türen, Haube und Hecktür wurden nur die Pivots gedreht.
@@ -70,12 +74,25 @@ Lichtleiste, Rock-Slider, Kotflügelverbreiterungen, Schmutzfänger, Kennzeichen
 Innenraum (Armaturenbrett mit Displays, Sitze, Rückbank, Schalt- und Verteilerhebel, Lenkrad).
 Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 
+**Motorboot** – Bowrider der 6,4-m-Klasse (mit Außenborder und Badeplattformen 7,3 m, Breite 2,4 m):
+**Tiefen-V-Rumpf** (20° Aufkimmung am Spiegel, nach vorn schärfer) mit Kimmkanten, zwei Spritzleisten je
+Seite, stark ausgestelltem Bug und Wasserpass, als geschlossener Loft mit Deck zur Schale verdickt;
+Cockpit und Motorschacht sind nur durch das Deck geschnitten. **Teak-Laufdeck**, Liner-Wände, Fahrer- und
+Beifahrerkonsole mit Displays, Kompass, Lenkrad und Gashebel, **gebogene Windschutzscheibe mit
+aufschwenkbarer Durchgangstür**, Schalensitze auf Säulen, Heckbank, Seitenbank, Bugsitze und
+Sonnenpolster, Badeplattformen mit klappbarer Badeleiter, Scheuerleiste mit Edelstahleinlage, Bugreling,
+Klampen, Bugauge, Ski-Zugösen, Positions- und Hecklicht, Trimmklappen, Ankerkasten, Kennzeichen und Name
+(Mesh-Decals). **Außenborder** (V6, 200 PS) mit Haube, Profil-Schaft, Antikavitationsplatte, Getriebe,
+Skeg und Dreiblatt-Propeller mit Skew – an Pivots zum **Kippen, Lenken und Drehen**. Ursprung auf der
+Konstruktionswasserlinie: Mit dem Ursprung auf die Wasseroberfläche gesetzt schwimmt das Boot.
+Lackierungen: `navy`, `white`, `red`, `graphite`.
+
 ## Game-Ready-Pipeline
 
 | Schritt | Ergebnis |
 |---|---|
-| Maßstab | Meter, Ursprung am Boden; Ausrichtung je Ziel-Engine (`--target`) |
-| Hierarchie | Jedes bewegliche Teil hängt an einem Pivot (Lenkung, Gabel, Räder, Schwinge, Rotoren, Blätter, Türen, Klappen, Quer-/Höhen-/Seitenruder, Propeller, Bugrad, Achsen, Achsschenkel, Federbeine, Haube, Hecktür …) mit Drehpunkt bzw. Scharnierachse an der physikalisch richtigen Stelle; Bewegungsart (`spin`/`hinge`/`slide`/`aim`), positive Richtung, Aim-Ziel und – wo kollisionsfrei geprüft – der Bewegungsbereich hängen als Custom Property (FBX) bzw. glTF-`extras` am Pivot |
+| Maßstab | Meter, Ursprung am Boden (Boot: auf der Konstruktionswasserlinie); Ausrichtung je Ziel-Engine (`--target`) |
+| Hierarchie | Jedes bewegliche Teil hängt an einem Pivot (Lenkung, Gabel, Räder, Schwinge, Rotoren, Blätter, Türen, Klappen, Quer-/Höhen-/Seitenruder, Propeller, Bugrad, Achsen, Achsschenkel, Federbeine, Haube, Hecktür, Außenborder, Durchgangstür, Badeleiter …) mit Drehpunkt bzw. Scharnierachse an der physikalisch richtigen Stelle; Bewegungsart (`spin`/`hinge`/`slide`/`aim`), positive Richtung, Aim-Ziel und – wo kollisionsfrei geprüft – der Bewegungsbereich hängen als Custom Property (FBX) bzw. glTF-`extras` am Pivot |
 | Skelett (`--rig`) | Zusätzliches Skeletal Mesh `SK_*` mit Knochen pro Pivot, starr gewichtet – direkt für Chaos Vehicles / Unity-Animator nutzbar |
 | Meshes | Modifier angewendet, trianguliert, pro Pivot zusammengeführt (wenige Draw Calls), Glas separat |
 | UV | Ein gemeinsamer, überlappungsfreier UV-Atlas pro Fahrzeug |
@@ -83,7 +100,7 @@ Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 | Material | Ein Engine-Material pro Fahrzeug (+ Glas) |
 | LODs | LOD0–LOD3 (50 % / 25 % / 12 %), Kleinteile (Speichen, Kette, Leitungen, Decals …) werden stufenweise entfernt |
 | Kollision | Konvexe `UCX_*`-Hüllen (Unreal-Konvention), konservativ vereinfacht (umschließen die Geometrie vollständig, Eckpunkte sind exakte Ebenenschnitte), max. 128 Vertices (≤ 252 Dreiecke); in `SM_*.fbx` eingebettet (Unreal), sonst separat als `SM_*_Collision.fbx` und immer als `SM_*_Collision.glb` (Godot: Suffix `-convcolonly` → automatische Kollisionsformen). Drehende Rotor-/Propellerblätter und dünne Antennen bewusst ohne Hülle (im Report unter `collision_exempt`) |
-| Sockets | `SOCKET_*`-Empties: Fahrer-/Pilotensitz, Fußrasten, Griffe, Auspuff, Scheinwerfer, Winde, Rotornabe … – lokale +X-Achse = Blick-/Austrittsrichtung (`sockets.*.forward` im Report) |
+| Sockets | `SOCKET_*`-Empties: Fahrer-/Pilotensitz, Fußrasten, Griffe, Auspuff, Scheinwerfer, Winde, Rotornabe, Auftriebspunkte und Bugwelle (Boot) … – lokale +X-Achse = Blick-/Austrittsrichtung (`sockets.*.forward` im Report) |
 | Export | FBX, GLB (glTF 2.0) und `.blend` + JSON-Report mit Polycounts, Pivots, Sockets, Blender-Version, allen Optionen sowie Größe und SHA-256 jeder Datei |
 
 Gemessene Polycounts (Standardeinstellungen, Dreiecke):
@@ -94,6 +111,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 121 657 | 60 826 | 28 279 | 8 638 |
+| Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---
 
@@ -109,7 +127,7 @@ im Hintergrund (mit denselben Argumenten).
 ## Benutzung
 
 ```bash
-# Alle vier Fahrzeuge für Unreal exportieren (Standard: FBX + GLB + .blend, 2K-Bake, 3 LODs)
+# Alle fünf Fahrzeuge für Unreal exportieren (Standard: FBX + GLB + .blend, 2K-Bake, 3 LODs)
 blender --background --factory-startup --python-exit-code 1 --python vehicle_generator.py -- --out export
 
 # Nur den Heli, Polizei-Lackierung, mit Skelett, 4K-Texturen, für Unity
@@ -123,6 +141,9 @@ blender -b -P vehicle_generator.py -- --vehicle plane --plane-livery trainer --r
 
 # Geländewagen in Oliv mit Skelett (Achsen, Achsschenkel, Räder, Federbeine, Türen, Haube, Hecktür) für Godot
 blender -b -P vehicle_generator.py -- --vehicle offroad --offroad-livery olive --rig --target godot
+
+# Motorboot in Graphit mit Skelett (Außenborder kippen/lenken, Propeller, Lenkrad, Gashebel, Tür, Leiter) für Unity
+blender -b -P vehicle_generator.py -- --vehicle boat --boat-livery graphite --rig --target unity
 ```
 
 `--python-exit-code 1` lässt Blender bei einem Python-Fehler mit Exit-Code 1 enden – ohne meldet
@@ -137,7 +158,7 @@ Anschauen und Weiterbearbeiten.
 
 | Option | Standard | Beschreibung |
 |---|---|---|
-| `--vehicle {enduro,heli,plane,offroad,all}` | `all` | Welche Modelle gebaut werden |
+| `--vehicle {enduro,heli,plane,offroad,boat,all}` | `all` | Welche Modelle gebaut werden |
 | `--out DIR` | `export` | Ausgabeordner |
 | `--target {unreal,unity,godot,generic}` | `unreal` | Ausrichtung (Unreal: +X vorne; sonst Blender −Y vorne = Unity +Z / glTF +Z), FBX-Skalierung, Textur-Packing |
 | `--formats` | `fbx,glb,blend` | Exportformate (`fbx`, `glb`, `blend`, kommagetrennt) |
@@ -152,14 +173,15 @@ Anschauen und Weiterbearbeiten.
 | `--heli-livery` | `civil` | `civil`, `police`, `rescue`, `military` |
 | `--plane-livery` | `classic` | `classic`, `trainer`, `bush`, `military` |
 | `--offroad-livery` | `sand` | `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach) |
+| `--boat-livery` | `navy` | `navy`, `white`, `red`, `graphite` |
 | `--blades N` | `4` | Anzahl Hauptrotorblätter (2–7) |
 | `--dirt F` | `0.35` | Verschmutzungsgrad 0–1 (Schlamm/Staub, im Bake enthalten) |
 | `--seed N` | `7` | Variation (Stollenmuster, Startnummer, Kennzeichen) |
-| `--enduro-name`, `--heli-name`, `--plane-name`, `--offroad-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane`, `SM_Offroad` | Asset-Namen |
+| `--enduro-name`, `--heli-name`, `--plane-name`, `--offroad-name`, `--boat-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane`, `SM_Offroad`, `SM_Boat` | Asset-Namen |
 
 Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 50 s (Enduro), 1 min (Heli),
-1,3 min (Flugzeug) und 40 s (Geländewagen), alle vier zusammen rund 4 min; der größte Teil ist der
-Textur-Bake. `--preview` rendert drei Bilder je Fahrzeug (je ca. 2 min bei 96 Samples). Mit `--bake 0`
+1,3 min (Flugzeug), 40 s (Geländewagen) und 2 min (Motorboot), alle fünf zusammen rund 6 min; der größte
+Teil ist der Textur-Bake. `--preview` rendert drei Bilder je Fahrzeug (je ca. 2 min bei 96 Samples). Mit `--bake 0`
 dauert ein Fahrzeug nur wenige Sekunden.
 
 ### Ausgabe
@@ -197,7 +219,8 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
   `TailRotor`, `Door_*`, `FLIR` bzw. `Propeller`, `Aileron_L/R`, `Flap_L/R`, `Elevator`, `Rudder`,
   `NoseGear`, `WheelNose`, `WheelMain_L/R`, `Door_L/R` bzw. `Axle_F`, `Steer_FL/FR`, `Wheel_FL/FR`,
   `Axle_R`, `Wheel_RL/RR`, `Coilover_FL/FR/RL/RR`, `CoiloverMount_FL/FR/RL/RR`, `Door_FL/FR/RL/RR`,
-  `Hood`, `Tailgate`, `SteeringWheel`. Physics Asset in Unreal erzeugen. Beim Geländewagen mit
+  `Hood`, `Tailgate`, `SteeringWheel` bzw. `Outboard_Tilt`, `Outboard_Steer`, `Propeller`, `SteeringWheel`,
+  `Throttle`, `WindshieldDoor`, `SwimLadder`. Physics Asset in Unreal erzeugen. Beim Geländewagen mit
   Starrachsen treiben die Radknochen die Federung; die Achsknochen dreht man im Animation Blueprint um
   `atan((z_links − z_rechts) / Spur)` (Spur 1,60 m) mit.
 - Material: `T_*_Normal_DX.png` als Normal Map, `T_*_ORM.png` mit *sRGB aus*.
@@ -213,7 +236,10 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
   ansteuern), Seitenruder positiv = Hinterkante nach rechts, Türen öffnen nach außen, Räder rollen
   vorwärts; Geländewagen: Achsschenkel positiv = Rad lenkt nach links, Achsen positiv = linkes Rad
   federt ein, Haube positiv = öffnet, Hecktür (Scharnier rechts) positiv = öffnet, Lenkrad positiv =
-  nach links. In linkshändigen Engines (Unity) ggf. das Vorzeichen umdrehen.
+  nach links; Motorboot: Außenborder-Lenkung positiv = Boot dreht nach Backbord (links), Kippen positiv =
+  Unterwasserteil nach oben, Propeller positiv = Vorwärtsschub (rechtsdrehend, von hinten im
+  Uhrzeigersinn), Gashebel positiv = vorwärts, Durchgangstür und Badeleiter positiv = öffnen.
+  In linkshändigen Engines (Unity) ggf. das Vorzeichen umdrehen.
 - **Aim-Pivots** (`motion: aim`, Ziel unter `pivots.*.target` bzw. Custom Property `target`): Die beiden
   Hälften jedes Federbeins (`Coilover_*` an der Achse, `CoiloverMount_*` am Rahmen) müssen mit der lokalen
   +Y-Achse auf ihren Partner zeigen – dann teleskopieren Dämpfer und Feder beim Einfedern. Unreal:
@@ -223,7 +249,14 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
   mit Forward Axis +Y.
 - **Bewegungsbereiche** (`pivots.*.limits` bzw. Custom Properties `limit_min`/`limit_max`, in Grad) sind
   per Kollisionsprüfung ermittelt; beim Geländewagen: Türen 0–75°, Haube 0–65°, Hecktür 0–100°,
-  Achsschenkel ±30°, Achsen ±6° (bei voller Verschränkung Lenkeinschlag bis ±25°), Lenkrad ±540°.
+  Achsschenkel ±30°, Achsen ±6° (bei voller Verschränkung Lenkeinschlag bis ±25°), Lenkrad ±540°;
+  beim Motorboot: Außenborder kippen 0–65°, lenken ±35°, Durchgangstür 0–80°, Badeleiter 0–180°,
+  Gashebel ±35°, Lenkrad ±540°.
+- **Boot im Wasser:** Der Ursprung liegt auf der Konstruktionswasserlinie. Die Sockets `Float_AftL/R`,
+  `Float_MidL/R`, `Float_FwdL/R` sitzen auf der Wasserlinie an der Bordwand und eignen sich als
+  Auftriebspunkte (z. B. Pontons der Unreal-*Buoyancy*-Komponente oder eigene Auftriebsskripte in
+  Unity/Godot). `PropWash` (Propeller, zeigt nach achtern) und `BowWave` (Steven) sind Ansatzpunkte für
+  Kielwasser- und Spritzeffekte.
 
 **Unity** (`--target unity`)
 - FBX importieren; die Front zeigt nach +Z (bei Bedarf *Bake Axis Conversion* aktivieren).
@@ -284,7 +317,9 @@ python tools/smoke_blender.py export            # alternativ mit pip-bpy
 - **Geländewagen:** `OffroadGeo` – Unterbau-Spanten (`LOWER`), Achsen, Spur, Radlauf, Gürtellinie,
   Scheibenneigung und Tumblehome der Kabine; Konturen von Türen, Fenstern, Haube und Hecktür in
   `build_offroad`, Motorraum in `offroad_engine_bay`, Rad in `offroad_wheel`.
-- **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`
+- **Motorboot:** `BoatGeo` – Tabellen für Kiel, Kimm und Deckslinie (Höhe/halbe Breite über X),
+  Cockpit-Ausschnitt, Motorschacht, Kipp- und Lenkachse; Außenborder in `boat_outboard`.
+- **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`, `BOAT_LIVERIES`
   (Farbbänder über Welt-Höhe, beim Flugzeug schräg ansteigend, Zweifarb-Dach, Schriftzug, Textfarbe).
 - **Neue Teile:** Baukasten-Funktionen `loft_stations`, `lathe`, `tube`, `extrude`, `surface_grid`,
   `airfoil_loft`, `text_md` + `project_onto` (Decals) und `Assembly.add(mesh, name, pivot)`.
@@ -297,7 +332,8 @@ zusätzlich typischerweise: High-Poly-Sculpt → Normal-Bake, Trim-Sheets und me
 Texture-Sets mit höherer Texeldichte, Schadens-/Verschleißstufen, ein voll ausmodelliertes Cockpit
 sowie Fahrzeug-Setup (Federung, Rotor-/Propeller-Blur-Meshes, Flugphysik) in der Engine. Beim
 Geländewagen teleskopieren die Federbeine zwar, die Federn werden aber nicht gestaucht (keine
-Skalierung), und der Unterboden ist bis auf Motorraum und Differential-Tasche geschlossen. Dafür ist dieses Script die
+Skalierung), und der Unterboden ist bis auf Motorraum und Differential-Tasche geschlossen. Beim Motorboot
+liefern Wasseroberfläche, Kielwasser und Gischt die Engine; Persenning und Bimini fehlen. Dafür ist dieses Script die
 Grundlage: alle Maße, Pivots, LODs und Exporte stehen, und jedes Teil lässt sich in Blender oder
 im Code weiter verfeinern.
 
