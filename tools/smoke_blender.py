@@ -12,7 +12,7 @@ Je Asset:
   * Pivots: vorhanden, Position/Achse wie im Report, jedes Teil hängt an seinem Pivot; geometrisch:
     "spin"-Teile (Räder, Rotoren, Propeller) sitzen zentriert auf ihrer Achse und die Achse ist ihre
     Symmetrieachse (eiert nicht), "hinge"-Achsen berühren ihr Teil (Scharnier am Teil, nicht daneben),
-    "slide"-Achsen liegen parallel zur Längsrichtung des Teils
+    "slide"-Achsen liegen parallel zur Längsrichtung des Teils, "aim"-Achsen zeigen auf ihren Ziel-Pivot
   * Sockets: vorhanden, Position und Vorwärtsrichtung (+X) wie im Report
   * Kollision: Anzahl, ≤ 128 Vertices, konvex, umschließt LOD0 – außer dem, was der Report unter
     ``collision_exempt`` bewusst ausnimmt (drehende Rotor-/Propellerblätter, dünne Antennen)
@@ -180,6 +180,19 @@ def check_slide(c, key, parts, axis):
     return info
 
 
+def check_aim(c, key, parts, loc, axis, target):
+    """Aim-Pivot (Federbein-Hälfte): lokales +Y zeigt in Ruhelage auf den Ziel-Pivot – die Engine hält es
+    per Look-At-/Aim-Constraint darauf; ein länglicher Teil liegt zudem längs dieser Achse."""
+    if not c.need(target is not None, f"Pivot {key}: Aim-Ziel fehlt nach dem Import"):
+        return {}
+    d = target.matrix_world.translation - loc
+    if not c.need(d.length > 1e-4, f"Pivot {key}: Aim-Ziel liegt im Pivot"):
+        return {}
+    ang = math.degrees(axis.angle(d.normalized()))
+    c.need(ang <= 1.0, f"Pivot {key}: Achse zeigt {ang:.1f}° am Aim-Ziel vorbei")
+    return {"aim_error_deg": round(ang, 2), **check_slide(c, key, parts, axis)}
+
+
 def check_pivots(c, rep, objs, rel):
     asset = rep["asset"]
     by_name = {o.name: o for o in objs}
@@ -228,6 +241,8 @@ def check_pivots(c, rep, objs, rel):
             results[key] = check_spin(c, f"{rel}: {key}", sorted(subtree, key=lambda o: o.name), loc, axis)
         elif motion == "slide":
             results[key] = check_slide(c, f"{rel}: {key}", own, axis)
+        elif motion == "aim":
+            results[key] = check_aim(c, f"{rel}: {key}", own, loc, axis, by_name.get(f"{asset}_{info.get('target')}_Pivot"))
         else:
             results[key] = check_hinge(c, f"{rel}: {key}", own, loc, axis)
         results[key]["motion"] = motion

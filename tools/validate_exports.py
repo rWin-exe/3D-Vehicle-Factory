@@ -10,8 +10,9 @@ Skin-Gewichte, Bilder (eingebettet, Signatur, Größe), Knoten-Hierarchie (Zykle
 normierte Quaternionen) und Weltmaße.
 
 Liegt ein ``*_report.json`` im Ordner, zusätzlich gegen den Report: Dateigrößen + SHA-256, Dreiecke je
-LOD (streng abnehmend), Maße, Pivots/Sockets als Knoten in jedem LOD, Kollisionshüllen (Anzahl,
-≤ 128 Vertices, konvex) und Knochennamen des Skeletal Mesh.
+LOD (streng abnehmend), Maße, Pivots/Sockets als Knoten in jedem LOD, Pivot-Metadaten (Aim-Ziel
+vorhanden, Bewegungsbereich [min, max]), Kollisionshüllen (Anzahl, ≤ 128 Vertices, konvex) und
+Knochennamen des Skeletal Mesh.
 
 Aufruf:
   python tools/validate_exports.py export           # Ordner (rekursiv) oder einzelne .glb
@@ -408,7 +409,15 @@ def check_report(report_path, results):
     tris = [lod["triangles"] for _, lod in lods]
     if any(b >= a for a, b in zip(tris, tris[1:])):
         errors.append(f"{name}: Dreiecke nehmen über die LODs nicht ab: {tris}")
-    nodes_needed = {name} | {f"{name}_{k}_Pivot" for k in rep.get("pivots", {}) if k != "root"}
+    pivots = rep.get("pivots", {})
+    for key, info in pivots.items():
+        if info.get("motion") == "aim" and info.get("target") not in pivots:
+            errors.append(f"{name}: Pivot {key}: Aim-Ziel {info.get('target')!r} fehlt unter den Pivots")
+        lim = info.get("limits")
+        if lim is not None and not (isinstance(lim, list) and len(lim) == 2
+                                    and all(isinstance(v, (int, float)) for v in lim) and lim[0] < lim[1]):
+            errors.append(f"{name}: Pivot {key}: ungültiger Bewegungsbereich {lim!r} (erwartet [min, max])")
+    nodes_needed = {name} | {f"{name}_{k}_Pivot" for k in pivots if k != "root"}
     nodes_needed |= {f"SOCKET_{k}" for k in rep.get("sockets", {})}
     for key, lod in lods:
         for rel in lod.get("files", []):

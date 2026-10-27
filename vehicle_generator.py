@@ -13,12 +13,14 @@ Prozeduraler Generator für game-ready 3D-Fahrzeugmodelle auf Basis von Blender 
   * ``plane``  – viersitziger Hochdecker der C172-Klasse (gewölbter Flügel mit Klappen und
     Querrudern, Leitwerk mit Rudern, Propeller, Bugradfahrwerk mit Radverkleidungen …)
   * ``offroad`` – 5-türiger Geländewagen (Leiterrahmen, Starrachsen mit Verschränkung, lenkbare
-    Achsschenkel, AT-Reifen 265/75 R16, Seilwinde, Schnorchel, Dachträger, Reserverad an der Hecktür …)
+    Achsschenkel, teleskopierende Federbeine, Motorraum mit Reihen-Sechszylinder-Turbodiesel,
+    AT-Reifen 265/75 R16, Seilwinde, Schnorchel, Dachträger, Reserverad an der Hecktür …)
 
 Game-Ready-Pipeline:
-  reale Maße (Meter) · saubere Pivots für alle beweglichen Teile · optionales Skelett
-  (Skeletal Mesh) · UV-Atlas · Textur-Bake (BaseColor / ORM / Normal / Emissive) ·
-  LOD-Kette · UCX-Kollision · Export als FBX / GLB / .blend · JSON-Report
+  reale Maße (Meter) · saubere Pivots für alle beweglichen Teile (inkl. Aim-Pivots und geprüften
+  Bewegungsbereichen) · optionales Skelett (Skeletal Mesh) · UV-Atlas · Textur-Bake (BaseColor /
+  ORM / Normal / Emissive, AO mit auseinandergezogenen beweglichen Teilen) · LOD-Kette ·
+  UCX-Kollision · Export als FBX / GLB / .blend · JSON-Report
 
 Aufruf (Beispiele):
   blender --background --factory-startup --python-exit-code 1 --python vehicle_generator.py -- --out export
@@ -60,6 +62,7 @@ except ModuleNotFoundError as _err:
 import bmesh
 from mathutils import Matrix, Quaternion, Vector
 from mathutils.bvhtree import BVHTree
+from mathutils.geometry import convex_hull_2d
 from mathutils.interpolate import poly_3d_calc
 
 V = Vector
@@ -1051,6 +1054,8 @@ class Assembly:
         self.socket_fwd = {}
         self.notes = {"root": ""}
         self.motion = {"root": "none"}
+        self.targets = {}               # Pivot → Ziel-Pivot (motion "aim")
+        self.limits = {}                # Pivot → (min, max): geprüfter Bewegungsbereich (Grad bzw. Meter)
 
     def _empty(self, name, loc, size=0.15, kind="PLAIN_AXES"):
         e = bpy.data.objects.new(name, None)
@@ -1060,11 +1065,15 @@ class Assembly:
         self.coll.objects.link(e)
         return e
 
-    def pivot(self, key, loc, axis=Z_AXIS, parent="root", orient=False, positive="", motion="hinge"):
+    def pivot(self, key, loc, axis=Z_AXIS, parent="root", orient=False, positive="", motion="hinge", target=None,
+              limits=None):
         """Drehpunkt. ``orient``: Empty so drehen, dass sein lokales +Y auf der Drehachse liegt
         (für schräge Scharniere wie Türen, Ruder, Lenkkopf) – dann reicht in der Engine eine
         Rotation um die lokale Y-Achse. ``motion``: "spin" (dreht endlos: Räder, Rotoren, Propeller),
-        "hinge" (begrenzter Ausschlag) oder "slide" (Verschiebung entlang der Achse, z.B. Federung)."""
+        "hinge" (begrenzter Ausschlag), "slide" (Verschiebung entlang der Achse, z.B. Federung) oder
+        "aim" (lokales +Y zeigt per Look-At-/Aim-Constraint der Engine stets auf den Pivot ``target`` –
+        zwei Hälften eines Federbeins visieren sich gegenseitig an und teleskopieren). ``limits``: kollisionsfrei
+        geprüfter Bereich (min, max) in Grad ("hinge") bzw. Metern ("slide") für Constraints in der Engine."""
         e = self._empty(f"{self.name}_{key}_Pivot", V(loc), 0.12, "ARROWS")
         par = self.pivots[parent]
         e.parent = par
@@ -1072,6 +1081,12 @@ class Assembly:
         e["oriented"] = bool(orient)
         e["motion"] = motion                 # landet als Custom Property (FBX) bzw. extras (glTF) in der Engine
         e["positive"] = positive
+        if target:
+            e["target"] = target
+            self.targets[key] = target
+        if limits:
+            e["limit_min"], e["limit_max"] = limits
+            self.limits[key] = tuple(limits)
         self.notes[key] = positive
         self.motion[key] = motion
         self.pivots[key] = e
@@ -3417,6 +3432,8 @@ def offroad_materials(prefix, liv, dirt):
         "decal": uv_weight(mat_paint(P + "Decal", (0.02, 0.02, 0.022), 0.3), 2.0),
         "soot": mat_metal(P + "Exhaust", (0.08, 0.07, 0.065), 0.65),
         "mirror": mat_metal(P + "MirrorGlass", (0.85, 0.87, 0.9), 0.02),
+        "engine": mat_metal(P + "EngineCast", (0.10, 0.10, 0.105), 0.55, dirt=dirt * 0.5, dirt_z=(0.55, 1.0)),
+        "valve": mat_paint(P + "ValveCover", (0.32, 0.02, 0.015), 0.45, coat=0.2),
     }
 
 
@@ -3464,7 +3481,7 @@ class OffroadGeo:
         self.x_ws0, self.x_ws1 = 0.74, 0.42             # Windschutzscheibe: Unterkante / Dachkante (≈ 24°)
         self.hw_sh, self.hw_roof = 0.865, 0.80          # halbe Kabinenbreite an Gürtellinie / Dach (Tumblehome)
         self.r_roof, self.r_corner = 0.055, 0.06
-        self.arch_r = 0.50                              # Radlauf um die Radmitte
+        self.arch_r = 0.52                              # Radlauf um die Radmitte (Verschränkung ±6° frei)
         self.shell_t = 0.02
 
     def wheel(self, key):
@@ -3577,6 +3594,116 @@ def offroad_wheel(M):
     return {"tire": tire, "tread": tread, "rim": rim, "brake": brake}
 
 
+def offroad_engine_bay(g, M):
+    """Motorraum (sichtbar bei offener Haube): längs eingebauter Reihen-Sechszylinder-Turbodiesel mit
+    Riementrieb, Kühler mit Visco-Lüfter, Luftfilterkasten am Schnorchel, Batterie, Bremskraftverstärker,
+    Ausgleichsbehälter, Schläuche, Spritzwand und Innenkotflügel. Gibt (Hauptteile, Kleinteile) zurück."""
+    eng, small = MeshData(), MeshData()
+    xs = [1.0 + 0.7 * (k + 0.5) / 6 for k in range(6)]                       # Zylindermitten
+    eng.merge(box((0.76, 0.0, 0.835), (0.02, 1.72, 0.59), M["interior"]))      # Spritzwand
+    z_shelf = g.fa.z + g.arch_r + 0.005                                        # Innenkotflügel über den Radhäusern
+    for side in (1, -1):
+        eng.merge(box((1.39, side * 0.6575, z_shelf - 0.0075), (0.98, 0.425, 0.015), M["interior"]))
+        eng.merge(box((1.39, side * 0.45, (0.555 + z_shelf) / 2), (0.98, 0.01, z_shelf - 0.555), M["interior"]))
+    # Block mit eingezogener Schürze, Zylinderkopf, Ventildeckel, Steuergehäuse, Kupplungsglocke
+    eng.merge(prism_x([(-0.12, 0.66), (0.12, 0.66), (0.15, 0.74), (0.15, 0.95), (-0.15, 0.95), (-0.15, 0.74)],
+                      1.0, 1.70, M["engine"]))
+    eng.merge(box((1.35, 0.0, 0.98), (0.70, 0.31, 0.06), M["engine"]))
+    cover = rounded_poly_2d([(-0.125, 1.01), (0.125, 1.01), (0.125, 1.035), (0.10, 1.058), (-0.10, 1.058),
+                             (-0.125, 1.035)], [0.0, 0.0, 0.01, 0.012, 0.012, 0.01], 3)
+    eng.merge(prism_x(cover, 1.02, 1.68, M["valve"]))
+    eng.merge(text_md("TURBO DIESEL", 0.032, frame_matrix(V((1.35, 0.0, 1.0595)), -X_AXIS, -Y_AXIS, Z_AXIS),
+                      M["alu"], bold=0.02))
+    eng.merge(box((1.7225, 0.0, 0.835), (0.045, 0.26, 0.33), M["engine"]))
+    eng.merge(lathe([(0.12, 0.0), (0.155, 0.16), (0.17, 0.22)], 24, V((0.78, 0.0, 0.74)), X_AXIS, M["engine"]))
+    for side in (1, -1):                                                        # Motorlager auf dem Rahmen
+        eng.merge(box((1.42, side * 0.26, 0.685), (0.10, 0.22, 0.05), M["chassis"]))
+    # Ansaugseite links: Sammler mit sechs Saugrohren; Abgasseite rechts: Krümmer → Turbolader → Hosenrohr
+    eng.merge(cylinder(V((1.03, 0.25, 0.975)), V((1.67, 0.25, 0.975)), 0.045, 16, M["alu"]))
+    for x in xs:
+        eng.merge(cylinder(V((x, 0.21, 0.975)), V((x, 0.15, 0.98)), 0.022, 10, M["alu"]))
+        eng.merge(cylinder(V((x, -0.15, 0.972)), V((x, -0.21, 0.935)), 0.02, 10, M["soot"]))
+    eng.merge(cylinder(V((1.10, -0.215, 0.925)), V((1.66, -0.215, 0.925)), 0.032, 14, M["soot"]))
+    eng.merge(cylinder(V((1.02, -0.27, 0.905)), V((1.10, -0.27, 0.905)), 0.07, 20, M["soot"]))       # Turbine
+    eng.merge(cylinder(V((0.99, -0.27, 0.905)), V((1.02, -0.27, 0.905)), 0.035, 12, M["steel"]))
+    eng.merge(cylinder(V((0.92, -0.27, 0.905)), V((0.99, -0.27, 0.905)), 0.075, 20, M["alu"]))       # Verdichter
+    eng.merge(tube(spline([(1.07, -0.27, 0.86), (1.07, -0.27, 0.76), (1.055, -0.262, 0.64), (1.05, -0.26, 0.55)], 4),
+                   0.03, 12, M["soot"]))                                                             # Hosenrohr
+    eng.merge(tube(spline([(0.955, -0.27, 0.95), (0.955, -0.25, 1.03), (0.95, -0.14, 1.062), (0.95, 0.12, 1.062),
+                           (0.97, 0.22, 1.03), (1.01, 0.25, 0.985), (1.05, 0.25, 0.975)], 4), 0.03, 12, M["alu"]))
+    # Luftfilterkasten über dem rechten Radhaus, Anschluss an den Schnorchel, Ansaugschlauch zum Verdichter
+    eng.merge(box((1.12, -0.665, z_shelf + 0.08), (0.40, 0.25, 0.16), M["black"]))
+    eng.merge(cylinder(V((1.02, -0.78, 0.975)), V((1.02, -0.93, 0.965)), 0.04, 14, M["black"]))
+    eng.merge(tube(spline([(1.0, -0.57, 0.99), (0.95, -0.50, 0.985), (0.895, -0.40, 0.95), (0.88, -0.31, 0.915),
+                           (0.93, -0.27, 0.905)], 4), 0.04, 14, M["rubber"]))
+    # Riementrieb vorn: Kurbelwelle, Wasserpumpe, Lichtmaschine, Klimakompressor
+    pulleys = [(0.0, 0.73, 0.085), (0.0, 0.885, 0.06), (0.225, 0.835, 0.035), (-0.225, 0.79, 0.045)]
+    for y, z, r in pulleys:
+        eng.merge(cylinder(V((1.755, y, z)), V((1.785, y, z)), r, 24 if r > 0.05 else 16, M["steel"]))
+    eng.merge(cylinder(V((1.62, 0.225, 0.835)), V((1.75, 0.225, 0.835)), 0.065, 18, M["alu"]))      # Lichtmaschine
+    eng.merge(cylinder(V((1.60, -0.225, 0.79)), V((1.75, -0.225, 0.79)), 0.06, 18, M["alu"]))       # Klimakompressor
+    ring = []
+    for y, z, r in pulleys:
+        ring += [V((y + (r + 0.006) * math.cos(TAU * i / 32), z + (r + 0.006) * math.sin(TAU * i / 32), 0.0))
+                 for i in range(32)]
+    belt = [V((1.77, ring[i].x, ring[i].y)) for i in convex_hull_2d([p.to_2d() for p in ring])]
+    small.merge(tube(belt + [belt[0]], 0.006, 6, M["rubber"], caps=False))
+    # Visco-Lüfter in der Zarge, Kühler mit Seitenkästen
+    fc = V((1.975, 0.0, 0.885))
+    eng.merge(cylinder(V((1.785, 0.0, 0.885)), V((1.89, 0.0, 0.885)), 0.022, 12, M["steel"]))
+    eng.merge(cylinder(V((1.89, 0.0, 0.885)), V((1.955, 0.0, 0.885)), 0.065, 20, M["alu"]))
+    eng.merge(cylinder(V((1.955, 0.0, 0.885)), V((1.99, 0.0, 0.885)), 0.045, 16, M["black"]))
+    pitch = math.radians(25)
+    for k in range(7):
+        phi = TAU * k / 7
+        d, t = V((0.0, math.cos(phi), math.sin(phi))), V((0.0, -math.sin(phi), math.cos(phi)))
+        n, w = X_AXIS * math.cos(pitch) + t * math.sin(pitch), t * math.cos(pitch) - X_AXIS * math.sin(pitch)
+        eng.merge(box((0, 0, 0), (0.11, 0.06, 0.005), M["black"], frame_matrix(fc + d * 0.097, d, w, n)))
+    eng.merge(lathe([(0.168, 0.0), (0.174, 0.0), (0.174, 0.075), (0.168, 0.075)], 48, V((1.958, 0.0, 0.885)),
+                    X_AXIS, M["black"], closed_profile=True))
+
+    def to_rect(phi):
+        """Strahl von der Lüftermitte zum Rand der Zarge (y ±0,32, z 0,715–1,02) – gleiche Punktzahl wie der Kreis."""
+        c, s = math.cos(phi), math.sin(phi)
+        ky = 0.32 / abs(c) if abs(c) > 1e-9 else 9.0
+        kz = ((1.02 if s > 0 else 0.715) - 0.885) / s if abs(s) > 1e-9 else 9.0
+        k = min(ky, kz)
+        return (c * k, 0.885 + s * k)
+    phis = [TAU * i / 48 for i in range(48)]
+    hole = [(0.168 * math.cos(p), 0.885 + 0.168 * math.sin(p)) for p in phis]
+    eng.merge(extrude_ring([to_rect(p) for p in phis], hole, 0.01,
+                           frame_matrix(V((2.035, 0.0, 0.0)), Y_AXIS, Z_AXIS, X_AXIS), M["black"]))      # Zarge
+    eng.merge(box((2.075, 0.0, 0.865), (0.05, 0.66, 0.31), M["chassis"]))                                  # Netz
+    for side in (1, -1):
+        eng.merge(box((2.075, side * 0.36, 0.865), (0.06, 0.06, 0.33), M["black"]))
+        eng.merge(box((2.075, side * 0.30, 0.675), (0.04, 0.04, 0.07), M["chassis"]))
+    small.merge(cylinder(V((2.075, 0.36, 1.03)), V((2.075, 0.36, 1.05)), 0.02, 14, M["chrome"]))
+    # Kühlwasserschläuche, Thermostatgehäuse
+    small.merge(box((1.725, 0.06, 0.99), (0.04, 0.06, 0.05), M["alu"]))
+    small.merge(tube(spline([(2.07, 0.36, 0.99), (2.0, 0.36, 1.0), (1.92, 0.30, 1.005), (1.83, 0.14, 1.005),
+                             (1.735, 0.06, 0.99)], 4), 0.021, 10, M["rubber"]))
+    small.merge(tube(spline([(2.07, -0.36, 0.73), (2.0, -0.36, 0.72), (1.90, -0.31, 0.70), (1.79, -0.27, 0.685),
+                             (1.70, -0.17, 0.69), (1.66, -0.14, 0.70)], 4), 0.021, 10, M["rubber"]))
+    # Batterie (links vorn), Bremskraftverstärker mit Hauptzylinder (Fahrerseite), Behälter, Sicherungskasten
+    eng.merge(box((1.61, 0.57, z_shelf + 0.01), (0.30, 0.22, 0.02), M["chassis"]))
+    eng.merge(box((1.61, 0.57, z_shelf + 0.09), (0.26, 0.18, 0.14), M["black"]))
+    small.merge(box((1.61, 0.57, z_shelf + 0.1655), (0.02, 0.20, 0.011), M["steel"]))
+    for x, m in ((1.53, M["valve"]), (1.69, M["black"])):
+        small.merge(cylinder(V((x, 0.52, z_shelf + 0.16)), V((x, 0.52, z_shelf + 0.175)), 0.012, 10, m))
+    eng.merge(cylinder(V((0.775, 0.42, 0.97)), V((0.89, 0.42, 0.97)), 0.12, 24, M["black"]))
+    eng.merge(cylinder(V((0.89, 0.42, 0.97)), V((1.02, 0.42, 0.97)), 0.035, 12, M["alu"]))
+    small.merge(box((0.955, 0.42, 1.03), (0.08, 0.06, 0.05), M["reverse"]))
+    eng.merge(box((1.71, -0.59, z_shelf + 0.065), (0.16, 0.12, 0.13), M["reverse"]))        # Ausgleichsbehälter
+    eng.merge(box((1.83, 0.54, z_shelf + 0.0725), (0.10, 0.14, 0.145), M["black"]))         # Waschwasser
+    eng.merge(box((0.86, -0.62, 1.01), (0.10, 0.16, 0.10), M["black"]))                     # Sicherungen
+    for p in ((1.68, -0.59, z_shelf + 0.13), (1.83, 0.56, z_shelf + 0.145), (1.56, 0.05, 1.058)):   # Deckel
+        small.merge(cylinder(V(p), V(p) + Z_AXIS * 0.016, 0.022, 12, M["black"]))
+    for x in (1.08, 1.24, 1.46, 1.62):                                                      # Deckelschrauben
+        for side in (1, -1):
+            small.merge(cylinder(V((x, side * 0.138, 1.008)), V((x, side * 0.138, 1.022)), 0.007, 6, M["chrome"]))
+    return eng, small
+
+
 def build_offroad(cfg):
     g = OffroadGeo()
     liv = OFFROAD_LIVERIES.get(cfg.offroad_color, OFFROAD_LIVERIES["sand"])
@@ -3620,7 +3747,7 @@ def build_offroad(cfg):
                              [0.03] + [0.0] * 8 + [0.02, 0.04, 0.03], 4)
     win_r = rounded_poly_2d([(-0.43, 1.23), (-0.43, 1.80), (-0.94, 1.80), (-0.94, 1.23)], 0.03, 4)
     win_q = rounded_poly_2d([(-1.08, 1.23), (-1.08, 1.80), (-2.06, 1.80), (-2.06, 1.23)], [0.03, 0.03, 0.05, 0.03], 4)
-    tg = rounded_poly_2d([(-0.79, 0.70), (0.79, 0.70), (0.79, 1.86), (-0.79, 1.86)], 0.05, 4)
+    tg = rounded_poly_2d([(-0.77, 0.70), (0.77, 0.70), (0.77, 1.86), (-0.77, 1.86)], 0.05, 4)
     win_b = rounded_poly_2d([(-0.66, 1.50), (0.66, 1.50), (0.66, 1.80), (-0.66, 1.80)], 0.04, 4)
     ws = rounded_poly_2d([(-0.74, 1.205), (0.74, 1.205), (0.69, 1.835), (-0.69, 1.835)], [0.04, 0.04, 0.05, 0.05], 4)
     hood = rounded_poly_2d([(0.80, -0.815), (2.185, -0.815), (2.185, 0.815), (0.80, 0.815)], [0.02, 0.05, 0.05, 0.02], 4)
@@ -3654,22 +3781,26 @@ def build_offroad(cfg):
         return d
 
     # ------------------------------------------------------------- Türen (4), Haube, Hecktür
+    hinges = MeshData()                              # karosserieseitige Scharnierlappen
     for side in (1, -1):
         s = "L" if side > 0 else "R"
         y0, y1 = (0.30, 1.30) if side > 0 else (-1.30, -0.30)
         for row, outline, win, hx, handle_x in (("F", door_f, win_f, 0.705, -0.22), ("R", door_r, win_r, -0.375, -0.88)):
             key = f"Door_{row}{s}"
             d = cut_panel(key, prism_y(offset_poly(outline, -gap), y0, y1), [prism_y(win, y0, y1)])
-            p_lo, p_hi = V((hx, side * (g.hw + 0.006), 0.66)), V((hx, side * (g.hw + 0.006), 1.08))
+            p_lo, p_hi = V((hx, side * (g.hw + 0.012), 0.66)), V((hx, side * (g.hw + 0.012), 1.08))
             asm.pivot(key, (p_lo + p_hi) / 2, (p_hi - p_lo).normalized() * (-1.0 if side > 0 else 1.0), orient=True,
-                      positive="Tür öffnet nach außen")
+                      positive="Tür öffnet nach außen", limits=(0, 75))
             asm.add(d, key, key)
             asm.add(side_glass(win, side), f"Glass_{key}", key, smooth=80)
             dt = MeshData()
             dt.merge(side_seal(win, side))
             dt.merge(box((handle_x, side * (g.hw + 0.011), 1.06), (0.13, 0.022, 0.032), M["black"]))
-            for z in (0.76, 1.03):                                   # außenliegende Scharniere
-                dt.merge(box((hx - 0.018, side * (g.hw + 0.010), z), (0.05, 0.022, 0.10), M["black"]))
+            for z in (0.76, 1.03):                  # außenliegende Scharniere: Rolle auf der Achse, Lappen je Seite
+                yh = side * (g.hw + 0.012)
+                dt.merge(cylinder(V((hx, yh, z - 0.05)), V((hx, yh, z + 0.05)), 0.011, 10, M["black"]))
+                dt.merge(box((hx - 0.026, side * (g.hw + 0.004), z), (0.034, 0.008, 0.08), M["black"]))
+                hinges.merge(box((hx + 0.024, side * (g.hw + 0.004), z), (0.024, 0.008, 0.08), M["black"]))
             asm.add(dt, f"DoorTrim_{row}{s}", key, mods=[bevel_s], detail=2)
         # Außenspiegel an der Vordertür
         mm = MeshData()
@@ -3683,18 +3814,43 @@ def build_offroad(cfg):
         asm.add(mm, f"Mirror_{s}", f"Door_F{s}", mods=[bevel])
 
     hood_obj = cut_panel("Hood", prism_z(offset_poly(hood, -gap), 0.98, 1.30))
-    asm.pivot("Hood", V((0.795, 0.0, 1.163)), -Y_AXIS, orient=True, positive="Haube öffnet (Vorderkante nach oben)")
+    asm.pivot("Hood", V((0.795, 0.0, 1.163)), -Y_AXIS, orient=True, positive="Haube öffnet (Vorderkante nach oben)",
+              limits=(0, 65))
     asm.add(hood_obj, "Hood", "Hood")
-    tg_obj = cut_panel("Tailgate", prism_x(offset_poly(tg, -gap), g.x_rear - 0.06, g.x_rear + 0.10),
+    zt = Pchip([s["x"] for s in g.LOWER], [s["zt"] for s in g.LOWER])
+
+    def under_hood(pts, d=0.012):
+        """Pfad (x, y) dicht unter der Haubeninnenseite."""
+        return [V((p[0], p[1], zt(p[0]) - st - d)) for p in pts]
+    hf = MeshData()                                  # lackierter Versteifungsrahmen mit X-Strebe
+    frame = fillet_path([(1.495, -0.76, 0.0), (2.12, -0.76, 0.0), (2.12, 0.76, 0.0), (0.87, 0.76, 0.0),
+                         (0.87, -0.76, 0.0), (1.495, -0.76, 0.0)], 0.07, 4)
+    frame = resample(frame, 0.05)
+    hf.merge(tube(under_hood([(p.x, p.y) for p in frame]), (0.008, 0.022), 8, M["paint"], caps=False, up=Z_AXIS,
+                  exponent=4.0))
+    for side in (1, -1):
+        hf.merge(tube(under_hood([(lerp(0.93, 2.06, i / 12), side * lerp(0.70, -0.70, i / 12)) for i in range(13)]),
+                      (0.007, 0.02), 8, M["paint"], up=Z_AXIS, exponent=4.0))
+    asm.add(hf, "HoodFrame", "Hood", detail=1)
+    tg_obj = cut_panel("Tailgate", prism_x(offset_poly(tg, -gap), g.x_rear - 0.06, g.x_rear + 0.08),
                        [prism_x(win_b, g.x_rear - 0.06, g.x_rear + 0.10)])
-    asm.pivot("Tailgate", V((g.x_rear - 0.012, -0.793, 1.25)), Z_AXIS, orient=True,
+    # Scharnierachse folgt der leicht nach vorn geneigten Heckscheibenpartie (Rollen liegen an der Hecktür an)
+    tg_axis = V((g.cab_xr(g.z_roof - g.r_roof) - g.cab_xr(g.z_belt), 0.0, g.z_roof - g.r_roof - g.z_belt)).normalized()
+    tg_hinge = V((g.cab_xr(1.25) - 0.014, -0.773, 1.25))
+    asm.pivot("Tailgate", tg_hinge, tg_axis, orient=True, limits=(0, 100),
               positive="Hecktür öffnet nach außen (Scharnier rechts)")
     asm.add(tg_obj, "Tailgate", "Tailgate")
     pts = ensure_ccw(offset_poly(win_b, 0.025))
     asm.add(flat([V((g.cab_xr(p.y) + st * 0.5, p.x, p.y)) for p in pts], M["glass"], True), "Glass_Tailgate",
             "Tailgate", smooth=80)
     path = [V((g.cab_xr(p.y) - 0.003, p.x, p.y)) for p in ensure_ccw(offset_poly(win_b, 0.008))]
-    asm.add(tube(path + [path[0]], 0.0065, 6, M["rubber"], caps=False), "TailgateSeal", "Tailgate", detail=2)
+    tt = tube(path + [path[0]], 0.0065, 6, M["rubber"], caps=False)
+    for z in (1.21, 1.66):                          # außenliegende Scharniere (über den Rückleuchten)
+        c = tg_hinge + tg_axis * ((z - tg_hinge.z) / tg_axis.z)
+        tt.merge(cylinder(c - tg_axis * 0.06, c + tg_axis * 0.06, 0.012, 10, M["black"]))
+        tt.merge(box((g.cab_xr(z) - 0.004, c.y + 0.029, z), (0.008, 0.034, 0.09), M["black"]))
+    asm.add(tt, "TailgateTrim", "Tailgate", mods=[bevel_s], detail=2)
+    asm.add(hinges, "Hinges", mods=[bevel_s], detail=2)
 
     # ------------------------------------------------------------- Öffnungen in der Karosserie, Scheiben
     cutters = []
@@ -3706,6 +3862,8 @@ def build_offroad(cfg):
     cutters.append(prism_z(offset_poly(hood, gap), 0.98, 1.30))
     cutters.append(prism_x(offset_poly(tg, gap), g.x_rear - 0.06, g.x_rear + 0.10))
     cutters.append(prism_x(ws, 0.36, 0.80))
+    cutters.append(box((1.44, 0.0, 0.52), (1.28, 0.88, 0.30)))          # Motorraum nach unten offen
+    cutters.append(box((g.ra.x, 0.0, 0.50), (0.40, 0.40, 0.24)))        # Tasche über dem Hinterachs-Differenzial
     boolean(body, [c.to_object("_c") for c in cutters], "DIFFERENCE")
     transfer_normals(body, src)
     asm.add(body, "Body")
@@ -3732,7 +3890,7 @@ def build_offroad(cfg):
     trim = MeshData()
     for side in (1, -1):
         for a in (g.fa, g.ra):
-            a0 = math.asin((0.49 - a.z) / g.arch_r)
+            a0 = math.asin((0.52 - a.z) / g.arch_r)
 
             rl = g.arch_r - 0.004                      # knapp innerhalb der Schnittkante (kein Z-Fighting)
 
@@ -3857,7 +4015,9 @@ def build_offroad(cfg):
 
     # ------------------------------------------------------------- Innenraum
     it = MeshData()
-    it.merge(box((-0.65, 0.0, 0.715), (2.60, 1.64, 0.03), M["floor"]))
+    xa0, xa1 = g.ra.x - g.arch_r, g.ra.x + g.arch_r                                         # hinteres Radhaus
+    for x0, x1, hw in ((xa1, 0.65, 0.82), (xa0, xa1, 0.44), (-1.95, xa0, 0.82)):
+        it.merge(box(((x0 + x1) / 2, 0.0, 0.715), (x1 - x0, 2 * hw, 0.03), M["floor"]))
     dash = rounded_poly_2d([(0.71, 0.82), (0.71, 1.13), (0.56, 1.14), (0.50, 1.08), (0.52, 0.90), (0.60, 0.82)],
                            [0.0, 0.0, 0.04, 0.05, 0.05, 0.04], 3)
     it.merge(extrude(dash, 1.66, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
@@ -3872,7 +4032,7 @@ def build_offroad(cfg):
     def seat(x, y, w):
         sm_ = MeshData()
         sm_.merge(box((x, y, 0.95), (0.50, w, 0.12), M["fabric"]))
-        sm_.merge(box((x, y, 0.815), (0.42, w * 0.86, 0.17), M["panel"]))
+        sm_.merge(box((x, y, 0.815), (0.42, min(w * 0.86, 0.86), 0.17), M["panel"]))
         bm = Matrix.Translation((x - 0.24, y, 1.0)) @ Matrix.Rotation(math.radians(-14), 4, "Y")
         sm_.merge(box((0.0, 0.0, 0.31), (0.11, w, 0.62), M["fabric"], bm))
         for yy in ([0.0] if w < 1.0 else [-0.48, 0.0, 0.48]):
@@ -3885,7 +4045,8 @@ def build_offroad(cfg):
     hub = V((0.40, 0.40, 1.03))
     col = V((-math.cos(math.radians(25)), 0.0, math.sin(math.radians(25))))                 # Lenksäule → Fahrer
     asm.add(cylinder(hub - col * 0.27, hub - col * 0.03, 0.024, 12, M["panel"]), "SteeringColumn", detail=1)
-    asm.pivot("SteeringWheel", hub, col, orient=True, positive="Lenkrad nach links (gegen den Uhrzeigersinn)")
+    asm.pivot("SteeringWheel", hub, col, orient=True, positive="Lenkrad nach links (gegen den Uhrzeigersinn)",
+              limits=(-540, 540))
     u, w = basis_from(col)
     swm = lathe([(0.19 + 0.017 * math.cos(TAU * i / 10), 0.017 * math.sin(TAU * i / 10)) for i in range(10)], 40, hub,
                 col, M["panel"], closed_profile=True)
@@ -3894,47 +4055,45 @@ def build_offroad(cfg):
         swm.merge(box((0, 0, 0), (0.016, 0.045, 0.13), M["panel"], frame_matrix(hub + d * 0.125, col.cross(d), col, d)))
     asm.add(swm, "SteeringWheel", "SteeringWheel", mods=[bevel_s], detail=1)
 
+    # ------------------------------------------------------------- Motorraum (bei offener Haube sichtbar)
+    eng, eng_small = offroad_engine_bay(g, M)
+    asm.add(eng, "Engine", mods=[bevel_s], detail=1)
+    asm.add(eng_small, "EngineDetails", detail=2)
+
     # ------------------------------------------------------------- Fahrwerk: Starrachsen, Achsschenkel, Räder
     chassis = MeshData()
     for side in (1, -1):                                                                     # Leiterrahmen
         chassis.merge(box((-0.05, side * 0.40, 0.59), (4.00, 0.07, 0.14), M["chassis"]))
     for x in (1.90, 0.95, 0.10, -0.80, -2.03):
         chassis.merge(box((x, 0.0, 0.59), (0.08, 0.80, 0.10), M["chassis"]))
-    for a in (g.fa, g.ra):                                                                  # Federn, Dämpfer
+    for a in (g.fa, g.ra):                                  # Federbein-Konsolen innen am Rahmen (Reifen bleibt frei)
         for side in (1, -1):
-            y = side * 0.53
-            chassis.merge(tube(helix(V((a.x, y, 0.455)), Z_AXIS, 0.075, 0.34, 6.5, 16), 0.012, 8, M["steel"],
-                               caps=False))
-            chassis.merge(box((a.x, y, 0.815), (0.20, 0.18, 0.04), M["chassis"]))               # Federturm
-            chassis.merge(box((a.x, side * 0.46, 0.725), (0.20, 0.02, 0.21), M["chassis"]))
-            sx = 0.13 if a.x > 0 else -0.13
-            s0, s1 = V((a.x + sx, side * 0.61, 0.45)), V((a.x + sx * 1.25, side * 0.56, 0.82))
-            chassis.merge(cylinder(s0, s0.lerp(s1, 0.55), 0.026, 12, M["black"]))
-            chassis.merge(cylinder(s0.lerp(s1, 0.45), s1, 0.018, 10, M["steel"]))
+            chassis.merge(box((a.x, side * 0.4475, 0.6975), (0.12, 0.025, 0.195), M["chassis"]))
     chassis.merge(box((0.25, 0.0, 0.56), (0.50, 0.32, 0.20), M["chassis"]))                 # Getriebe/Verteiler
-    chassis.merge(box((1.30, 0.0, 0.62), (0.60, 0.46, 0.12), M["chassis"]))                 # Ölwanne
+    chassis.merge(box((1.32, 0.0, 0.62), (0.62, 0.28, 0.12), M["chassis"]))                 # Ölwanne
     chassis.merge(box((-1.80, 0.08, 0.55), (0.38, 0.56, 0.18), M["chassis"]))               # Tank
     for a, sgn in ((g.fa, 1.0), (g.ra, -1.0)):                                             # Kardanwellen
         p0, p1 = V((0.25 + sgn * 0.27, 0.0, 0.52)), V((a.x - sgn * 0.22, 0.0, 0.42))
         chassis.merge(cylinder(p0, p1, 0.032, 12, M["steel"]))
         for p in (p0, p1):
             chassis.merge(box(p, (0.06, 0.07, 0.07), M["chassis"]))
-    ex = [V((1.05, -0.26, 0.55)), V((0.70, -0.28, 0.50)), V((-0.30, -0.28, 0.49)), V((-1.10, -0.28, 0.49)),
-          V((-1.95, -0.28, 0.49)), V((-2.12, -0.45, 0.45)), V((-2.30, -0.55, 0.43))]
+    # Auspuff mit Seitenausgang vor dem rechten Hinterrad: kreuzt die verschränkende Hinterachse nicht
+    ex = [V((1.05, -0.26, 0.55)), V((0.70, -0.28, 0.50)), V((-0.30, -0.28, 0.49)), V((-0.62, -0.28, 0.49)),
+          V((-0.74, -0.42, 0.47)), V((-0.80, -0.65, 0.45)), V((-0.82, -0.86, 0.44))]
     chassis.merge(tube(spline(ex, 6), 0.03, 12, M["soot"]))
-    chassis.merge(box((-0.78, -0.28, 0.49), (0.60, 0.16, 0.12), M["soot"]))                # Schalldämpfer
+    chassis.merge(box((-0.375, -0.28, 0.49), (0.45, 0.16, 0.12), M["soot"]))               # Schalldämpfer
     asm.add(chassis, "Chassis", mods=[bevel_s], detail=1)
     tail_end, tail_dir = ex[-1], (ex[-1] - ex[-2]).normalized()
 
     for axle, a, nose in (("Axle_F", g.fa, -1.0), ("Axle_R", g.ra, 1.0)):
-        asm.pivot(axle, a, X_AXIS, orient=True, positive="linkes Rad federt ein (Achsverschränkung)")
+        asm.pivot(axle, a, X_AXIS, orient=True, positive="linkes Rad federt ein (Achsverschränkung)", limits=(-6, 6))
         ax = MeshData()
         ax.merge(cylinder(V((a.x, -0.67, a.z)), V((a.x, 0.67, a.z)), 0.045, 16, M["chassis"]))
         ax.merge(lathe([(0.0, -0.13), (0.10, -0.12), (0.15, -0.05), (0.155, 0.02), (0.12, 0.09), (0.06, 0.12),
                         (0.0, 0.125)], 24, a, X_AXIS * nose, M["chassis"]))                         # Differential
         ax.merge(cylinder(a + X_AXIS * nose * 0.10, a + X_AXIS * nose * 0.22, 0.05, 16, M["chassis"]))
         for side in (1, -1):
-            ax.merge(box((a.x, side * 0.53, 0.455), (0.16, 0.16, 0.02), M["chassis"]))       # Federteller
+            ax.merge(box((a.x, side * 0.535, 0.455), (0.12, 0.10, 0.02), M["chassis"]))      # Federbeinaufnahme
         if axle == "Axle_R":
             for side in (1, -1):                                                             # Bremssättel hinten
                 ax.merge(box((a.x - 0.085, side * 0.767, a.z + 0.095), (0.08, 0.055, 0.06), M["chassis"]))
@@ -3944,12 +4103,34 @@ def build_offroad(cfg):
         kp = V((-math.sin(math.radians(4)), -side * math.sin(math.radians(8)), 1.0)).normalized()   # Nachlauf, Spreizung
         key = f"Steer_F{s}"
         kc = V((g.fa.x, side * 0.69, g.fa.z))
-        asm.pivot(key, kc, kp, orient=True, parent="Axle_F", positive="Rad lenkt nach links")
+        asm.pivot(key, kc, kp, orient=True, parent="Axle_F", positive="Rad lenkt nach links", limits=(-30, 30))
         kn = lathe([(0.0, -0.10), (0.05, -0.09), (0.07, -0.03), (0.07, 0.03), (0.05, 0.09), (0.0, 0.10)], 16, kc, kp,
                    M["chassis"])
         kn.merge(cylinder(kc, kc + Y_AXIS * side * 0.05, 0.042, 16, M["chassis"]))
         kn.merge(box((g.fa.x - 0.085, side * 0.767, g.fa.z + 0.095), (0.08, 0.055, 0.06), M["chassis"]))   # Bremssattel
         asm.add(kn, key, key, mods=[bevel_s])
+    # Federbeine (Coilover): untere Hälfte an der Achse, obere am Rahmen. Beide visieren sich per Aim an und
+    # teleskopieren so bei Achsverschränkung, statt Achse oder Federturm zu durchdringen.
+    for axle, a in (("Axle_F", g.fa), ("Axle_R", g.ra)):
+        for side in (1, -1):
+            s = axle[-1] + ("L" if side > 0 else "R")
+            lo_key, up_key = f"Coilover_{s}", f"CoiloverMount_{s}"
+            lo, up = V((a.x, side * 0.535, 0.465)), V((a.x, side * 0.535, 0.795))
+            d = (up - lo).normalized()
+            asm.pivot(lo_key, lo, d, orient=True, parent=axle, motion="aim", target=up_key,
+                      positive=f"lokales +Y zeigt auf {up_key}")
+            asm.pivot(up_key, up, -d, orient=True, motion="aim", target=lo_key, positive=f"lokales +Y zeigt auf {lo_key}")
+            cl, cu = MeshData(), MeshData()
+            cl.merge(cylinder(lo - X_AXIS * 0.03, lo + X_AXIS * 0.03, 0.02, 12, M["steel"]))           # Auge
+            cl.merge(cylinder(lo + d * 0.02, lo + d * 0.19, 0.026, 16, M["black"]))                     # Dämpfer
+            cl.merge(cylinder(lo + d * 0.055, lo + d * 0.067, 0.066, 24, M["alu"]))                     # Federteller
+            cl.merge(tube(helix(lo + d * 0.067, d, 0.056, 0.188, 4.5, 16), 0.009, 8, M["valve"], caps=False))
+            cu.merge(lathe([(0.068, 0.002), (0.073, 0.002), (0.073, 0.145), (0.068, 0.145)], 32, up, -d, M["chassis"],
+                           closed_profile=True))                                                        # Federtopf
+            cu.merge(cylinder(up - d * 0.002, up - d * 0.014, 0.073, 32, M["chassis"]))                 # Deckel
+            cu.merge(cylinder(up - d * 0.01, up - d * 0.25, 0.012, 10, M["chrome"]))                    # Kolbenstange
+            asm.add(cl, lo_key, lo_key, mods=[bevel_s], detail=1)
+            asm.add(cu, up_key, up_key, mods=[bevel_s], detail=1)
     for wk in ("FL", "FR", "RL", "RR"):
         c = g.wheel(wk)
         parent = f"Steer_F{wk[1]}" if wk[0] == "F" else "Axle_R"
@@ -3975,7 +4156,9 @@ def build_offroad(cfg):
 
     def by_pivot(*keys):
         return [o for o in asm.meshes() if o["pivot"] in keys]
-    wheels_axles = {f"Wheel_{k}" for k in ("FL", "FR", "RL", "RR")} | {"Axle_F", "Axle_R", "Steer_FL", "Steer_FR"}
+    corners = ("FL", "FR", "RL", "RR")
+    wheels_axles = ({f"Wheel_{k}" for k in corners} | {"Axle_F", "Axle_R", "Steer_FL", "Steer_FR"}
+                    | {f"Coilover_{k}" for k in corners} | {f"CoiloverMount_{k}" for k in corners})
     mirrors = [o for o in asm.meshes() if "_Mirror_" in o.name]
     spare_objs = [o for o in asm.meshes() if o.name.endswith(("_Spare", "_SpareTread"))]
     chassis_objs = [o for o in asm.meshes() if o.name.endswith("_Chassis")]
@@ -3983,9 +4166,9 @@ def build_offroad(cfg):
              and o not in (snorkel, antenna)]
     asm.collide("Lower", shell, lambda p: p.z <= g.z_belt + 0.03 or p.x > g.x_ws0 + 0.05)
     asm.collide("Cabin", shell, lambda p: p.z >= g.z_belt - 0.03 and p.x <= g.x_ws0 + 0.05)
-    asm.collide("Chassis", chassis_objs, None, 64)
-    for axle in ("Axle_F", "Axle_R"):
-        asm.collide(axle, by_pivot(axle, *(["Steer_FL", "Steer_FR"] if axle == "Axle_F" else [])), None, 32)
+    asm.collide("Chassis", chassis_objs + by_pivot(*(f"CoiloverMount_{k}" for k in corners)), None, 64)
+    asm.collide("Axle_F", by_pivot("Axle_F", "Steer_FL", "Steer_FR", "Coilover_FL", "Coilover_FR"), None, 32)
+    asm.collide("Axle_R", by_pivot("Axle_R", "Coilover_RL", "Coilover_RR"), None, 32)
     for wk in ("FL", "FR", "RL", "RR"):
         asm.collide(f"Wheel_{wk}", by_pivot(f"Wheel_{wk}"), None, 48)
     asm.collide("Spare", spare_objs, None, 48)
@@ -4042,6 +4225,7 @@ def tag_detail(obj):
 
 
 HULL_MAX_VERTS = 128       # ≤ 252 Dreiecke: Limit für konvexe MeshCollider (Unity) und PhysX
+HULL_MIN_EDGE = 0.004      # kürzere Kanten der vereinfachten Hülle → Ebene weglassen (siehe convex_hull_obj)
 
 
 def _hull_bm(points, merge=2e-5):
@@ -4073,6 +4257,24 @@ def _hull_planes(bm):
             n, d = -n, -d
         planes.append((n, d))
     return planes
+
+
+def _cut_polytope(planes, lo, hi):
+    """Quader (lo, hi) mit den Halbräumen n·p ≤ d schneiden → konvexes Polyeder mit ebenen N-Ecken."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    for v in bm.verts:
+        v.co = V([lerp(lo[i], hi[i], v.co[i] + 0.5) for i in range(3)])
+    for n, d in planes:
+        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-7,
+                               plane_co=n * d, plane_no=n, clear_outer=True)
+        boundary = [e for e in bm.edges if e.is_boundary]
+        if boundary:
+            bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
+    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges[:], dist=1e-6)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.normal_update()
+    return bm
 
 
 def convex_hull_obj(name, points, max_verts=48):
@@ -4110,23 +4312,26 @@ def convex_hull_obj(name, points, max_verts=48):
             simp.free()
             lo = V([min(p[i] for p in exact) for i in range(3)]) - V((1, 1, 1))
             hi = V([max(p[i] for p in exact) for i in range(3)]) + V((1, 1, 1))
-            bm = bmesh.new()
-            bmesh.ops.create_cube(bm, size=1.0)
-            for v in bm.verts:
-                v.co = V([lerp(lo[i], hi[i], v.co[i] + 0.5) for i in range(3)])
-            for n, d in planes:
-                bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-7,
-                                       plane_co=n * d, plane_no=n, clear_outer=True)
-                boundary = [e for e in bm.edges if e.is_boundary]
-                if boundary:
-                    bmesh.ops.holes_fill(bm, edges=boundary, sides=0)
-            # Das Schnitt-Polyeder ist bereits konvex mit ebenen Flächen und enthält alle Punkte (jede Ebene
-            # ist Stützebene der exakten Hülle) → direkt verwenden. Eine Neuberechnung per Quickhull knickt
-            # große, fast ebene Flächen und liefert mit Punkten im Rundungsrauschen nicht-konvexe Dellen.
-            bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-4)       # Fast-Duplikate der Schnitte
-            bmesh.ops.dissolve_degenerate(bm, edges=bm.edges[:], dist=1e-6)
-            bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
-            bm.normal_update()
+            # Das Schnitt-Polyeder ist konvex mit ebenen Flächen und enthält alle Punkte (jede Ebene ist
+            # Stützebene der exakten Hülle) → direkt verwenden. Eine Neuberechnung per Quickhull knickt große,
+            # fast ebene Flächen. Fast gleichzeitig schneidende Ebenen erzeugen aber Millimeter-Kanten, deren
+            # Dreiecke über lange Hüllen messbar „abknicken“ – Punkte zusammenzuführen verschiebt sie aus ihren
+            # Ebenen. Stattdessen die Ebene der kleinsten angrenzenden Fläche weglassen: die Hülle wird nur
+            # größer (bleibt umschließend) und die Eckpunkte bleiben exakte Ebenenschnitte.
+            for _ in range(len(planes)):
+                bm = _cut_polytope(planes, lo, hi)
+                edge = min(bm.edges, key=lambda e: e.calc_length())
+                if edge.calc_length() >= HULL_MIN_EDGE:
+                    break
+                cand = [f for f in {f for v in edge.verts for f in v.link_faces} - set(edge.link_faces)
+                        if max(abs(c) for c in f.normal) < 0.9999]               # Achsen-Stützebenen bleiben
+                if not cand:
+                    break
+                f = min(cand, key=lambda f: f.calc_area())
+                c = f.calc_center_median()
+                drop = max(planes, key=lambda nd: nd[0].dot(f.normal) - abs(nd[0].dot(c) - nd[1]))
+                planes.remove(drop)
+                bm.free()
             if any(not e.is_manifold for e in bm.edges):                       # Notfall: Hülle der Schnittpunkte
                 pts = [v.co.copy() for v in bm.verts]
                 bm.free()
@@ -4472,13 +4677,31 @@ def bake_textures(asm, objs, cfg, tex_dir):
         node.name = "_bake_target"
     # Alle Teile als EIN temporäres Objekt backen: Blender wendet den Bake-Rand pro Objekt an – bei
     # mehreren Objekten überschreibt der Rand eines Teils sonst bereits gebackene Texel des nächsten.
+    # AO „auseinandergezogen“: Jede bewegliche Pivot-Gruppe liegt nur im AO-Durchgang weit entfernt – sonst
+    # dreht ein Rad die Verschattung des Radhauses mit, offene Türen/Klappen zeigen die Schatten des
+    # geschlossenen Zustands und Teile unter einer Klappe (Motorraum) wären schwarz.
+    moving = sorted({o.get("pivot", "root") for o in objs} - {"root"})
+    shift = {p: (30.0 * (1 + i % 5), 30.0 * (i // 5), 0.0) for i, p in enumerate(moving)}
     copies = []
     for o in objs:
         c = o.copy()
         c.data = o.data.copy()
         asm.coll.objects.link(c)
+        if o.get("pivot", "root") in shift:
+            a = c.data.attributes.new("_explode", "FLOAT_VECTOR", "POINT")
+            a.data.foreach_set("vector", shift[o["pivot"]] * len(c.data.vertices))
         copies.append(c)
     tmp = join_objects(copies, "_bake_tmp")
+    explode = rest = None
+    attr = tmp.data.attributes.get("_explode")
+    if attr is not None:
+        n = len(tmp.data.vertices)
+        explode, rest = np.zeros(n * 3, np.float32), np.zeros(n * 3, np.float32)
+        attr.data.foreach_get("vector", explode)
+        tmp.data.attributes.remove(attr)
+        inv = np.array(tmp.matrix_world.inverted().to_3x3(), np.float32)        # Welt → Objektraum
+        explode = (explode.reshape(-1, 3) @ inv.T).ravel()
+        tmp.data.vertices.foreach_get("co", rest)
     for o in objs:
         o.hide_render = True           # Originale verdecken sonst die AO der deckungsgleichen Kopie
     select_only([tmp])
@@ -4495,11 +4718,27 @@ def bake_textures(asm, objs, cfg, tex_dir):
         kw = dict(type=kind, margin=16, use_clear=True)
         if kind == "NORMAL":
             kw.update(normal_space="TANGENT")
+        bumps = []
+        if kind == "AO":
+            # rein geometrische AO: Mikro-Bump (steckt in der Normal-Map) hängt von der Position ab
+            bumps = [(nd_, nd_.inputs["Strength"].default_value) for m in mats for nd_ in m.node_tree.nodes
+                     if nd_.type == "BUMP"]
+            for nd_, _ in bumps:
+                nd_.inputs["Strength"].default_value = 0.0
+            if explode is not None:
+                tmp.data.vertices.foreach_set("co", rest + explode)
+                tmp.data.update()
         if socket:
             with emission_override(mats, socket):
                 bpy.ops.object.bake(**op_kwargs(bpy.ops.object.bake, **kw))
         else:
             bpy.ops.object.bake(**op_kwargs(bpy.ops.object.bake, **kw))
+        if kind == "AO":
+            for nd_, strength in bumps:
+                nd_.inputs["Strength"].default_value = strength
+            if explode is not None:
+                tmp.data.vertices.foreach_set("co", rest)
+                tmp.data.update()
         imgs[key] = img
         log(f"  bake {key:6s} {res}px  {time.time() - t:5.1f}s")
     for m in mats:
@@ -4824,7 +5063,8 @@ def finalize(asm, cfg, out_dir):
               for k, v in lods.items()},
         pivots={k: dict(location=[round(c, 4) for c in p.matrix_world.translation], axis=[round(c, 4) for c in asm.axes[k]],
                         motion=asm.motion.get(k, "hinge"), parent=asm.parents[k], oriented=bool(p.get("oriented")),
-                        positive=asm.notes.get(k, ""))
+                        positive=asm.notes.get(k, ""), **({"target": asm.targets[k]} if k in asm.targets else {}),
+                        **({"limits": list(asm.limits[k])} if k in asm.limits else {}))
                 for k, p in asm.pivots.items()},
         sockets={k: dict(location=[round(c, 4) for c in s.matrix_world.translation],
                          forward=[round(c, 4) for c in asm.socket_fwd[k]]) for k, s in asm.sockets.items()},

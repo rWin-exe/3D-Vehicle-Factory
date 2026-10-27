@@ -225,7 +225,8 @@ class ReportTests(unittest.TestCase):
         d.gltf["nodes"][n]["skin"] = 0
         return d
 
-    def build(self, lod1_tris=1, drop_pivot=False, hull="tet", bones=("root", "Wheel"), schema=ve.REPORT_SCHEMA):
+    def build(self, lod1_tris=1, drop_pivot=False, hull="tet", bones=("root", "Wheel"), schema=ve.REPORT_SCHEMA,
+              wheel=None):
         docs = {"SM_Test.glb": self.lod(2), "SM_Test_LOD1.glb": self.lod(lod1_tris, pivot=not drop_pivot),
                 "SM_Test_Collision.glb": self.hull(hull), "SK_Test.glb": self.skeleton()}
         files = []
@@ -238,7 +239,7 @@ class ReportTests(unittest.TestCase):
         rep = {"schema_version": schema, "asset": "SM_Test", "dimensions_m": [1.0, 0.0, 1.0],
                "lods": {"LOD0": {"triangles": 3, "files": ["SM_Test.glb"]},
                         "LOD1": {"triangles": lod1_tris + (0 if drop_pivot else 1), "files": ["SM_Test_LOD1.glb"]}},
-               "pivots": {"root": {}, "Wheel": {}}, "sockets": {"Seat": {}},
+               "pivots": {"root": {}, "Wheel": wheel or {}}, "sockets": {"Seat": {}},
                "collision": [{"name": "UCX_SM_Test_00"}], "collision_files": ["SM_Test_Collision.glb"],
                "bones": list(bones), "files": files}
         with open(os.path.join(self.dir, "SM_Test_report.json"), "w", encoding="utf-8") as fh:
@@ -276,6 +277,16 @@ class ReportTests(unittest.TestCase):
 
     def test_skeleton_must_match_bones(self):
         self.assertError(self.build(bones=("root", "Wheel", "Steering")), "Skelett passt nicht")
+
+    def test_pivot_metadata_ok(self):
+        r = self.build(wheel={"motion": "aim", "target": "root", "limits": [-30, 30]})
+        self.assertTrue(r["ok"], r["errors"])
+
+    def test_aim_target_must_exist(self):
+        self.assertError(self.build(wheel={"motion": "aim", "target": "Mount"}), "Aim-Ziel 'Mount'")
+
+    def test_limits_must_be_ordered(self):
+        self.assertError(self.build(wheel={"limits": [30, -30]}), "ungültiger Bewegungsbereich")
 
 
 if __name__ == "__main__":
