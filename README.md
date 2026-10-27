@@ -1,4 +1,4 @@
-# 3D-Heli – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber, Flugzeug & Geländewagen)
+# 3D Vehicle Factory – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber, Flugzeug & Geländewagen)
 
 `vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das vier detaillierte,
 realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
