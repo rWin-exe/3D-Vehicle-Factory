@@ -3,6 +3,25 @@
 ## Unveröffentlicht
 
 ### Geändert
+- **Motorboot überarbeitet und deutlich detailreicher** (LOD0 40 304 → 59 570 Dreiecke):
+  - *Rumpf und Deck:* Zierstreifen (Cove-Stripe + Haarlinie) entlang der Deckskante, Modellname an den
+    Bordwänden, rutschfestes Noppendeck (prozedurales Normalmapping), Teakbelag auf den Badeplattformen,
+    Heckdusche, Klüsen und zusätzliche Vorschiffsklampen, Ankerkasten-Luke mit Dichtung, Scharnieren und
+    Griffmulde, Bug-Ankerrolle mit Pflugscharanker und Schäkel.
+  - *Cockpit:* Polster neu als gerundete, gewölbte Kissen mit Steppnähten statt Quader; Fahrer-/Beifahrersitze mit
+    Sitzkasten, Klappwulst, Bucket-Rückenlehne mit Seitenwangen, Kopfstütze und Armlehnen; Polsterfarbe je
+    Lackierung (`BOAT_LIVERIES`: `seat`, `deck`, `liner`); Armaturenbrett mit Drehzahlmesser, Tacho, Tankanzeige,
+    Plotter, Schalterleiste, Zündschloss mit Schlüssel, Kill-Schalter, Handschuhfach, Uhr, Steckdose und
+    Becherhaltern; Lenkradknauf; Seitentaschen, Lautsprecher, Feuerlöscher, Bootshaken, Bodenluke und
+    Stufenkante; Windschutzscheibe mit Haltegriff, Fußleiste, Fußplatten, Wischern und Türgriff.
+  - *Außenborder:* Haube mit gerundetem Heck und abgesetzter Unterhaube (Trennfuge im Lack), Lufteinlass-Lamellen,
+    Griffmulde, Farbstreifen, Typenschild, dickerer Schaft, Getriebe mit Wassereinlässen, Staurohr und
+    Trimmflosse, Propellermutter, Spiegelhalterung als Klemmkonsolen mit Klemmschrauben.
+  - Neue Baukasten-Funktionen `plate3d` und `round_corners`; Dekore am Motor als schmale, einzeln projizierte
+    Gitter (statt isotrop unterteilter Flächen) – spart rund 10 000 Dreiecke.
+  - Bewegungsbereiche per Mesh-Überschneidungstest erneut geprüft: Kippen 0–65°, Lenken ±35°, Durchgangstür,
+    Badeleiter, Lenkrad, Gashebel und Propeller sind frei; bei Kippwinkeln über 35° bleibt nur noch ±15° Lenken
+    kollisionsfrei (in der README vermerkt).
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau
   wirkt nicht mehr zu schmal unter dem hohen Glasaufbau. Größerer Kühlergrill mit Chromrahmen, größere
   Scheinwerfer, Zusatzscheinwerfer auf dem Stoßfänger, Lufthutze, Seitenschutzleisten, Seitenblinker,

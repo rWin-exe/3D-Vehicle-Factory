@@ -80,13 +80,22 @@ Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 **Motorboot** – Bowrider der 6,4-m-Klasse (mit Außenborder und Badeplattformen 7,3 m, Breite 2,4 m):
 **Tiefen-V-Rumpf** (20° Aufkimmung am Spiegel, nach vorn schärfer) mit Kimmkanten, zwei Spritzleisten je
 Seite, stark ausgestelltem Bug und Wasserpass, als geschlossener Loft mit Deck zur Schale verdickt;
-Cockpit und Motorschacht sind nur durch das Deck geschnitten. **Teak-Laufdeck**, Liner-Wände, Fahrer- und
-Beifahrerkonsole mit Displays, Kompass, Lenkrad und Gashebel, **gebogene Windschutzscheibe mit
-aufschwenkbarer Durchgangstür**, Schalensitze auf Säulen, Heckbank, Seitenbank, Bugsitze und
-Sonnenpolster, Badeplattformen mit klappbarer Badeleiter, Scheuerleiste mit Edelstahleinlage, Bugreling,
-Klampen, Bugauge, Ski-Zugösen, Positions- und Hecklicht, Trimmklappen, Ankerkasten, Kennzeichen und Name
-(Mesh-Decals). **Außenborder** (V6, 200 PS) mit Haube, Profil-Schaft, Antikavitationsplatte, Getriebe,
-Skeg und Dreiblatt-Propeller mit Skew – an Pivots zum **Kippen, Lenken und Drehen**. Ursprung auf der
+Cockpit und Motorschacht sind nur durch das Deck geschnitten. Außen: **Zierstreifen und Haarlinie**, die der
+Deckskante folgen und zum Bug auslaufen, Modellname und Kennzeichen (Mesh-Decals), **rutschfestes
+Noppendeck**, Scheuerleiste mit Edelstahleinlage, Bugreling, Klampen, Klüsen, Ankerkasten-Luke mit
+Dichtung, Scharnieren und Griffmulde, **Bug-Ankerrolle mit Pflugscharanker**, Bugauge, Ski-Zugösen,
+Positions- und Hecklicht, Trimmklappen, **Badeplattformen mit Teakbelag**, klappbare Badeleiter und
+Heckdusche. Cockpit: **Teak-Laufdeck** mit Bodenluke und Stufenkante, Liner-Wände mit Seitentaschen,
+Lautsprechern, Feuerlöscher und Bootshaken; **gepolsterte Sitze** mit gerundeten, gewölbten Kissen und
+Steppnähten (Heckbank, Seitenbank, Bugsitze, Sonnenpolster, Fahrer-/Beifahrersitze auf Säulen mit
+Bucket-Rückenlehne, Seitenwangen, Kopfstütze, Klappwulst und Armlehnen) in der Polsterfarbe der
+Lackierung; Fahrer- und Beifahrerkonsole mit Drehzahlmesser und Tacho, Plotter, Schalterleiste,
+Zündschloss, Handschuhfach, Uhr, Becherhaltern und Kompass, Lenkrad mit Knauf und Gashebel,
+**gebogene Windschutzscheibe mit aufschwenkbarer Durchgangstür**, Haltegriff, Wischern und Türgriff.
+**Außenborder** (V6, 200 PS) mit Haube und abgesetzter Unterhaube (Trennfuge), Lufteinlass-Lamellen,
+Griffmulde, Farbstreifen und Typenschild, Profil-Schaft, Antikavitationsplatte, Getriebe mit
+Wassereinlässen, Staurohr und Trimmflosse, Skeg, Spiegelhalterung mit Klemmschrauben und
+Dreiblatt-Propeller mit Skew – an Pivots zum **Kippen, Lenken und Drehen**. Ursprung auf der
 Konstruktionswasserlinie: Mit dem Ursprung auf die Wasseroberfläche gesetzt schwimmt das Boot.
 Lackierungen: `navy`, `white`, `red`, `graphite`.
 
@@ -114,7 +123,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
-| Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
+| Motorboot (`navy`) | 59 570 | 29 784 | 14 081 | 3 201 |
 
 ---
 
@@ -253,7 +262,8 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
 - **Bewegungsbereiche** (`pivots.*.limits` bzw. Custom Properties `limit_min`/`limit_max`, in Grad) sind
   per Kollisionsprüfung ermittelt; beim Geländewagen: Türen 0–75°, Haube 0–65°, Hecktür 0–100°,
   Achsschenkel ±30°, Achsen ±6° (bei voller Verschränkung Lenkeinschlag bis ±25°), Lenkrad ±540°;
-  beim Motorboot: Außenborder kippen 0–65°, lenken ±35°, Durchgangstür 0–80°, Badeleiter 0–180°,
+  beim Motorboot: Außenborder kippen 0–65°, lenken ±35° (bei Kippwinkeln über 35° nur noch ±15°
+  lenken – sonst schlägt die Haube an Rumpf, Liner und Sitzen an), Durchgangstür 0–80°, Badeleiter 0–180°,
   Gashebel ±35°, Lenkrad ±540°.
 - **Boot im Wasser:** Der Ursprung liegt auf der Konstruktionswasserlinie. Die Sockets `Float_AftL/R`,
   `Float_MidL/R`, `Float_FwdL/R` sitzen auf der Wasserlinie an der Bordwand und eignen sich als
@@ -321,11 +331,14 @@ python tools/smoke_blender.py export            # alternativ mit pip-bpy
   Scheibenneigung und Tumblehome der Kabine; Konturen von Türen, Fenstern, Haube und Hecktür in
   `build_offroad`, Motorraum in `offroad_engine_bay`, Rad in `offroad_wheel`.
 - **Motorboot:** `BoatGeo` – Tabellen für Kiel, Kimm und Deckslinie (Höhe/halbe Breite über X),
-  Cockpit-Ausschnitt, Motorschacht, Kipp- und Lenkachse; Außenborder in `boat_outboard`.
+  Cockpit-Ausschnitt, Motorschacht, Kipp- und Lenkachse; Außenborder in `boat_outboard`; Polster über
+  `block()` in `build_boat` (gerundete Querschnitte, Wölbung, Wandanpassung), Zierstreifen direkt aus dem
+  Spantprofil, Armaturenbrett über die Hilfsfunktionen `dp`/`dbox`/`gauge`.
 - **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`, `BOAT_LIVERIES`
   (Farbbänder über Welt-Höhe, beim Flugzeug schräg ansteigend, Zweifarb-Dach, Schriftzug, Textfarbe).
 - **Neue Teile:** Baukasten-Funktionen `loft_stations`, `lathe`, `tube`, `extrude`, `surface_grid`,
-  `airfoil_loft`, `text_md` + `project_onto` (Decals) und `Assembly.add(mesh, name, pivot)`.
+  `airfoil_loft`, `text_md` + `project_onto` (Decals), `plate3d` (ebene Platten im Raum), `round_corners`
+  (Eckenrundung mit konstanter Punktzahl) und `Assembly.add(mesh, name, pivot)`.
 
 ## Grenzen
 
