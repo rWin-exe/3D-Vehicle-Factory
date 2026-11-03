@@ -2,6 +2,17 @@
 
 ## Unveröffentlicht
 
+### Neu
+- **Elektro-Geländewagen** (`--vehicle ev`): fünftüriger Allrad-SUV (Karosserie 4,70 m, Breite 1,87 m, Radstand
+  2,83 m, Reifen 255/60 R20 All-Terrain) mit gestuftem LED-Leuchtband und beleuchteter Raute im Lamellen-Grill,
+  Unterfahrschutz mit Bergeösen, durchgehender Heck-Lichtleiste, Dachspoiler, Dachreling mit Gepäckplattform,
+  Ladeklappe mit CCS-Dose und schwarzem Dach. Technik: Unterflur-Batterie, je ein E-Motor mit Inverter vorn und hinten,
+  Einzelradaufhängung mit Querlenkern, Federbeinen (Aim-Pivots) und Faltenbälgen, Vorder- und Hinterachslenkung,
+  Frunk mit orangefarbenen Hochvolt-Leitungen. Innenraum mit Display-Band (Kombiinstrument und Zentraldisplay),
+  Mittelkonsole mit Drehwähler, fünf Sitzen und Lenkrad. Pivots für vier Türen, Haube, Heckklappe, Ladeklappe,
+  Lenkrad, Federweg, Lenkung und Querlenker; Bewegungsbereiche kollisionsfrei geprüft. Fünf Lackierungen
+  (`--ev-livery forest|graphite|sand|white|blue`), Schriftzug per `--ev-brand` (Standard `VOLT`).
+
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau
   wirkt nicht mehr zu schmal unter dem hohen Glasaufbau. Größerer Kühlergrill mit Chromrahmen, größere
