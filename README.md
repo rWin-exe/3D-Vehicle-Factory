@@ -1,6 +1,6 @@
-# 3D Vehicle Factory – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber, Flugzeug, Geländewagen & Motorboot)
+# 3D Vehicle Factory – prozedurale Game-Ready-Fahrzeuge (Enduro, Hubschrauber, Flugzeug, Geländewagen, Motorboot & Elektro-SUV)
 
-`vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das fünf detaillierte,
+`vehicle_generator.py` ist ein Python-Script für **Blender (bpy)**, das sechs detaillierte,
 realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 **engine-fertige Assets** exportiert:
 
@@ -14,12 +14,13 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 | ![Flugzeug](docs/plane_34.jpg) | ![Geländewagen](docs/offroad_34.jpg) |
 | ![Flugzeug Heck](docs/plane_rear.jpg) | ![Geländewagen geöffnet](docs/offroad_open.jpg) |
 
-| Motorboot (Bowrider mit Außenborder) | |
+| Motorboot (Bowrider mit Außenborder) | Elektro-SUV (Allrad, Einzelradaufhängung) |
 |---|---|
-| ![Motorboot](docs/boat_34.jpg) | ![Motorboot Cockpit](docs/boat_top.jpg) |
+| ![Motorboot](docs/boat_34.jpg) | ![Elektro-SUV](docs/suv_34.jpg) |
+| ![Motorboot Cockpit](docs/boat_top.jpg) | ![Elektro-SUV geöffnet](docs/suv_open.jpg) |
 
 Die Vorschaubilder sind mit `--preview` direkt aus dem Script gerendert (Cycles); für das Bild mit
-geöffneten Türen, Haube und Hecktür wurden nur die Pivots gedreht.
+geöffneten Türen, Haube und Hecktür (Geländewagen, Elektro-SUV) wurden nur die Pivots gedreht.
 
 ---
 
@@ -90,6 +91,27 @@ Skeg und Dreiblatt-Propeller mit Skew – an Pivots zum **Kippen, Lenken und Dre
 Konstruktionswasserlinie: Mit dem Ursprung auf die Wasseroberfläche gesetzt schwimmt das Boot.
 Lackierungen: `navy`, `white`, `red`, `graphite`.
 
+**Elektro-SUV** – moderner Fünftürer der 4,8-m-Klasse mit zwei E-Motoren (Karosserie 4,78 m, mit Stoßfängern,
+Unterfahrschutz und Bergehaken 5,1 m; Breite 1,90 m bzw. 2,03 m über die Kotflügelverbreiterungen; Höhe 1,79 m,
+mit Dachplattform 1,99 m; Radstand 2,90 m, Spur 1,66 m, Reifen 275/55 R20): eigenständig modelliert – Unterbau
+als Superellipsen-Loft mit straffer Schulter, Kabine aus waagerechten Schnitten mit stark geneigter, in der
+Draufsicht gewölbter Frontscheibe, Tumblehome und **schwarzem „schwebendem“ Dach** samt Säulen. **Echte
+Ausschnitte** für vier Türen (verdeckte Scharniere, bündige Griffe, Spiegel mit Kamera und Blinker), Panorama-
+Glasdach, Haube, **Heckklappe mit Dachscharnier** (Spoiler, dritte Bremsleuchte, Wischer, Wortmarke) und
+**Ladeklappe** mit CCS-Ladebuchse. Front mit geschlossenem Grill (senkrechte Stäbe, hinterleuchtetes Emblem),
+schmalen LED-Scheinwerfern mit gestufter Lichtsignatur und Projektionsmodulen, senkrechten LED-Leisten im
+Stoßfänger und **Alu-Unterfahrschutz mit Bergehaken**; Heck mit durchgehendem Leuchtband. Kantige, trapezförmige
+Kotflügelverbreiterungen, genarbte Schweller- und Türverkleidungen, Dachreling mit **Dachplattform**
+(Lattenrost, Galerie, Windabweiser). All-Terrain-Reifen mit einzeln modellierten Profilblöcken, zweifarbige
+20"-Felgen mit fünf V-Doppelspeichen (glanzgedrehte Front), innenbelüftete Bremsscheiben und Sättel.
+Unterboden: Hochvolt-Batterie, Antriebseinheiten vorn und hinten (Motor, Getriebe, Inverter, orange
+HV-Leitungen), Hilfsrahmen. **Doppelquerlenker an allen vier Rädern**: Federweg als `slide`-Pivot, Querlenker,
+Kugelgelenke, Federbeine und Antriebswellen als **Aim-Pivots**, Lenkung vorn ±32° und **Hinterachslenkung**
+±10°. **Frunk** unter der Haube (Wanne, Klimamodul, 12-V-Batterie, Behälter), Innenraum mit freistehendem
+Display-Band, Lenkrad mit abgeflachtem Kranz, Mittelkonsole, Sportsitzen, Rückbank, Ambientelicht und
+Laderaum. Lackierungen: `forest`, `graphite`, `glacier`, `dune` (immer mit schwarzem Dach); Schriftzug auf der
+Heckklappe per `--suv-badge`.
+
 ## Game-Ready-Pipeline
 
 | Schritt | Ergebnis |
@@ -115,6 +137,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
+| Elektro-SUV (`forest`) | 161 396 | 80 692 | 39 402 | 11 810 |
 
 ---
 
@@ -130,7 +153,7 @@ im Hintergrund (mit denselben Argumenten).
 ## Benutzung
 
 ```bash
-# Alle fünf Fahrzeuge für Unreal exportieren (Standard: FBX + GLB + .blend, 2K-Bake, 3 LODs)
+# Alle sechs Fahrzeuge für Unreal exportieren (Standard: FBX + GLB + .blend, 2K-Bake, 3 LODs)
 blender --background --factory-startup --python-exit-code 1 --python vehicle_generator.py -- --out export
 
 # Nur den Heli, Polizei-Lackierung, mit Skelett, 4K-Texturen, für Unity
@@ -147,6 +170,9 @@ blender -b -P vehicle_generator.py -- --vehicle offroad --offroad-livery olive -
 
 # Motorboot in Graphit mit Skelett (Außenborder kippen/lenken, Propeller, Lenkrad, Gashebel, Tür, Leiter) für Unity
 blender -b -P vehicle_generator.py -- --vehicle boat --boat-livery graphite --rig --target unity
+
+# Elektro-SUV in Graphit mit eigenem Heck-Schriftzug und Skelett (Federung, Lenkung, Türen, Klappen) für Unreal
+blender -b -P vehicle_generator.py -- --vehicle suv --suv-livery graphite --suv-badge "MEIN SUV" --rig
 ```
 
 `--python-exit-code 1` lässt Blender bei einem Python-Fehler mit Exit-Code 1 enden – ohne meldet
@@ -161,7 +187,7 @@ Anschauen und Weiterbearbeiten.
 
 | Option | Standard | Beschreibung |
 |---|---|---|
-| `--vehicle {enduro,heli,plane,offroad,boat,all}` | `all` | Welche Modelle gebaut werden |
+| `--vehicle {enduro,heli,plane,offroad,boat,suv,all}` | `all` | Welche Modelle gebaut werden |
 | `--out DIR` | `export` | Ausgabeordner |
 | `--target {unreal,unity,godot,generic}` | `unreal` | Ausrichtung (Unreal: +X vorne; sonst Blender −Y vorne = Unity +Z / glTF +Z), FBX-Skalierung, Textur-Packing |
 | `--formats` | `fbx,glb,blend` | Exportformate (`fbx`, `glb`, `blend`, kommagetrennt) |
@@ -177,13 +203,15 @@ Anschauen und Weiterbearbeiten.
 | `--plane-livery` | `classic` | `classic`, `trainer`, `bush`, `military` |
 | `--offroad-livery` | `sand` | `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach) |
 | `--boat-livery` | `navy` | `navy`, `white`, `red`, `graphite` |
+| `--suv-livery` | `forest` | `forest`, `graphite`, `glacier`, `dune` (alle mit schwarzem Dach) |
+| `--suv-badge TEXT` | `4X4 ELECTRIC` | Schriftzug auf der Heckklappe des SUV |
 | `--blades N` | `4` | Anzahl Hauptrotorblätter (2–7) |
 | `--dirt F` | `0.35` | Verschmutzungsgrad 0–1 (Schlamm/Staub, im Bake enthalten) |
 | `--seed N` | `7` | Variation (Stollenmuster, Startnummer, Kennzeichen) |
-| `--enduro-name`, `--heli-name`, `--plane-name`, `--offroad-name`, `--boat-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane`, `SM_Offroad`, `SM_Boat` | Asset-Namen |
+| `--enduro-name`, `--heli-name`, `--plane-name`, `--offroad-name`, `--boat-name`, `--suv-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane`, `SM_Offroad`, `SM_Boat`, `SM_SUV` | Asset-Namen |
 
 Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 50 s (Enduro), 1 min (Heli),
-1,3 min (Flugzeug), 50 s (Geländewagen) und 2 min (Motorboot), alle fünf zusammen rund 6 min; der größte
+1,3 min (Flugzeug), 50 s (Geländewagen), 2 min (Motorboot) und 50 s (Elektro-SUV), alle sechs zusammen rund 7 min; der größte
 Teil ist der Textur-Bake. `--preview` rendert drei Bilder je Fahrzeug (je ca. 2 min bei 96 Samples). Mit `--bake 0`
 dauert ein Fahrzeug nur wenige Sekunden.
 
@@ -223,9 +251,13 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
   `NoseGear`, `WheelNose`, `WheelMain_L/R`, `Door_L/R` bzw. `Axle_F`, `Steer_FL/FR`, `Wheel_FL/FR`,
   `Axle_R`, `Wheel_RL/RR`, `Coilover_FL/FR/RL/RR`, `CoiloverMount_FL/FR/RL/RR`, `Door_FL/FR/RL/RR`,
   `Hood`, `Tailgate`, `SteeringWheel` bzw. `Outboard_Tilt`, `Outboard_Steer`, `Propeller`, `SteeringWheel`,
-  `Throttle`, `WindshieldDoor`, `SwimLadder`. Physics Asset in Unreal erzeugen. Beim Geländewagen mit
+  `Throttle`, `WindshieldDoor`, `SwimLadder` bzw. (Elektro-SUV, je Ecke `FL/FR/RL/RR`) `Susp_*`, `Steer_*`,
+  `Wheel_*`, `ArmLower_*`, `ArmUpperFwd_*`, `ArmUpperAft_*`, `BallJoint_*`, `Coilover_*`, `CoiloverMount_*`,
+  `Driveshaft_*` sowie `Door_FL/FR/RL/RR`, `Hood`, `Tailgate`, `ChargeFlap`, `SteeringWheel`. Physics Asset in Unreal erzeugen. Beim Geländewagen mit
   Starrachsen treiben die Radknochen die Federung; die Achsknochen dreht man im Animation Blueprint um
-  `atan((z_links − z_rechts) / Spur)` (Spur 1,60 m) mit.
+  `atan((z_links − z_rechts) / Spur)` (Spur 1,60 m) mit. Beim Elektro-SUV verschiebt man für die Federung den
+  Knochen `Susp_*` entlang Z (Rad, Radträger und Bremse folgen); Querlenker, Federbeine und Antriebswellen
+  folgen über ihre Aim-Ziele.
 - Material: `T_*_Normal_DX.png` als Normal Map, `T_*_ORM.png` mit *sRGB aus*.
 - LODs: `SM_*_LOD1..3.fbx` im Static-Mesh-Editor als LOD importieren.
 
@@ -241,20 +273,27 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
   federt ein, Haube positiv = öffnet, Hecktür (Scharnier rechts) positiv = öffnet, Lenkrad positiv =
   nach links; Motorboot: Außenborder-Lenkung positiv = Boot dreht nach Backbord (links), Kippen positiv =
   Unterwasserteil nach oben, Propeller positiv = Vorwärtsschub (rechtsdrehend, von hinten im
-  Uhrzeigersinn), Gashebel positiv = vorwärts, Durchgangstür und Badeleiter positiv = öffnen.
+  Uhrzeigersinn), Gashebel positiv = vorwärts, Durchgangstür und Badeleiter positiv = öffnen; Elektro-SUV:
+  `Susp_*` positiv = Rad federt ein (nach oben, Meter), `Steer_*` positiv = Rad lenkt nach links, Haube positiv =
+  öffnet, Heckklappe (Scharnier am Dach) positiv = öffnet nach oben, Ladeklappe positiv = öffnet, Lenkrad
+  positiv = nach links.
   In linkshändigen Engines (Unity) ggf. das Vorzeichen umdrehen.
 - **Aim-Pivots** (`motion: aim`, Ziel unter `pivots.*.target` bzw. Custom Property `target`): Die beiden
-  Hälften jedes Federbeins (`Coilover_*` an der Achse, `CoiloverMount_*` am Rahmen) müssen mit der lokalen
+  Hälften jedes Federbeins (`Coilover_*` an der Achse bzw. am Querlenker, `CoiloverMount_*` am Rahmen) müssen mit der lokalen
   +Y-Achse auf ihren Partner zeigen – dann teleskopieren Dämpfer und Feder beim Einfedern. Unreal:
   AnimBP-Node *Look At* (Look-at Axis Y, Ziel = Partnerknochen); Unity: *Aim Constraint* (Aim Vector
   (0, 1, 0), Source = Partner); Godot: im `SM_*.glb` liegt die Aim-Achse wie die Drehachse auf der
   lokalen −Z-Achse, also genau dort, wo `Node3D.look_at()` hinzeigt; im `SK_*.glb` *LookAtModifier3D*
-  mit Forward Axis +Y.
+  mit Forward Axis +Y. Beim Elektro-SUV zielen außerdem `ArmLower_*` auf `Susp_*` (unteres Kugelgelenk),
+  `ArmUpperFwd_*`/`ArmUpperAft_*` auf `BallJoint_*` (oberes Kugelgelenk, zielt zurück auf `ArmUpperFwd_*`) und
+  `Driveshaft_*` auf `Wheel_*`.
 - **Bewegungsbereiche** (`pivots.*.limits` bzw. Custom Properties `limit_min`/`limit_max`, in Grad) sind
   per Kollisionsprüfung ermittelt; beim Geländewagen: Türen 0–75°, Haube 0–65°, Hecktür 0–100°,
   Achsschenkel ±30°, Achsen ±6° (bei voller Verschränkung Lenkeinschlag bis ±25°), Lenkrad ±540°;
   beim Motorboot: Außenborder kippen 0–65°, lenken ±35°, Durchgangstür 0–80°, Badeleiter 0–180°,
-  Gashebel ±35°, Lenkrad ±540°.
+  Gashebel ±35°, Lenkrad ±540°; beim Elektro-SUV: Türen 0–70°, Haube 0–60°, Heckklappe 0–80°,
+  Ladeklappe 0–110°, Federweg ±0,08 m, Lenkung vorn ±32°, hinten ±10° (in jeder Kombination mit dem Federweg
+  frei), Lenkrad ±540°.
 - **Boot im Wasser:** Der Ursprung liegt auf der Konstruktionswasserlinie. Die Sockets `Float_AftL/R`,
   `Float_MidL/R`, `Float_FwdL/R` sitzen auf der Wasserlinie an der Bordwand und eignen sich als
   Auftriebspunkte (z. B. Pontons der Unreal-*Buoyancy*-Komponente oder eigene Auftriebsskripte in
@@ -322,7 +361,11 @@ python tools/smoke_blender.py export            # alternativ mit pip-bpy
   `build_offroad`, Motorraum in `offroad_engine_bay`, Rad in `offroad_wheel`.
 - **Motorboot:** `BoatGeo` – Tabellen für Kiel, Kimm und Deckslinie (Höhe/halbe Breite über X),
   Cockpit-Ausschnitt, Motorschacht, Kipp- und Lenkachse; Außenborder in `boat_outboard`.
-- **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`, `BOAT_LIVERIES`
+- **Elektro-SUV:** `SuvGeo` – Unterbau-Spanten (`LOWER`), Achsen, Spur, Gürtellinie, Neigung und Wölbung der
+  Frontscheibe, Tumblehome, Eckradien der Kabine, Radlauf (`arch_outline`); Konturen von Türen, Fenstern, Haube,
+  Heckklappe und Ladeklappe in `build_suv`, Fahrwerk je Ecke in `suv_corner`, Rad in `suv_wheel`, Frunk in
+  `suv_frunk`, Stoßfänger in `suv_bumper`.
+- **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`, `BOAT_LIVERIES`, `SUV_LIVERIES`
   (Farbbänder über Welt-Höhe, beim Flugzeug schräg ansteigend, Zweifarb-Dach, Schriftzug, Textfarbe).
 - **Neue Teile:** Baukasten-Funktionen `loft_stations`, `lathe`, `tube`, `extrude`, `surface_grid`,
   `airfoil_loft`, `text_md` + `project_onto` (Decals) und `Assembly.add(mesh, name, pivot)`.
@@ -336,7 +379,9 @@ Texture-Sets mit höherer Texeldichte, Schadens-/Verschleißstufen, ein voll aus
 sowie Fahrzeug-Setup (Federung, Rotor-/Propeller-Blur-Meshes, Flugphysik) in der Engine. Beim
 Geländewagen teleskopieren die Federbeine zwar, die Federn werden aber nicht gestaucht (keine
 Skalierung), und der Unterboden ist bis auf Motorraum und Differential-Tasche geschlossen. Beim Motorboot
-liefern Wasseroberfläche, Kielwasser und Gischt die Engine; Persenning und Bimini fehlen. Dafür ist dieses Script die
+liefern Wasseroberfläche, Kielwasser und Gischt die Engine; Persenning und Bimini fehlen. Beim Elektro-SUV
+fehlen Spurstangen und Stabilisatoren, und der Federweg ist eine senkrechte Verschiebung (der Bogen der
+Querlenker wird nicht nachgebildet). Dafür ist dieses Script die
 Grundlage: alle Maße, Pivots, LODs und Exporte stehen, und jedes Teil lässt sich in Blender oder
 im Code weiter verfeinern.
 

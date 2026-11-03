@@ -2,6 +2,16 @@
 
 ## Unveröffentlicht
 
+### Neu
+- **Elektro-SUV** (`--vehicle suv`): eigenständig modellierter Fünftürer der 4,8-m-Klasse mit zwei E-Motoren,
+  schwarzem „schwebendem“ Dach, schmalen LED-Scheinwerfern, geschlossenem Grill mit hinterleuchtetem Emblem,
+  Alu-Unterfahrschutz mit Bergehaken, durchgehendem Heckleuchtband, kantigen Kotflügelverbreiterungen,
+  Dachplattform, Panorama-Glasdach, Heckklappe mit Dachscharnier, Ladeklappe mit CCS-Buchse und Frunk.
+  Doppelquerlenker an allen Rädern (Federweg-, Lenk- und Aim-Pivots für Querlenker, Federbeine und
+  Antriebswellen), Hinterachslenkung ±10°, AT-Reifen 275/55 R20 auf zweifarbigen 20"-Felgen, Innenraum mit
+  Display-Band. Vier Lackierungen (`--suv-livery forest|graphite|glacier|dune`), Heck-Schriftzug per
+  `--suv-badge`. Bewegungsbereiche kollisionsfrei geprüft.
+
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau
   wirkt nicht mehr zu schmal unter dem hohen Glasaufbau. Größerer Kühlergrill mit Chromrahmen, größere
