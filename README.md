@@ -92,18 +92,18 @@ Konstruktionswasserlinie: Mit dem Ursprung auf die Wasseroberfläche gesetzt sch
 Lackierungen: `navy`, `white`, `red`, `graphite`.
 
 **Elektro-SUV** – moderner Fünftürer der 4,8-m-Klasse mit zwei E-Motoren (Karosserie 4,78 m, mit Stoßfängern,
-Unterfahrschutz und Bergehaken 5,1 m; Breite 1,90 m bzw. 2,03 m über die Kotflügelverbreiterungen; Höhe 1,79 m,
-mit Dachplattform 1,99 m; Radstand 2,90 m, Spur 1,66 m, Reifen 275/55 R20): eigenständig modelliert – Unterbau
-als Superellipsen-Loft mit straffer Schulter, Kabine aus waagerechten Schnitten mit stark geneigter, in der
-Draufsicht gewölbter Frontscheibe, Tumblehome und **schwarzem „schwebendem“ Dach** samt Säulen. **Echte
+Unterfahrschutz und Bergehaken 5,1 m; Breite 1,90 m bzw. 2,03 m über die Kotflügelverbreiterungen; Höhe 1,85 m,
+mit Dachplattform 2,05 m; Radstand 2,90 m, Spur 1,66 m, Reifen 275/55 R20): eigenständig modelliert – Unterbau
+als Superellipsen-Loft mit straffer Schulter, Kabine aus waagerechten Schnitten mit hoher Gürtellinie (1,29 m), flachem Glasaufbau,
+geneigter, in der Draufsicht gewölbter Frontscheibe, Tumblehome und **schwarzem „schwebendem“ Dach** samt Säulen. **Echte
 Ausschnitte** für vier Türen (verdeckte Scharniere, bündige Griffe, Spiegel mit Kamera und Blinker), Panorama-
 Glasdach, Haube, **Heckklappe mit Dachscharnier** (Spoiler, dritte Bremsleuchte, Wischer, Wortmarke) und
-**Ladeklappe** mit CCS-Ladebuchse. Front mit geschlossenem Grill (senkrechte Stäbe, hinterleuchtetes Emblem),
-schmalen LED-Scheinwerfern mit gestufter Lichtsignatur und Projektionsmodulen, senkrechten LED-Leisten im
-Stoßfänger und **Alu-Unterfahrschutz mit Bergehaken**; Heck mit durchgehendem Leuchtband. Kantige, trapezförmige
+**Ladeklappe** mit CCS-Ladebuchse. Front mit breitem, geschlossenem Grill zwischen den Scheinwerfern (senkrechte Stäbe, hinterleuchtetes Emblem),
+schmalen LED-Scheinwerfern mit gestufter Lichtsignatur und Projektionsmodulen, senkrechten LED-Leisten in
+schwarzen Eckblenden und **Alu-Unterfahrschutz mit Bergehaken**; Heck mit durchgehendem Leuchtband. Kantige, trapezförmige
 Kotflügelverbreiterungen, genarbte Schweller- und Türverkleidungen, Dachreling mit **Dachplattform**
 (Lattenrost, Galerie, Windabweiser). All-Terrain-Reifen mit einzeln modellierten Profilblöcken, zweifarbige
-20"-Felgen mit fünf V-Doppelspeichen (glanzgedrehte Front), innenbelüftete Bremsscheiben und Sättel.
+20"-Felgen mit fünf V-Doppelspeichen (schwarz, glanzgedrehte Kanten), innenbelüftete Bremsscheiben und Sättel.
 Unterboden: Hochvolt-Batterie, Antriebseinheiten vorn und hinten (Motor, Getriebe, Inverter, orange
 HV-Leitungen), Hilfsrahmen. **Doppelquerlenker an allen vier Rädern**: Federweg als `slide`-Pivot, Querlenker,
 Kugelgelenke, Federbeine und Antriebswellen als **Aim-Pivots**, Lenkung vorn ±32° und **Hinterachslenkung**
@@ -137,7 +137,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
-| Elektro-SUV (`forest`) | 161 396 | 80 692 | 39 402 | 11 810 |
+| Elektro-SUV (`forest`) | 161 811 | 80 899 | 39 507 | 11 860 |
 
 ---
 
