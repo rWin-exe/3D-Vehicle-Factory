@@ -87,9 +87,11 @@ Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 Karosserie als Spanten-Loft (Unterbau ∪ Kabine) zur 2-cm-Hülle verdickt, mit **echten Ausschnitten** für vier Türen
 (Griffe bündig, Fensterrahmen in Klavierlack, Türverkleidung innen), Haube, nach oben öffnende **Heckklappe**
 (Scharnier am Dach, geneigte Heckwand) und Radhäuser; breite Kotflügel- und Schwellerverkleidungen. **Front:**
-gestuftes LED-Leuchtband mit Matrix-Modulen, Lamellen-Grill mit beleuchteter Raute und Kamera, senkrechte
-LED-Leisten in den Ecken, Unterfahrschutz mit Bergeösen, Parksensoren, Kennzeichenträger. **Heck:** durchgehende
-rote Lichtleiste auf der Klappe, Eckleuchten, Schriftzug, Dachspoiler mit dritter Bremsleuchte, Unterfahrschutz,
+hohe Klavierlack-Grillfläche mit kräftigen Lamellen und beleuchteter Raute, integrierte Scheinwerfer mit gestuftem
+LED-Leuchtband (Haken am Außenende) und Matrix-Modulen, schwarze Eck-Lufteinlässe mit senkrechten LED-Leisten,
+Unterfahrschutz mit hochgezogenen Enden und Bergeösen, Parksensoren, Kennzeichenträger. Leuchten, Grill-Blende und
+Einsätze sind Decals, die exakt auf die gewölbte Karosserie projiziert werden. **Heck:** durchgehende
+rote Lichtleiste auf der Klappe mit um die Ecke gezogenen Eckleuchten, Schriftzug, Dachspoiler mit dritter Bremsleuchte, Unterfahrschutz,
 Heckwischer, Haifischflosse. **Dach:** schwarzes Dach, Reling mit **Gepäckplattform** (Querstreben, Windabweiser).
 **Ladeklappe** mit CCS-Dose (Pivot). **Antrieb:** flacher Unterflur-Akku zwischen den Achsen mit Unterbodenschutz,
 Kühlrippen und Schweller-Profilen, je ein quer eingebauter **E-Motor** mit Getriebe und Inverter vorn und hinten,
@@ -103,7 +105,7 @@ Kombiinstrument (Tempo, Reichweite, Ladebalken) und Zentraldisplay (Route), Lede
 Mittelkonsole mit Drehwähler und Ladeschale, zwei Einzelsitze und Rückbank mit Kontrastbahn, Lenkrad
 mit Raute (Pivot), Pedale, Himmel-Bedienfeld, Sonnenblenden, Innenspiegel, Laderaum mit Ladeboden.
 Schriftzug auf Grill, Heckklappe und Kennzeichen (`--ev-brand`, Standard `VOLT`).
-Lackierungen: `forest` (Standard), `graphite`, `sand`, `white`, `blue` – jeweils mit schwarzem Dach.
+Seidenmatter Lack in dunklem Waldgrün, dunkel getönte Scheiben mit schwarzen Säulen. Lackierungen: `forest` (Standard), `graphite`, `sand`, `white`, `blue` – jeweils mit schwarzem Dach.
 
 **Motorboot** – Bowrider der 6,4-m-Klasse (mit Außenborder und Badeplattformen 7,3 m, Breite 2,4 m):
 **Tiefen-V-Rumpf** (20° Aufkimmung am Spiegel, nach vorn schärfer) mit Kimmkanten, zwei Spritzleisten je
@@ -142,7 +144,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
-| Elektro-SUV (`forest`) | 151 678 | 75 831 | 35 597 | 8 723 |
+| Elektro-SUV (`forest`) | 167 472 | 83 726 | 39 493 | 10 733 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---
