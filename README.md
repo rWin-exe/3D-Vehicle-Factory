@@ -58,8 +58,9 @@ Bugradfahrwerk (lenkbar) und Federstahl-Hauptfahrwerk mit Radverkleidungen, Ante
 Panel-Fugen und Kennzeichen (Mesh-Decal). Lackierungen: `classic`, `trainer`, `bush`, `military`.
 
 **Geländewagen** – fünftüriger 4x4 im Stil von Land Cruiser/G-Klasse (Karosserie 4,6 m, mit Seilwinde
-und Reserverad 5,0 m; Breite 1,86 m, Höhe 1,98 m, Gürtellinie 1,30 m – kräftiger Unterbau unter einem
-flacheren Glasaufbau; Radstand 2,76 m, Spur 1,60 m, Reifen 265/75 R16): Leiterrahmen mit Traversen,
+und Reserverad 5,0 m; Breite 1,86 m, Höhe 1,98 m, mit Dachzelt 2,35 m, Gürtellinie 1,30 m – kräftiger
+Unterbau unter einem flacheren Glasaufbau; Radstand 2,76 m, Spur 1,60 m, Reifen 265/75 R16), als
+Expeditionsfahrzeug ausgebaut: Leiterrahmen mit Traversen,
 **Starrachsen** vorn und hinten mit Achsverschränkung, Differentialen und Kardanwellen, lenkbare
 Achsschenkel mit Nachlauf und Spreizung, **Federbeine aus zwei Hälften, die sich per Aim-Pivot
 gegenseitig anvisieren** und beim Verschränken teleskopieren, Auspuff mit Seitenausgang, Tank.
@@ -69,11 +70,12 @@ Fenster, Haube und die seitlich angeschlagene Hecktür mit Reserverad. **Motorra
 eingebautem Reihen-Sechszylinder-Turbodiesel (Ventildeckel mit Schriftzug, Ansaugbrücke, Krümmer,
 Turbolader, Riementrieb), Kühler mit Visco-Lüfter, Batterie, Bremskraftverstärker, Luftfilterkasten
 am **Schnorchel**, Innenkotflügeln, Spritzwand und Haube mit Versteifungsrahmen. All-Terrain-Reifen mit
-einzeln modellierten Profilblöcken und Flankenstollen, Stahlfelgen mit Lüftungslöchern, Bremsscheiben;
-Stahlstoßfänger mit **Seilwinde**, Bergeösen, Unterfahrschutz und Zusatzscheinwerfern, Kühlergrill mit
-Chromrahmen, Rundscheinwerfer, Lufthutze auf der Haube, Seitenschutzleisten, Seitenblinker,
-Rückleuchten-Cluster, Dachträger mit Lichtleiste, Rock-Slider, breite Kotflügelverbreiterungen,
-Schmutzfänger, Kennzeichen (Mesh-Decal) und
+einzeln modellierten Profilblöcken und Flankenstollen, Stahlfelgen mit Lüftungslöchern und
+**Beadlock-Ring**, Bremsscheiben; Stahlstoßfänger mit **Seilwinde**, roten Bergeschäkeln,
+Unterfahrschutz und Zusatzscheinwerfern, **Rohr-Frontbügel** mit LED-Fernscheinwerfern, Kühlergrill mit
+Chromrahmen, Rundscheinwerfer, Lufthutze auf der Haube, Seitenblinker, Rückleuchten-Cluster,
+**angeschraubte Kotflügelverbreiterungen**, Rock-Slider, Schmutzfänger, Dachträger mit Lichtleiste,
+**Hartschalen-Dachzelt, Markise, Bergeboards und Kanistern**, Kennzeichen (Mesh-Decal) und
 Innenraum (Armaturenbrett mit Displays, Sitze, Rückbank, Schalt- und Verteilerhebel, Lenkrad).
 Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 
@@ -113,7 +115,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Enduro | 141 866 | 69 794 | 32 150 | 15 314 |
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
-| Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
+| Geländewagen (`sand`) | 138 280 | 69 133 | 32 325 | 10 018 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---

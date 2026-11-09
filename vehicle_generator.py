@@ -3435,6 +3435,11 @@ def offroad_materials(prefix, liv, dirt):
         "soot": mat_metal(P + "Exhaust", (0.08, 0.07, 0.065), 0.65),
         "mirror": mat_metal(P + "MirrorGlass", (0.85, 0.87, 0.9), 0.02),
         "engine": mat_metal(P + "EngineCast", (0.10, 0.10, 0.105), 0.55, dirt=dirt * 0.5, dirt_z=(0.55, 1.0)),
+        "shackle": mat_paint(P + "ShackleRed", (0.55, 0.03, 0.02), 0.35, coat=0.3),
+        "tent": mat_plastic(P + "TentShell", (0.11, 0.115, 0.12), 0.45, grain=0.08),
+        "canvas": uv_weight(mat_plastic(P + "Canvas", (0.16, 0.15, 0.12), 0.85, grain=0.3), 0.6),
+        "boards": mat_plastic(P + "RecoveryBoards", (0.80, 0.30, 0.02), 0.55, dirt * 0.8, (1.9, 2.3), grain=0.2),
+        "can": mat_paint(P + "JerryCan", (0.12, 0.15, 0.07), 0.5, coat=0.1, dirt=dirt * 0.6, dirt_z=(1.9, 2.4)),
         "valve": mat_paint(P + "ValveCover", (0.32, 0.02, 0.015), 0.45, coat=0.2),
     }
 
@@ -3591,6 +3596,12 @@ def offroad_wheel(M):
     for i in range(6):
         p = V((math.sin(TAU * i / 6), 0.0, math.cos(TAU * i / 6))) * 0.0698
         rim.merge(cylinder(p + Y_AXIS * 0.039, p + Y_AXIS * 0.056, 0.0115, 6, M["steel"]))
+    # Beadlock-Ring (Optik) auf dem äußeren Felgenhorn mit 24 Schrauben
+    rim.merge(lathe([(0.186, 0.110), (0.229, 0.110), (0.229, 0.123), (0.186, 0.123)], 64, V((0, 0, 0)), Y_AXIS, M["rim"],
+                    closed_profile=True))
+    for i in range(24):
+        p = V((math.sin(TAU * (i + 0.5) / 24), 0.0, math.cos(TAU * (i + 0.5) / 24))) * 0.2075
+        rim.merge(cylinder(p + Y_AXIS * 0.122, p + Y_AXIS * 0.130, 0.0065, 6, M["steel"]))
     brake = lathe([(0.075, -0.048), (0.158, -0.048), (0.158, -0.022), (0.075, -0.022)], 48, V((0, 0, 0)), Y_AXIS,
                   M["steel"], closed_profile=True)
     brake.merge(cylinder(V((0, -0.048, 0)), V((0, 0.032, 0)), 0.075, 24, M["steel"]))
@@ -3806,8 +3817,6 @@ def build_offroad(cfg):
             dt = MeshData()
             dt.merge(side_seal(win, side))
             dt.merge(box((handle_x, side * (g.hw + 0.011), g.z_belt - 0.10), (0.13, 0.022, 0.032), M["black"]))
-            x_lo, x_hi = (-0.30, 0.67) if row == "F" else (-0.97, -0.40)          # Seitenschutzleiste
-            dt.merge(box(((x_lo + x_hi) / 2, side * (g.hw + 0.006), 1.03), (x_hi - x_lo, 0.012, 0.055), M["black"]))
             for z in (0.80, 1.15):                  # außenliegende Scharniere: Rolle auf der Achse, Lappen je Seite
                 yh = side * (g.hw + 0.012)
                 dt.merge(cylinder(V((hx, yh, z - 0.05)), V((hx, yh, z + 0.05)), 0.011, 10, M["black"]))
@@ -3925,6 +3934,11 @@ def build_offroad(cfg):
             path = [V((a.x + rfl * math.cos(t), side * (g.hw + 0.022), a.z + rfl * math.sin(t)))
                     for t in (lerp(a1, math.pi - a1, i / 32) for i in range(33))]
             trim.merge(tube(path, (0.038, 0.046), 12, M["black"], up=Y_AXIS, exponent=4.0))
+            for k in range(1, 12):                                       # angeschraubt: Schraubköpfe außen
+                t = lerp(a1, math.pi - a1, k / 12)
+                q = V((a.x + rfl * math.cos(t), 0.0, a.z + rfl * math.sin(t)))
+                trim.merge(cylinder(q + Y_AXIS * side * (g.hw + 0.058), q + Y_AXIS * side * (g.hw + 0.066), 0.009, 6,
+                                    M["steel"]))
     asm.add(trim, "Flares", mods=[bevel_s])
 
     # ------------------------------------------------------------- Front: Stoßfänger, Seilwinde, Grill, Scheinwerfer
@@ -3950,7 +3964,22 @@ def build_offroad(cfg):
     for side in (1, -1):                                                                    # Bergeösen
         y = side * 0.70
         fr.merge(tube(fillet_path([(2.30, y, 0.53), (2.36, y, 0.53), (2.36, y, 0.61), (2.30, y, 0.61)], 0.03), 0.011,
-                      8, M["steel"]))
+                      8, M["shackle"]))
+    # Frontbügel (Rohr-Bullbar) auf dem Stoßfänger: Bügel vor dem Grill, Seitenflügel über den Scheinwerfern
+    bx, bz0, bz1 = 2.335, 0.68, 1.15                     # Flügel über, Querstrebe unter den Scheinwerfern
+    bar = [(bx - 0.02, -0.88, bz0), (bx - 0.03, -0.87, bz1 - 0.01), (bx, -0.34, bz1), (bx, 0.34, bz1),
+           (bx - 0.03, 0.87, bz1 - 0.01), (bx - 0.02, 0.88, bz0)]
+    fr.merge(tube(fillet_path(bar, 0.07, 5), 0.028, 12, M["bumper"]))
+    for side in (1, -1):
+        fr.merge(tube(fillet_path([(bx, side * 0.30, bz0), (bx, side * 0.30, bz1 - 0.02), (bx, side * 0.34, bz1)],
+                                  0.05, 4), 0.028, 12, M["bumper"]))
+        fr.merge(cylinder(V((bx, side * 0.30, 0.765)), V((bx - 0.02, side * 0.87, 0.765)), 0.022, 10, M["bumper"]))
+        c = V((bx + 0.01, side * 0.17, bz1 + 0.085))                                     # LED-Fernscheinwerfer
+        fr.merge(box((bx, side * 0.17, bz1 + 0.035), (0.04, 0.03, 0.05), M["black"]))
+        fr.merge(lathe([(0.0, -0.06), (0.05, -0.055), (0.068, -0.025), (0.07, 0.0), (0.066, 0.006)], 24, c, X_AXIS,
+                       M["black"]))
+        fr.merge(lathe([(0.0, -0.002), (0.035, 0.0), (0.0, 0.006)], 12, c, X_AXIS, M["lamp"]))
+        fog_lens.merge(lathe([(0.064, 0.004), (0.045, 0.012), (0.0, 0.016)], 24, c, X_AXIS, M["lens"]))
     zg0, zg1 = 0.74, 1.17                                                                   # Grill mit Rahmen
     fr.merge(box((2.226, 0.0, (zg0 + zg1) / 2), (0.022, 0.98, zg1 - zg0), M["black"]))
     fr.merge(tube(fillet_path([(2.24, -0.49, zg0), (2.24, 0.49, zg0), (2.24, 0.49, zg1), (2.24, -0.49, zg1),
@@ -4013,9 +4042,45 @@ def build_offroad(cfg):
             rack.merge(box((x, side * 0.72, g.z_roof + 0.005), (0.08, 0.05, 0.02), M["black"]))
     rack.merge(box((0.36, 0.0, rz + 0.01), (0.07, 1.00, 0.08), M["black"]))                 # Lichtleiste
     asm.add(rack, "RoofRack", mods=[bevel_s])
+    camp = MeshData()                                       # Expeditionsausrüstung auf dem Dachträger
+    z0 = rz + 0.014
+    shell = rounded_poly_2d([(-1.90, -0.64), (-0.58, -0.64), (-0.58, 0.64), (-1.90, 0.64)], 0.06, 4)
+    camp.merge(prism_z(shell, z0, z0 + 0.07, M["black"]))                                   # Hartschalen-Dachzelt
+    top = loft_stations([dict(x=-1.89, hw=0.62, zt=z0 + 0.25, zb=z0 + 0.065, et=6.0, eb=12.0),
+                         dict(x=-1.86, hw=0.63, zt=z0 + 0.27, zb=z0 + 0.065, et=6.0, eb=12.0),
+                         dict(x=-0.62, hw=0.63, zt=z0 + 0.22, zb=z0 + 0.065, et=6.0, eb=12.0),
+                         dict(x=-0.59, hw=0.62, zt=z0 + 0.20, zb=z0 + 0.065, et=6.0, eb=12.0)],
+                        cosine_spacing(-1.89, -0.59, 16, 0.6, 0.6), 40, "ngon", "ngon", M["tent"])
+    camp.merge(top)
+    for x in (-1.70, -0.80):                                                                # Verschlüsse
+        for side in (1, -1):
+            camp.merge(box((x, side * 0.645, z0 + 0.075), (0.06, 0.012, 0.05), M["steel"]))
+    for side in (1, -1):                                                                    # Gasdruckfedern
+        camp.merge(cylinder(V((-1.80, side * 0.63, z0 + 0.08)), V((-0.70, side * 0.63, z0 + 0.15)), 0.008, 6, M["steel"]))
+    aw = V((0.0, 0.81, rz - 0.005))                                                         # Markise links
+    camp.merge(cylinder(aw + V((-1.80, 0.0, 0.0)), aw + V((0.18, 0.0, 0.0)), 0.068, 16, M["canvas"]))
+    for x in (-1.80, 0.18):
+        camp.merge(cylinder(aw + V((x - 0.012, 0.0, 0.0)), aw + V((x + 0.012, 0.0, 0.0)), 0.072, 16, M["black"]))
+    for x in (-1.45, -0.45, 0.05):
+        camp.merge(box((x, 0.745, rz - 0.005), (0.04, 0.10, 0.03), M["black"]))
+    for i, y in enumerate((-0.47, -0.16)):                                                  # Bergeboards
+        b = MeshData()
+        b.merge(box((-0.15, y, z0 + 0.016 + i * 0.002), (0.80, 0.30, 0.03), M["boards"]))
+        for k in range(9):
+            b.merge(box((-0.51 + k * 0.09, y, z0 + 0.034 + i * 0.002), (0.03, 0.26, 0.012), M["boards"]))
+        camp.merge(b)
+    for i, y in enumerate((0.18, 0.47)):                                                    # Kanister (liegend)
+        c = V((-0.18, y, z0 + 0.09))
+        camp.merge(box(c, (0.47, 0.17, 0.17), M["can"]))
+        camp.merge(box(c + V((0.235, 0.0, 0.03)), (0.02, 0.06, 0.07), M["can"]))
+        camp.merge(cylinder(c + V((0.235, 0.0, 0.065)), c + V((0.27, 0.0, 0.075)), 0.02, 10, M["black"]))
+        for x in (-0.12, 0.0, 0.12):
+            camp.merge(box(c + V((x, 0.0, 0.095)), (0.03, 0.12, 0.02), M["can"]))
+        camp.merge(box(c + V((0.0, 0.0, -0.03)), (0.50, 0.03, 0.02), M["black"]))         # Spanngurt
+    asm.add(camp, "RoofGear", mods=[bevel_s], detail=1)
     asm.add(box((0.396, 0.0, rz + 0.01), (0.006, 0.95, 0.055), M["lens"]), "LightBarLens", detail=2)
 
-    snork = [V((1.02, -(g.hw + 0.035), 1.14)), V((0.87, -(g.hw + 0.042), 1.26))]     # Einlass über der Schutzleiste
+    snork = [V((1.02, -(g.hw + 0.035), 1.14)), V((0.87, -(g.hw + 0.042), 1.26))]     # Einlass über dem Radlauf
     snork += [V((pillar(z, 0.035), -(g.cab_hw(z) + 0.046), z)) for z in (g.z_belt + 0.10, g.z_belt + 0.38, g.z_roof - 0.07)]
     snork.append(snork[-1] + V((0.0, 0.0, 0.07)))
     sn = tube(spline(snork, 6), 0.043, 12, M["black"])
@@ -4031,8 +4096,6 @@ def build_offroad(cfg):
                       M["bumper"]))
         for x in (0.55, -0.05, -0.65):
             sd.merge(box((x, side * 0.705, 0.495), (0.05, 0.52, 0.04), M["bumper"]))
-        for x0, x1 in ((0.745, 2.10), (-2.12, -1.035)):                                     # Schutzleisten Karosserie
-            sd.merge(box(((x0 + x1) / 2, side * (g.hw + 0.006), 1.03), (x1 - x0, 0.012, 0.055), M["black"]))
         for a in (g.fa, g.ra):
             sd.merge(box((a.x - 0.56, side * 0.80, 0.39), (0.01, 0.30, 0.30), M["rubber"]))
     sd.merge(cylinder(V((-1.70, g.hw - 0.002, 1.17)), V((-1.70, g.hw + 0.006, 1.17)), 0.055, 20, M["paint"]))  # Tank
