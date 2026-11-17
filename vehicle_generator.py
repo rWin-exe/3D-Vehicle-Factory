@@ -4226,7 +4226,7 @@ def build_offroad(cfg):
 # =============================================================================
 
 EV_LIVERIES = {
-    "forest": dict(base=(0.024, 0.036, 0.027), rough=0.44, coat=0.35, metal=0.30, roof=(0.006, 0.006, 0.007),
+    "forest": dict(base=(0.019, 0.031, 0.028), rough=0.44, coat=0.35, metal=0.30, roof=(0.006, 0.006, 0.007),
                    rim=(0.030, 0.032, 0.036)),
     "graphite": dict(base=(0.040, 0.044, 0.050), rough=0.42, coat=0.4, metal=0.4, roof=(0.006, 0.006, 0.007),
                      rim=(0.030, 0.032, 0.036)),
@@ -4264,7 +4264,7 @@ def ev_materials(prefix, liv, dirt):
         "rim": mat_paint(P + "Rim", liv["rim"], 0.28, coat=0.3, metallic=0.9, dirt=dirt * 0.8, dirt_z=(0.0, 0.8)),
         "tire": mat_rubber(P + "Tire", (0.024, 0.024, 0.024), 0.86, dirt * 1.1, (0.0, 0.85)),
         "rubber": mat_rubber(P + "Rubber", (0.015, 0.015, 0.015), 0.7),
-        "glass": mat_glass(P + "Glass", (0.10, 0.12, 0.13)),
+        "glass": mat_glass(P + "Glass", (0.08, 0.10, 0.11), 0.06),
         "lens": mat_glass(P + "Lens", (0.95, 0.95, 0.95)),
         "drl": mat_emit(P + "DRL", (0.80, 0.93, 1.0), 12.0, base=(0.55, 0.65, 0.70)),
         "lamp": mat_emit(P + "HeadLight", (1.0, 0.97, 0.90), 7.0),
@@ -4277,7 +4277,7 @@ def ev_materials(prefix, liv, dirt):
         "accent": uv_weight(mat_plastic(P + "SeatAccent", (0.085, 0.09, 0.10), 0.55, grain=0.2), 0.5),
         "floor": uv_weight(mat_rubber(P + "Floor", (0.028, 0.028, 0.03), 0.85), 0.5),
         "panel": uv_weight(mat_plastic(P + "Dash", (0.030, 0.032, 0.036), 0.5), 0.5),
-        "screen": uv_weight(mat_emit(P + "Screen", (0.10, 0.30, 0.55), 2.0, base=(0.01, 0.01, 0.012)), 0.5),
+        "screen": uv_weight(mat_emit(P + "Screen", (0.03, 0.09, 0.21), 1.1, base=(0.01, 0.01, 0.012)), 0.5),
         "ui": uv_weight(mat_emit(P + "ScreenUI", (0.75, 0.92, 1.0), 3.0, base=(0.2, 0.25, 0.3)), 0.5),
         "ui_green": uv_weight(mat_emit(P + "ScreenGreen", (0.15, 0.95, 0.45), 3.0, base=(0.05, 0.3, 0.12)), 0.5),
         "ambient": uv_weight(mat_emit(P + "Ambient", (0.30, 0.65, 1.0), 4.0, base=(0.1, 0.2, 0.3)), 0.5),
@@ -4301,11 +4301,16 @@ class EvGeo(OffroadGeo):
         dict(x=-2.34, hw=0.865, zt=1.140, zb=0.50, et=8.0, eb=5.0),
         dict(x=-2.325, hw=0.905, zt=1.146, zb=0.46, et=8.0, eb=5.0),
         dict(x=-2.29, hw=0.928, zt=1.150, zb=0.42, et=8.0, eb=5.0),
-        dict(x=-2.00, hw=0.935, zt=1.152, zb=0.34, et=8.0, eb=5.0),
-        dict(x=-1.00, hw=0.935, zt=1.130, zb=0.30, et=8.0, eb=5.0),
+        dict(x=-2.00, hw=0.946, zt=1.152, zb=0.34, et=8.0, eb=5.0),
+        dict(x=-1.70, hw=0.958, zt=1.145, zb=0.32, et=8.0, eb=5.0),
+        dict(x=-1.39, hw=0.964, zt=1.138, zb=0.30, et=8.0, eb=5.0),
+        dict(x=-1.10, hw=0.948, zt=1.132, zb=0.30, et=8.0, eb=5.0),
+        dict(x=-0.90, hw=0.935, zt=1.126, zb=0.30, et=8.0, eb=5.0),
         dict(x=0.80, hw=0.935, zt=1.105, zb=0.30, et=8.0, eb=5.0),
-        dict(x=1.60, hw=0.935, zt=1.085, zb=0.34, et=7.0, eb=5.0),
-        dict(x=2.10, hw=0.925, zt=1.065, zb=0.42, et=6.5, eb=5.0),
+        dict(x=1.10, hw=0.949, zt=1.100, zb=0.30, et=7.5, eb=5.0),
+        dict(x=1.44, hw=0.964, zt=1.092, zb=0.31, et=7.0, eb=5.0),
+        dict(x=1.80, hw=0.958, zt=1.078, zb=0.36, et=7.0, eb=5.0),
+        dict(x=2.10, hw=0.930, zt=1.065, zb=0.42, et=6.5, eb=5.0),
         dict(x=2.28, hw=0.895, zt=1.060, zb=0.48, et=6.0, eb=5.0),
         dict(x=2.33, hw=0.855, zt=1.052, zb=0.50, et=6.0, eb=5.0),
         dict(x=2.36, hw=0.800, zt=1.040, zb=0.52, et=5.5, eb=5.0),
@@ -4398,6 +4403,9 @@ def ev_wheel(M):
             poly = rounded_poly_2d([(0.060, sgn * 0.010), (0.250, sgn * 0.044), (0.250, sgn * 0.013),
                                     (0.074, sgn * 0.0005)], [0.004, 0.006, 0.004, 0.003], 3)
             rim.merge(extrude(poly, 0.030, frame_matrix(V((0, 0.066, 0)), rad, tan, Y_AXIS), M["rim"]))
+            poly2 = rounded_poly_2d([(0.112, sgn * 0.0115), (0.236, sgn * 0.037), (0.236, sgn * 0.0165),
+                                     (0.120, sgn * 0.003)], [0.003, 0.004, 0.003, 0.002], 3)
+            rim.merge(extrude(poly2, 0.003, frame_matrix(V((0, 0.0822, 0)), rad, tan, Y_AXIS), M["alu"]))   # maschinierte Fläche
         poly = rounded_poly_2d([(0.020, -0.034), (0.080, -0.026), (0.080, 0.026), (0.020, 0.034)], 0.008, 3)
         rim.merge(extrude(poly, 0.034, frame_matrix(V((0, 0.070, 0)), rad, tan, Y_AXIS), M["rim"]))
     rim.merge(lathe([(0.085, 0.049), (0.085, 0.068), (0.070, 0.086), (0.0, 0.091)], 40, V((0, 0, 0)), Y_AXIS,
@@ -4541,6 +4549,15 @@ def ev_body(c):
                          M["leather"]))
             dc.merge(lathe([(0.0, 0.0), (0.06, 0.0), (0.065, 0.012)], 20, V(((x_lo + x_hi) / 2, yi - side * 0.034, 0.80)),
                            -Y_AXIS * side, M["black"]))
+            band = rounded_poly_2d([(x_hi - 0.05, 0.93), (x_hi - 0.05, 0.99), (x_lo + 0.12, 0.99), (x_lo + 0.12, 0.93)],
+                                   0.02, 2)
+            dc.merge(prism_y(band, side * (g.hw - st - 0.034), side * (g.hw - st - 0.0435), M["accent"]))     # helles Zierband
+            dc.merge(box(((x_lo + x_hi) / 2 - 0.03, side * (g.hw - st - 0.0455), 0.912), (x_hi - x_lo - 0.24, 0.003, 0.005),
+                         M["ambient"]))                                                                       # Ambientelicht
+            dc.merge(box((x_hi - 0.17, yi - side * 0.03, g.z_belt - 0.043), (0.11, 0.05, 0.004), M["gloss"]))   # Tastenfeld
+            for k in range(3):
+                dc.merge(box((x_hi - 0.205 + 0.035 * k, yi - side * 0.03, g.z_belt - 0.0405), (0.016, 0.02, 0.002),
+                             M["silver"]))
             asm.add(dc, f"DoorCard_{row}{s}", key, mods=[bevel_s], detail=1)
         # Außenspiegel an der Vordertür: großes, abgerundetes Gehäuse in Klavierlack mit Lack-Kappe und Blinker
         mm = MeshData()
@@ -4657,7 +4674,9 @@ def ev_body(c):
         prof = rounded_poly_2d([(side * 0.900, 0.31), (side * 0.968, 0.34), (side * 0.972, 0.42), (side * 0.962, 0.515),
                                 (side * 0.900, 0.515)], [0.0, 0.012, 0.008, 0.01, 0.0], 3)
         trim.merge(prism_x(prof, x0, x1, M["cladding"]))
-        trim.merge(box(((x0 + x1) / 2, side * 0.9715, 0.455), (x1 - x0 - 0.1, 0.004, 0.012), M["silver"]))    # Zierstreifen
+        for zr in (0.365, 0.405, 0.445):                                                      # Trittrippen
+            trim.merge(box(((x0 + x1) / 2, side * 0.9735, zr), (x1 - x0 - 0.30, 0.010, 0.014), M["cladding"]))
+        trim.merge(box(((x0 + x1) / 2, side * 0.9715, 0.492), (x1 - x0 - 0.1, 0.004, 0.006), M["silver"]))   # Kantenleiste
     asm.add(trim, "Flares", mods=[bevel_s])
     c.src_ok = True
     return zt
@@ -4686,7 +4705,9 @@ def ev_exterior(c):
 
     def decal(pts, mat, off, front=True):
         """Flächiges Detail (Leuchte, Blende, Kunststoffeinsatz) aus einer Kontur (y, z), die exakt auf die gewölbte
-        Karosserieoberfläche projiziert wird – folgt Ecken und Wölbung ohne aufgesetzte Kästen."""
+        Karosserieoberfläche projiziert wird – folgt Ecken und Wölbung ohne aufgesetzte Kästen. Kanten, die durch
+        die Projektion lang werden, werden geteilt und neu projiziert; Treffer auf nach oben/zur Seite zeigenden
+        Flächen werden verworfen (die Konturen liegen daher innerhalb der zur Front/zum Heck gewandten Fläche)."""
         x0 = 3.0 if front else -3.0
         ring = [V((x0, q.x, q.y)) for q in ensure_ccw([V(p) for p in pts])]
         md = MeshData()
@@ -4694,26 +4715,35 @@ def ev_exterior(c):
         md.faces = [tuple(t) for t in tessellate_polygon([ring])]
         md.uvs = [None] * len(md.faces)
         md.mats = [mat] * len(md.faces)
-        md = subdivide_tris(md, 0.02)
         d = -X_AXIS if front else X_AXIS
-        ok = []
-        for i, v in enumerate(md.verts):
-            hit = body_bvh.ray_cast(v - d, d, 6.0)
-            good = hit[0] is not None and hit[1].dot(-d) > 0.45         # nur zur Front/zum Heck gewandte Flächen
-            ok.append(good)
-            if good:
-                md.verts[i] = hit[0] - d * off
-        keep = [i for i, f in enumerate(md.faces) if all(ok[k] for k in f)]
-        md.faces = [md.faces[i] for i in keep]
-        md.uvs = [md.uvs[i] for i in keep]
-        md.mats = [md.mats[i] for i in keep]
+
+        def project(m):
+            ok = []
+            for i, v in enumerate(m.verts):
+                hit = body_bvh.ray_cast(V((x0, v.y, v.z)), d, 6.0)
+                good = hit[0] is not None and hit[1].dot(-d) > 0.45
+                ok.append(good)
+                if good:
+                    m.verts[i] = hit[0] - d * off
+            keep = [i for i, f in enumerate(m.faces) if all(ok[k] for k in f)]
+            m.faces = [m.faces[i] for i in keep]
+            m.uvs = [m.uvs[i] for i in keep]
+            m.mats = [m.mats[i] for i in keep]
+            return m.compact()
+        md = subdivide_tris(md, 0.02)
+        md = project(md)
+        for _ in range(2):
+            if not md.faces:
+                break
+            md = subdivide_tris(md, 0.03)
+            md = project(md)
         score = 0.0
         for f in md.faces:
             n = (md.verts[f[1]] - md.verts[f[0]]).cross(md.verts[f[2]] - md.verts[f[0]])
             score += n.dot(-d)
         if score < 0:
             md.faces = [tuple(reversed(f)) for f in md.faces]
-        return md.compact()
+        return md
 
     def strip(path, w):
         """Linienzug (y, z) → Polygon der Breite w (für Leuchtbänder)."""
@@ -4731,10 +4761,10 @@ def ev_exterior(c):
         return [(y + r * math.cos(TAU * i / n), z + r * math.sin(TAU * i / n)) for i in range(n)]
 
     # ------------------------------------------------------------- Front
-    fr = MeshData()
+    fr, bump = MeshData(), MeshData()
     valance = rounded_poly_2d([(2.10, -0.940), (2.28, -0.912), (2.352, -0.866), (2.388, -0.76), (2.392, 0.0), (2.388, 0.76),
                                (2.352, 0.866), (2.28, 0.912), (2.10, 0.940)], [0.03, 0.08, 0.08, 0.06, 0.0, 0.06, 0.08, 0.08, 0.03], 4)
-    fr.merge(prism_z(valance, 0.38, 0.65, M["cladding"]))                                    # Stoßfänger unten
+    bump.merge(prism_z(valance, 0.38, 0.65, M["cladding"]))                                    # Stoßfänger unten
     skid = rounded_poly_2d([(2.16, -0.62), (2.34, -0.64), (2.428, -0.50), (2.428, 0.50), (2.34, 0.64), (2.16, 0.62)],
                            0.05, 3)
     fr.merge(prism_z(skid, 0.372, 0.432, M["silver"]))                                      # Unterfahrschutz
@@ -4775,42 +4805,48 @@ def ev_exterior(c):
     fr.merge(text_md(brand, 0.052, yz(xp + 0.0175, 0.0, 0.64), M["badge"], bold=0.04))
     for side in (1, -1):
         # integrierte Scheinwerfer: Klavierlack-Gehäuse, gestuftes LED-Leuchtband mit Haken am Außenende, Module
-        hous = [(0.575, 1.025), (0.82, 1.025), (0.868, 0.980), (0.868, 0.875), (0.83, 0.855), (0.78, 0.915), (0.575, 0.935)]
+        hous = [(0.575, 0.990), (0.800, 0.990), (0.855, 0.955), (0.862, 0.870), (0.830, 0.850), (0.780, 0.905), (0.575, 0.928)]
         fr.merge(decal(mirror_poly(hous, side), M["gloss"], 0.003))
-        band = [(0.61, 0.992), (0.72, 0.992), (0.77, 0.972), (0.825, 0.972), (0.855, 0.945), (0.862, 0.900)]
+        band = [(0.60, 0.972), (0.68, 0.972), (0.712, 0.955), (0.760, 0.955), (0.790, 0.938), (0.822, 0.938),
+                (0.842, 0.918), (0.848, 0.885)]
         fr.merge(decal(mirror_poly(strip(band, 0.016), side), M["drl"], 0.0065))
         for k in range(3):                                                                  # Matrix-LED-Module
-            fr.merge(decal(mirror_poly(disc(0.650 + 0.058 * k, 0.950, 0.0115), side), M["lamp"], 0.0065))
-        fr.merge(decal(mirror_poly(strip([(0.62, 0.926), (0.77, 0.926)], 0.006), side), M["drl"], 0.0065))
+            fr.merge(decal(mirror_poly(disc(0.650 + 0.058 * k, 0.930, 0.0115), side), M["lamp"], 0.0065))
+        fr.merge(decal(mirror_poly(strip([(0.62, 0.903), (0.77, 0.903)], 0.006), side), M["drl"], 0.0065))
         # schwarzer Eck-Lufteinlass mit senkrechter LED-Leiste
-        inlet = [(0.585, 0.845), (0.80, 0.838), (0.868, 0.80), (0.872, 0.64), (0.585, 0.64)]
+        inlet = [(0.585, 0.830), (0.790, 0.825), (0.855, 0.790), (0.860, 0.64), (0.585, 0.64)]
         fr.merge(decal(mirror_poly(inlet, side), M["cladding"], 0.005))
         fr.merge(decal(mirror_poly(strip([(0.715, 0.805), (0.715, 0.690)], 0.020), side), M["gloss"], 0.008))
         fr.merge(decal(mirror_poly(strip([(0.715, 0.798), (0.715, 0.697)], 0.011), side), M["drl"], 0.0105))
+    asm.add(bump, "Bumper", mods=[("bevel", dict(width=0.018, segments=3, angle=35))])
     asm.add(fr, "Front", mods=[bevel_s])
 
     # ------------------------------------------------------------- Heck
-    rr, tg = MeshData(), MeshData()
+    rr, tg, rbump = MeshData(), MeshData(), MeshData()
     rear_v = rounded_poly_2d([(-2.12, -0.905), (-2.30, -0.905), (-2.378, -0.70), (-2.378, 0.70), (-2.30, 0.905),
                               (-2.12, 0.905)], [0.03, 0.10, 0.05, 0.05, 0.10, 0.03], 4)
-    rr.merge(prism_z(rear_v, 0.38, 0.70, M["cladding"]))
-    rr.merge(prism_z(rounded_poly_2d([(-2.18, -0.54), (-2.36, -0.50), (-2.40, -0.40), (-2.40, 0.40), (-2.36, 0.50),
-                                      (-2.18, 0.54)], 0.04, 3), 0.372, 0.43, M["silver"]))
+    rbump.merge(prism_z(rear_v, 0.38, 0.70, M["cladding"]))
+    rr.merge(prism_z(rounded_poly_2d([(-2.18, -0.64), (-2.36, -0.62), (-2.425, -0.50), (-2.425, 0.50), (-2.36, 0.62),
+                                      (-2.18, 0.64)], 0.05, 3), 0.372, 0.43, M["silver"]))
+    for side in (1, -1):
+        rr.merge(prism_z(rounded_poly_2d([(-2.30, side * 0.50), (-2.435, side * 0.54), (-2.435, side * 0.66),
+                                          (-2.30, side * 0.64)], 0.03, 3), 0.43, 0.50, M["silver"]))
     rr.merge(box((-2.395, 0.0, 0.44), (0.05, 0.08, 0.07), M["steel"]))                      # Anhängerkupplungsaufnahme
     for side in (1, -1):
         rr.merge(box((-2.3795, side * 0.76, 0.52), (0.006, 0.17, 0.03), M["tail"]))         # Reflektoren/Nebelschluss
         rr.merge(box((-2.3795, side * 0.55, 0.60), (0.006, 0.09, 0.03), M["reverse"]))      # Rückfahrlicht
-        rr.merge(decal(mirror_poly([(0.800, 1.125), (0.915, 1.120), (0.920, 0.880), (0.800, 0.880)], side), M["gloss"], 0.003,
+        rr.merge(decal(mirror_poly([(0.800, 1.100), (0.850, 1.100), (0.898, 1.060), (0.903, 0.880), (0.800, 0.880)], side), M["gloss"], 0.003,
                        front=False))
-        rr.merge(decal(mirror_poly(strip([(0.800, 1.092), (0.880, 1.092), (0.903, 1.050), (0.911, 0.930)], 0.030), side),
+        rr.merge(decal(mirror_poly(strip([(0.800, 1.088), (0.862, 1.088), (0.888, 1.050), (0.895, 0.930)], 0.030), side),
                        M["tail"], 0.0065, front=False))
-        rr.merge(decal(mirror_poly(strip([(0.835, 0.905), (0.900, 0.905)], 0.022), side), M["amber"], 0.0065, front=False))
+        rr.merge(decal(mirror_poly(strip([(0.835, 0.905), (0.893, 0.905)], 0.022), side), M["amber"], 0.0065, front=False))
     plate = MeshData()
     plate.merge(box((-2.386, 0.0, 0.56), (0.016, 0.56, 0.13), M["black"]))
     reg = f"{brand} " + "".join(c.rng.choice("ABCDEFGHKLMNPRSTUVWXYZ") for _ in range(2)) + f" {c.rng.randint(100, 999)}"
     plate.merge(box((-2.3955, 0.0, 0.56), (0.004, 0.52, 0.11), M["plate"]))
     plate.merge(text_md(reg, 0.07, yz(-2.3985, 0.0, 0.56, -1.0), M["decal"], bold=0.03))
     asm.add(plate, "Plates", detail=2)
+    asm.add(rbump, "RearBumper", mods=[("bevel", dict(width=0.018, segments=3, angle=35))])
     asm.add(rr, "Rear", mods=[bevel_s])
     # Heckklappe: durchgehende Lichtleiste, Schriftzug, Wischer
     tg.merge(box((-2.3405, 0.0, 1.1), (0.006, 1.60, 0.054), M["gloss"]))
@@ -4894,9 +4930,6 @@ def ev_exterior(c):
         p1 = V((g.ws_x(zw + 0.034), y1, zw + 0.034)) + c.n_ws * 0.012
         sd.merge(tube([p0, p1], 0.0065, 6, M["black"]))
         sd.merge(cylinder(p0 - c.n_ws * 0.01, p0 + c.n_ws * 0.012, 0.012, 10, M["black"]))
-    for side in (1, -1):
-        for x0, x1 in ((0.80, 2.05), (-2.12, -1.30)):                                       # Zierleiste an der Gürtellinie
-            sd.merge(box(((x0 + x1) / 2, side * (g.hw + 0.0015), 0.90), (x1 - x0, 0.004, 0.006), M["silver"]))
     asm.add(sd, "Details", mods=[bevel_s], detail=2)
     asm.socket("ChargePort", (cx, g.hw + 0.02, cz), forward=Y_AXIS)
 
@@ -5076,34 +5109,48 @@ def ev_frunk(c):
 
 
 def ev_seat(M, x, y, w, rear=False):
-    """Sitz: Sitzfläche und Lehne mit Seitenwangen als Profil-Extrusionen, Mittelbahn in Kontrastfarbe, Kopfstütze."""
+    """Sitz aus gerundeten Profil-Extrusionen: Mittelbahn und Seitenwangen an Sitzfläche und Lehne, Kontrastbahn,
+    Kopfstütze mit Streben. Der Bevel-Modifier des Teils macht daraus weiche Polster."""
     sm = MeshData()
     zf = 0.50
-    cush = rounded_poly_2d([(0.27, zf + 0.20), (0.285, zf + 0.30), (0.20, zf + 0.335), (-0.10, zf + 0.325),
-                            (-0.255, zf + 0.355), (-0.265, zf + 0.20)], [0.03, 0.05, 0.05, 0.05, 0.05, 0.02], 3)
-    sm.merge(prism_y(cush, y - w / 2, y + w / 2, M["leather"]) .transform(Matrix.Translation((x, 0, 0))))
-    sm.merge(prism_y(rounded_poly_2d([(0.22, zf + 0.30), (0.265, zf + 0.322), (-0.12, zf + 0.322), (-0.22, zf + 0.335)],
-                                     0.012, 2), y - w * 0.25, y + w * 0.25, M["accent"])
-             .transform(Matrix.Translation((x, 0, 0.012))))
-    sm.merge(box((x - 0.02, y, zf + 0.10), (0.30, w * 0.50, 0.20), M["black"]))                # Sitzträger
+    bw = 0.095 if w > 0.45 else 0.06                                        # Breite der Seitenwangen
+    yh = w / 2
+
+    def cprof(lift):
+        return rounded_poly_2d([(0.285, zf + 0.21), (0.300, zf + 0.265 + 0.4 * lift), (0.255, zf + 0.312 + lift),
+                                (0.0, zf + 0.300 + lift), (-0.18, zf + 0.318 + lift), (-0.272, zf + 0.345 + lift),
+                                (-0.278, zf + 0.20)], [0.03, 0.05, 0.05, 0.06, 0.06, 0.05, 0.02], 3)
+    for a, b, lift in ((y - yh + bw, y + yh - bw, 0.0), (y + yh - bw, y + yh, 0.028), (y - yh, y - yh + bw, 0.028)):
+        sm.merge(prism_y(cprof(lift), a, b, M["leather"]).transform(Matrix.Translation((x, 0, 0))))
+    sm.merge(prism_y(rounded_poly_2d([(0.22, zf + 0.29), (0.25, zf + 0.314), (0.0, zf + 0.304), (-0.17, zf + 0.322),
+                                      (-0.17, zf + 0.29)], 0.008, 2), y - yh + bw + 0.02, y + yh - bw - 0.02,
+                     M["accent"]).transform(Matrix.Translation((x, 0, 0))))                    # Kontrastbahn Sitzfläche
+    sm.merge(box((x - 0.02, y, zf + 0.10), (0.30, w * 0.5, 0.20), M["black"]))                  # Sitzträger
     bm = Matrix.Translation((x - 0.255, y, zf + 0.34)) @ Matrix.Rotation(math.radians(-12), 4, "Y")
-    back_h = 0.60
-    sm.merge(box((0.0, 0.0, back_h / 2), (0.12, w, back_h), M["leather"], bm))
-    sm.merge(box((0.012, 0.0, back_h / 2 - 0.02), (0.12, w * 0.52, back_h - 0.14), M["accent"], bm))
-    for sgn in (1, -1):                                                                          # Seitenwangen
-        sm.merge(box((0.025, sgn * (w / 2 - 0.035), back_h / 2 - 0.05), (0.13, 0.07, back_h - 0.12), M["leather"], bm))
-    sm.merge(box((0.0, 0.0, back_h + 0.07), (0.10, 0.24, 0.17), M["leather"], bm))            # Kopfstütze
+    back_h = 0.56 if rear else 0.60
+
+    def bprof(f):
+        return rounded_poly_2d([(-0.065, 0.0), (0.040 + f, 0.0), (0.058 + f, 0.18), (0.050 + f, 0.46),
+                                (0.020 + f * 0.4, back_h - 0.015), (-0.055, back_h), (-0.078, 0.30)],
+                               [0.02, 0.04, 0.05, 0.05, 0.04, 0.03, 0.04], 3)
+    for a, b, f in ((-yh + bw, yh - bw, 0.0), (yh - bw, yh, 0.032), (-yh, -yh + bw, 0.032)):
+        sm.merge(prism_y(bprof(f), a, b, M["leather"]).transform(bm))
+    sm.merge(box((0.012, 0.0, back_h / 2 - 0.02), (0.10, w - 2 * bw - 0.04, back_h - 0.16), M["accent"], bm))   # Kontrastbahn Lehne
+    hr = 0.20 if rear else 0.23
+    sm.merge(box((0.0, 0.0, back_h + 0.075), (0.10, hr, 0.165), M["leather"], bm))                # Kopfstütze
+    sm.merge(box((0.048, 0.0, back_h + 0.075), (0.012, hr - 0.04, 0.06), M["accent"], bm))
     for sgn in (1, -1):
-        sm.merge(cylinder(V((0, sgn * 0.07, back_h - 0.03)), V((0, sgn * 0.07, back_h + 0.05)), 0.007, 8,
+        sm.merge(cylinder(V((0, sgn * 0.065, back_h - 0.03)), V((0, sgn * 0.065, back_h + 0.03)), 0.007, 8,
                           M["chrome"]).transform(bm))
     return sm
 
 
 def ev_interior(c):
-    """Innenraum: Boden, Armaturenbrett mit breitem Display-Band (Kombiinstrument + Zentraldisplay), Mittelkonsole mit
-    Drehwähler, Sitze, Rückbank, Lenkrad (Pivot), Pedale, Himmel-Bedienfeld, Rückspiegel, Laderaumverkleidung."""
+    """Innenraum: Boden, Armaturenbrett mit gewölbtem Display-Band (Kombiinstrument, Zentraldisplay, schlankes
+    Beifahrerdisplay), Lüftungsdüsen, Tastenreihe, Mittelkonsole mit Drehwähler, weich verrundete Sitze, Lenkrad
+    (Pivot, zwei Speichen), Pedale, Himmel-Bedienfeld, Rückspiegel, Laderaumverkleidung."""
     g, M, asm, bevel, bevel_s = c.g, c.M, c.asm, c.bevel, c.bevel_s
-    it, small = MeshData(), MeshData()
+    it, small, seats = MeshData(), MeshData(), MeshData()
     xa0, xa1 = g.ra.x - g.arch_r, g.ra.x + g.arch_r
     it.merge(box(((0.60 + xa1) / 2, 0.0, 0.495), (0.60 - xa1, 1.68, 0.02), M["floor"]))        # Fahrgastraumboden
     it.merge(box(((xa0 + xa1) / 2, 0.0, 0.755), (xa1 - xa0, 0.88, 0.03), M["floor"]))          # Ladeboden
@@ -5113,57 +5160,98 @@ def ev_interior(c):
         it.merge(box(((xa0 + xa1) / 2, side * 0.892, 1.0075), (xa1 - xa0, 0.016, 0.185), M["interior"]))     # über dem Radhaus
         it.merge(box(((-2.27 + xa0) / 2, side * 0.892, 0.935), (xa0 + 2.27, 0.016, 0.33), M["interior"]))    # hinter dem Radhaus
     it.merge(box((-2.26, 0.0, 0.93), (0.04, 1.62, 0.34), M["interior"]))                       # Heckwand innen
-    # Armaturenbrett
+    for y in (0.37, -0.37):                                                                      # Fußmatten
+        it.merge(box((0.28, y, 0.507), (0.50, 0.40, 0.006), M["floor"]))
+    # Armaturenbrett: Grundkörper, Lederpolster, helle Zierleiste mit Ambientelicht
     dash = rounded_poly_2d([(0.735, 0.80), (0.738, 1.045), (0.60, 1.068), (0.50, 1.028), (0.455, 0.90), (0.52, 0.80)],
                            [0.0, 0.0, 0.04, 0.05, 0.05, 0.04], 3)
     it.merge(extrude(dash, 1.76, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
     it.merge(extrude(rounded_poly_2d([(0.735, 1.03), (0.738, 1.05), (0.60, 1.072), (0.52, 1.04), (0.56, 1.025)], 0.01, 2),
                      1.74, frame_matrix(V((0, 0, 0.004)), X_AXIS, Z_AXIS, -Y_AXIS), M["leather"]))   # Lederpolster oben
-    for y in (-0.64, -0.40, 0.40, 0.64):                                                         # Luftdüsen
-        small.merge(box((0.498, y, 0.985), (0.012, 0.15, 0.022), M["black"]))
-    small.merge(box((0.496, 0.0, 0.995), (0.004, 1.58, 0.006), M["ambient"]))                  # Ambientelicht
-    # Display-Band: Kombiinstrument links, Zentraldisplay mitte
-    t = math.radians(12.0)
-    u_ = V((math.sin(t), 0.0, math.cos(t)))
-    n_ = V((-math.cos(t), 0.0, math.sin(t)))
-    O = V((0.548, 0.20, 1.128))
-    F = frame_matrix(O, -Y_AXIS, u_, n_)
-    small.merge(box((0, 0, 0), (0.78, 0.17, 0.014), M["gloss"], F))
-    small.merge(box((0, 0, 0.0075), (0.755, 0.15, 0.002), M["screen"], F))
-    small.merge(box((0.0, -0.092, -0.02), (0.20, 0.014, 0.05), M["panel"], F))
-    Ft = lambda lx, ly: F @ Matrix.Translation((lx, ly, 0.0092))
-    small.merge(text_md("0", 0.085, Ft(-0.20, 0.005), M["ui"], bold=0.04))
-    small.merge(text_md("km/h", 0.020, Ft(-0.20, -0.052), M["ui"], bold=0.04))
-    small.merge(text_md("420 km", 0.028, Ft(-0.325, 0.045), M["ui_green"], bold=0.04))
-    small.merge(text_md("D", 0.040, Ft(-0.075, 0.040), M["ui"], bold=0.04))
-    for k in range(10):                                                                          # Batterie-Ladebalken
-        small.merge(box((0, 0, 0), (0.0155, 0.012, 0.001), M["ui_green"], F @ Matrix.Translation((-0.335 + k * 0.0185, -0.045, 0.0092))))
-    for k in range(3):                                                                           # Kacheln im Zentraldisplay
-        small.merge(box((0, 0, 0), (0.075, 0.045, 0.001), M["ui"], F @ Matrix.Translation((0.20 + 0.0, -0.0, 0.0092)) @
-                        Matrix.Translation((-0.09 + k * 0.09, -0.045, 0.0))))
-    route = [V(p) for p in ((0.04, -0.02), (0.08, 0.01), (0.14, 0.00), (0.17, 0.035), (0.25, 0.04), (0.30, 0.06),
-                            (0.34, 0.05))]
-    small.merge(tube([F @ V((p.x, p.y, 0.0093)) for p in route], 0.0028, 6, M["ui"], caps=False))
-    small.merge(cylinder(F @ V((0.34, 0.05, 0.0093)), F @ V((0.34, 0.05, 0.0113)), 0.007, 10, M["ui_green"]))
-    # Mittelkonsole, Drehwähler, Becherhalter
-    it.merge(box((0.12, 0.0, 0.70), (0.84, 0.26, 0.40), M["panel"]))
-    it.merge(box((0.12, 0.0, 0.905), (0.82, 0.25, 0.012), M["leather"]))
-    it.merge(box((-0.18, 0.0, 0.93), (0.36, 0.22, 0.07), M["leather"]))                          # Armlehne
-    small.merge(lathe([(0.0, 0.0), (0.038, 0.0), (0.040, 0.016), (0.034, 0.028), (0.0, 0.030)], 28, V((0.30, 0.0, 0.911)),
-                      Z_AXIS, M["silver"]))
-    for dy in (0.0, 0.07):                                                                       # Becherhalter
-        small.merge(lathe([(0.0, 0.0), (0.033, 0.0), (0.033, 0.002), (0.0, 0.002)], 20, V((0.05, -0.07 + dy * 0, 0.9125)),
-                          Z_AXIS, M["black"]))
-    small.merge(box((0.10, 0.0, 0.9125), (0.12, 0.17, 0.004), M["gloss"]))                       # Ladeschale
+    small.merge(box((0.474, 0.0, 0.965), (0.012, 1.64, 0.022), M["accent"]))                    # helle Zierleiste, ganze Breite
+    small.merge(box((0.468, 0.0, 0.985), (0.004, 1.64, 0.005), M["ambient"]))                   # Ambientelicht
+    for y in (0.72, -0.72):                                                                      # Lüftungsdüsen außen mit Lamellen
+        small.merge(box((0.479, y, 0.995), (0.010, 0.13, 0.034), M["black"]))
+        for k in range(3):
+            small.merge(box((0.472, y, 0.986 + 0.009 * k), (0.002, 0.115, 0.0025), M["silver"]))
+    small.merge(box((0.466, 0.02, 0.932), (0.010, 0.36, 0.022), M["black"]))                    # schlanke Düse unter dem Zentraldisplay
+    for k in range(3):
+        small.merge(box((0.4595, 0.02, 0.925 + 0.008 * k), (0.002, 0.34, 0.0025), M["silver"]))
+    for k in range(9):                                                                           # Tastenreihe (Klima)
+        small.merge(box((0.455, -0.19 + 0.048 * k, 0.903), (0.010, 0.024, 0.016), M["gloss"]))
+    for y in (-0.22, 0.24):
+        small.merge(lathe([(0.0, 0.0), (0.017, 0.0), (0.017, 0.012), (0.012, 0.017), (0.0, 0.017)], 20,
+                          V((0.4575, y, 0.903)), -X_AXIS, M["silver"]))
+    # Gewölbtes Display-Band: Kombiinstrument vor dem Fahrer, Zentraldisplay, schlankes Beifahrerdisplay
+    r_s, yc_s, t_s = 1.4, 0.17, math.radians(12.0)
+
+    def pnt(yv, hv, off=0.0):
+        phi = math.asin(max(-0.95, min(0.95, (yv - yc_s) / r_s)))
+        rot = Matrix.Rotation(phi, 3, "Z")
+        u0, n0 = V((math.sin(t_s), 0.0, math.cos(t_s))), V((-math.cos(t_s), 0.0, math.sin(t_s)))
+        up, nn, tt = rot @ u0, rot @ n0, rot @ V((0.0, 1.0, 0.0))
+        return V((0.548 - r_s * (1.0 - math.cos(phi)), yv, 1.128)) + up * hv + nn * off, tt, up, nn
+
+    def fr_at(yv, hv, off=0.0036):
+        p_, t_, u_, n_ = pnt(yv, hv, off)
+        return frame_matrix(p_, -t_, u_, n_)
+
+    def panel(y0, y1, h0, h1, mat, off=0.0, nu=16):
+        md = surface_grid(lambda u, v: pnt(lerp(y0, y1, u), lerp(h0, h1, v), off)[0], nu, 2, mat)
+        nrm = pnt((y0 + y1) / 2, 0.0)[3]
+        if sum((md.verts[f[1]] - md.verts[f[0]]).cross(md.verts[f[2]] - md.verts[f[0]]).dot(nrm) for f in md.faces) < 0:
+            md = surface_grid(lambda u, v: pnt(lerp(y0, y1, u), lerp(h0, h1, v), off)[0], nu, 2, mat, flip=True)
+        return md
+    for y0, y1, h0, h1 in ((-0.27, 0.60, -0.092, 0.092), (-0.72, -0.36, -0.058, 0.058)):
+        small.merge(panel(y0 - 0.010, y1 + 0.010, h0 - 0.010, h1 + 0.010, M["gloss"], -0.002))
+        small.merge(panel(y0, y1, h0, h1, M["screen"], 0.0))
+    # Kombiinstrument: Tacho-Ring, Geschwindigkeit, Reichweite, Gang, Ladebalken
+    small.merge(text_md("0", 0.085, fr_at(0.40, 0.004), M["ui"], bold=0.04))
+    small.merge(text_md("km/h", 0.020, fr_at(0.40, -0.050), M["ui"], bold=0.04))
+    small.merge(text_md("420 km", 0.026, fr_at(0.51, 0.050), M["ui_green"], bold=0.04))
+    small.merge(text_md("D", 0.040, fr_at(0.29, 0.040), M["ui"], bold=0.04))
+    arc = []
+    for k in range(41):
+        a_ = math.radians(-215 + 250 * k / 40)
+        arc.append(pnt(0.40 + 0.075 * math.cos(a_) * 0.62, 0.005 + 0.075 * math.sin(a_), 0.0036)[0])
+    small.merge(tube(arc, 0.0017, 6, M["ui"], caps=False))
+    for k in range(10):
+        small.merge(box((0, 0, 0), (0.0155, 0.011, 0.001), M["ui_green"] if k < 8 else M["ui"],
+                        fr_at(0.555 - 0.018 * k, -0.062)))
+    # Zentraldisplay: Karte mit Route und Kacheln
+    for pts in (((0.15, -0.060), (0.06, -0.022), (-0.04, 0.010), (-0.15, 0.020)), ((0.10, 0.075), (0.03, 0.030), (-0.06, 0.0))):
+        small.merge(tube([pnt(p[0], p[1], 0.0034)[0] for p in pts], 0.0016, 5, M["ui"], caps=False))
+    route = ((0.13, -0.050), (0.06, -0.012), (-0.03, 0.02), (-0.10, 0.025), (-0.18, 0.06))
+    small.merge(tube([pnt(p[0], p[1], 0.0038)[0] for p in route], 0.0034, 6, M["ui_green"], caps=False))
+    small.merge(cylinder(pnt(-0.18, 0.06, 0.0034)[0], pnt(-0.18, 0.06, 0.0064)[0], 0.0075, 10, M["ui_green"]))
+    for k in range(5):
+        small.merge(box((0, 0, 0), (0.040, 0.020, 0.001), M["ui"], fr_at(0.13 - 0.07 * k, -0.074)))
+    # Beifahrerdisplay: Temperatur und Balken
+    small.merge(text_md("21°", 0.040, fr_at(-0.45, 0.010), M["ui"], bold=0.04))
     for k in range(4):
-        small.merge(box((0.40, -0.075 + k * 0.05, 0.9125), (0.018, 0.026, 0.006), M["silver"]))
-    # Sitze
+        small.merge(box((0, 0, 0), (0.050, 0.007, 0.001), M["ui_green"], fr_at(-0.58, -0.040 + 0.014 * k)))
+    # Mittelkonsole: Profilkörper mit Klavierlack-Einlage, Drehwähler, Becherhalter, Ladeschale, Armlehne
+    cons = rounded_poly_2d([(0.50, 0.50), (0.50, 0.86), (0.44, 0.905), (0.30, 0.915), (-0.12, 0.915), (-0.30, 0.90),
+                            (-0.34, 0.50)], [0.0, 0.03, 0.04, 0.03, 0.03, 0.04, 0.0], 3)
+    it.merge(prism_y(cons, -0.135, 0.135, M["panel"]))
+    it.merge(box((0.15, 0.0, 0.9165), (0.30, 0.22, 0.004), M["gloss"]))
+    it.merge(box((-0.17, 0.0, 0.962), (0.34, 0.235, 0.094), M["leather"]))                       # Armlehne
+    small.merge(box((-0.17, 0.0, 1.0095), (0.30, 0.003, 0.002), M["accent"]))
+    small.merge(lathe([(0.0, 0.0), (0.040, 0.0), (0.040, 0.004), (0.030, 0.026), (0.0, 0.030)], 28, V((0.33, 0.0, 0.912)),
+                      Z_AXIS, M["silver"]))
+    for y in (-0.068, 0.068):                                                                    # Becherhalter
+        small.merge(lathe([(0.0, 0.0), (0.034, 0.0), (0.034, 0.003), (0.0, 0.003)], 20, V((0.06, y, 0.9165)), Z_AXIS,
+                          M["black"]))
+        small.merge(lathe([(0.034, 0.003), (0.038, 0.003), (0.038, 0.0035), (0.034, 0.0035)], 20, V((0.06, y, 0.9165)),
+                          Z_AXIS, M["silver"], closed_profile=True))
+    small.merge(box((0.205, 0.0, 0.9195), (0.12, 0.16, 0.003), M["accent"]))                      # Ladeschale
+    for k in range(4):
+        small.merge(box((0.40, -0.075 + k * 0.05, 0.913), (0.018, 0.026, 0.006), M["silver"]))
+    # Sitze (eigener Teil mit kräftiger Verrundung): zwei Einzelsitze, dreiteilige Rückbank
     for y in (0.37, -0.37):
-        it.merge(ev_seat(M, 0.05, y, 0.50))
-    it.merge(ev_seat(M, -0.70, 0.0, 1.44, rear=True))
-    for y in (-0.48, 0.48):
-        it.merge(box((-0.953, y, 1.34), (0.10, 0.20, 0.15), M["leather"]))                        # Kopfstützen hinten
-    it.merge(box((-0.953, 0.0, 1.34), (0.10, 0.20, 0.15), M["leather"]))
+        seats.merge(ev_seat(M, 0.05, y, 0.50))
+    for y, w_ in ((0.50, 0.52), (0.0, 0.40), (-0.50, 0.52)):
+        seats.merge(ev_seat(M, -0.70, y, w_, rear=True))
     # Pedale
     for y, w_ in ((0.38, 0.09), (0.27, 0.06)):
         small.merge(box((0.46, y, 0.60), (0.02, w_, 0.12), M["black"], Matrix.Rotation(math.radians(-20), 4, "Y")))
@@ -5179,8 +5267,9 @@ def ev_interior(c):
     small.merge(box((mx - 0.0235, 0.0, zm), (0.004, 0.22, 0.055), M["mirror"]))
     it.merge(tube([V((g.ws_x(zm + 0.06) - 0.02, 0.0, zm + 0.06)), V((mx + 0.02, 0.0, zm + 0.03))], 0.008, 8, M["black"]))
     asm.add(it, "Interior", mods=[bevel], detail=1)
+    asm.add(seats, "Seats", mods=[("bevel", dict(width=0.016, segments=3, angle=35))], detail=1)
     asm.add(small, "InteriorDetails", mods=[bevel_s], detail=2)
-    # Lenkrad (Pivot)
+    # Lenkrad (Pivot): Quadrat-Kranz mit abgeflachter Unterseite, zwei kräftige Speichen, Raute in der Nabe
     hub = V((0.34, 0.37, 1.04))
     col = V((-math.cos(math.radians(24)), 0.0, math.sin(math.radians(24))))
     asm.add(cylinder(hub - col * 0.30, hub - col * 0.03, 0.026, 12, M["panel"]), "SteeringColumn", detail=1)
@@ -5193,15 +5282,21 @@ def ev_interior(c):
         cx_, sy_ = math.cos(a), math.sin(a)
         ry_ = 0.155 if sy_ >= 0 else 0.128
         ring.append(hub + w * (0.190 * sgnpow(cx_, 2.0 / 2.7)) + u * (ry_ * sgnpow(sy_, 2.0 / 2.7)))
-    swm = tube(ring + [ring[0]], 0.0155, 10, M["leather"], caps=False)
-    swm.merge(lathe([(0.0, -0.030), (0.065, -0.026), (0.070, 0.012), (0.0, 0.024)], 24, hub, col, M["panel"]))
-    for d_, ln in ((w, 0.130), (-w, 0.130), (-u, 0.085)):
-        swm.merge(box((0, 0, 0), (0.020, 0.05, ln), M["panel"], frame_matrix(hub + d_ * (0.07 + ln / 2 - 0.02), col.cross(d_), col, d_)))
-    swm.merge(extrude_ring([(0.0, 0.026), (-0.022, 0.0), (0.0, -0.026), (0.022, 0.0)],
-                           [(0.0, 0.017), (-0.013, 0.0), (0.0, -0.017), (0.013, 0.0)], 0.004,
+    swm = tube(ring + [ring[0]], 0.0165, 10, M["leather"], caps=False)
+    swm.merge(lathe([(0.0, -0.030), (0.068, -0.026), (0.074, 0.012), (0.0, 0.024)], 24, hub, col, M["panel"]))
+    for d_, ln in ((w, 0.125), (-w, 0.125)):
+        swm.merge(box((0, 0, 0), (0.030, 0.050, ln), M["panel"],
+                      frame_matrix(hub + d_ * (0.07 + ln / 2 - 0.02), col.cross(d_), col, d_)))
+    swm.merge(box((0, 0, 0), (0.026, 0.030, 0.050), M["panel"],
+                  frame_matrix(hub - u * 0.085, col.cross(-u), col, -u)))                      # kurze Speiche unten
+    swm.merge(extrude_ring([(0.0, 0.030), (-0.026, 0.0), (0.0, -0.030), (0.026, 0.0)],
+                           [(0.0, 0.020), (-0.016, 0.0), (0.0, -0.020), (0.016, 0.0)], 0.004,
                            frame_matrix(hub + col * 0.0265, -w, u, col), M["chrome"]))
     for sgn in (1, -1):
-        swm.merge(box((0, 0, 0), (0.008, 0.030, 0.022), M["silver"], frame_matrix(hub + w * (sgn * 0.12) + col * 0.002, col.cross(w) * sgn, col, w * sgn)))
+        for k in range(2):
+            swm.merge(box((0, 0, 0), (0.008, 0.026, 0.020), M["silver"],
+                          frame_matrix(hub + w * (sgn * 0.115) + u * (0.022 - 0.04 * k) + col * 0.002,
+                                       col.cross(w) * sgn, col, w * sgn)))
     asm.add(swm, "SteeringWheel", "SteeringWheel", mods=[bevel_s], detail=1)
 
 

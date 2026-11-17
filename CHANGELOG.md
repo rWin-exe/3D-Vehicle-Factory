@@ -9,8 +9,10 @@
   Unterfahrschutz mit Bergeösen, durchgehender Heck-Lichtleiste, Dachspoiler, Dachreling mit Gepäckplattform,
   Ladeklappe mit CCS-Dose und schwarzem Dach. Technik: Unterflur-Batterie, je ein E-Motor mit Inverter vorn und hinten,
   Einzelradaufhängung mit Querlenkern, Federbeinen (Aim-Pivots) und Faltenbälgen, Vorder- und Hinterachslenkung,
-  Frunk mit orangefarbenen Hochvolt-Leitungen. Innenraum mit Display-Band (Kombiinstrument und Zentraldisplay),
-  Mittelkonsole mit Drehwähler, fünf Sitzen und Lenkrad. Pivots für vier Türen, Haube, Heckklappe, Ladeklappe,
+  Frunk mit orangefarbenen Hochvolt-Leitungen. Innenraum mit gewölbtem Display-Band (Kombiinstrument, Zentral- und
+  Beifahrerdisplay), Mittelkonsole mit Drehwähler, weich verrundeten Sitzen (zwei Einzelsitze, dreiteilige Rückbank),
+  Lenkrad mit zwei Speichen, Türverkleidungen mit Ambientelicht; Karosserie mit ausgewölbten Kotflügeln,
+  verrundeten Stoßfängern, Schwellern mit Trittrippen und zweifarbigen Felgen. Pivots für vier Türen, Haube, Heckklappe, Ladeklappe,
   Lenkrad, Federweg, Lenkung und Querlenker; Bewegungsbereiche kollisionsfrei geprüft. Fünf Lackierungen
   (`--ev-livery forest|graphite|sand|white|blue`), Schriftzug per `--ev-brand` (Standard `VOLT`).
 

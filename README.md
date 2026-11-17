@@ -17,7 +17,7 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 | Elektro-Geländewagen (Allrad-SUV) | Elektro-SUV geöffnet |
 |---|---|
 | ![Elektro-SUV](docs/ev_34.jpg) | ![Elektro-SUV geöffnet](docs/ev_open.jpg) |
-| ![Elektro-SUV Heck](docs/ev_rear.jpg) | |
+| ![Elektro-SUV Heck](docs/ev_rear.jpg) | ![Elektro-SUV Innenraum](docs/ev_interior.jpg) |
 
 | Motorboot (Bowrider mit Außenborder) | |
 |---|---|
@@ -84,12 +84,14 @@ Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 
 **Elektro-Geländewagen** – fünftüriger Allrad-SUV mit Offroad-Ausstattung (Karosserie 4,70 m, mit Dachträger
 1,99 m hoch; Breite 1,87 m, Radstand 2,83 m, Spur 1,64 m, Reifen 255/60 R20 All-Terrain, Bodenfreiheit ≈ 0,25 m).
-Karosserie als Spanten-Loft (Unterbau ∪ Kabine) zur 2-cm-Hülle verdickt, mit **echten Ausschnitten** für vier Türen
+Karosserie als Spanten-Loft (Unterbau ∪ Kabine) zur 2-cm-Hülle verdickt, über den Radhäusern leicht ausgewölbt
+(Kotflügel-„Hüften“), mit **echten Ausschnitten** für vier Türen
 (Griffe bündig, Fensterrahmen in Klavierlack, Türverkleidung innen), Haube, nach oben öffnende **Heckklappe**
-(Scharnier am Dach, geneigte Heckwand) und Radhäuser; breite Kotflügel- und Schwellerverkleidungen. **Front:**
+(Scharnier am Dach, geneigte Heckwand) und Radhäuser; breite Kotflügelverbreiterungen, Schwellerverkleidungen mit
+Trittrippen. **Front:**
 hohe Klavierlack-Grillfläche mit kräftigen Lamellen und beleuchteter Raute, integrierte Scheinwerfer mit gestuftem
 LED-Leuchtband (Haken am Außenende) und Matrix-Modulen, schwarze Eck-Lufteinlässe mit senkrechten LED-Leisten,
-Unterfahrschutz mit hochgezogenen Enden und Bergeösen, Parksensoren, Kennzeichenträger. Leuchten, Grill-Blende und
+weich verrundeter Stoßfänger mit Unterfahrschutz (hochgezogene Enden) und Bergeösen, Parksensoren, Kennzeichenträger. Leuchten, Grill-Blende und
 Einsätze sind Decals, die exakt auf die gewölbte Karosserie projiziert werden. **Heck:** durchgehende
 rote Lichtleiste auf der Klappe mit um die Ecke gezogenen Eckleuchten, Schriftzug, Dachspoiler mit dritter Bremsleuchte, Unterfahrschutz,
 Heckwischer, Haifischflosse. **Dach:** schwarzes Dach, Reling mit **Gepäckplattform** (Querstreben, Windabweiser).
@@ -99,11 +101,15 @@ Hilfsrahmen, Antriebswellen mit inneren/äußeren Faltenbälgen, orangefarbene H
 Einzelradaufhängung – pro Rad ein Federweg-Pivot (`slide`), Lenk-Pivot (vorn ±25°, hinten ±6° Hinterachslenkung),
 Dreieck-Querlenker (`hinge`, schwenkt mit dem Rad) und **Federbein aus zwei Hälften, die sich per Aim-Pivot
 anvisieren**; große belüftete Bremsscheiben mit Sätteln, Stabilisatoren, Lenkgetriebe. Räder mit
-einzeln modellierten Profilblöcken, Flankenstollen und Fünfspeichen-Alufelge mit Raute. **Frunk** unter der Haube
-(Wanne, Federtürme, Ladegerät, HV-Verteiler, 12-V-Batterie, Behälter, Kühler). **Innenraum:** Display-Band mit
-Kombiinstrument (Tempo, Reichweite, Ladebalken) und Zentraldisplay (Route), Lederpolster, Luftdüsen, Ambientelicht,
-Mittelkonsole mit Drehwähler und Ladeschale, zwei Einzelsitze und Rückbank mit Kontrastbahn, Lenkrad
-mit Raute (Pivot), Pedale, Himmel-Bedienfeld, Sonnenblenden, Innenspiegel, Laderaum mit Ladeboden.
+einzeln modellierten Profilblöcken, Flankenstollen und zweifarbiger Fünfspeichen-Alufelge (dunkel, maschinierte
+Speichenflächen) mit Raute. **Frunk** unter der Haube
+(Wanne, Federtürme, Ladegerät, HV-Verteiler, 12-V-Batterie, Behälter, Kühler). **Innenraum:** gewölbtes Display-Band
+(Kombiinstrument mit Tacho-Ring, Reichweite und Ladebalken, Zentraldisplay mit Route und Kacheln) plus schlankes
+Beifahrerdisplay, Lederpolster mit heller Zierleiste und Ambientelicht, Lüftungsdüsen mit Lamellen, Tastenreihe mit
+Drehreglern, Mittelkonsole mit Klavierlack-Einlage, Drehwähler, Becherhaltern, Ladeschale und Armlehne, weich
+verrundete Sitze (zwei Einzelsitze, dreiteilige Rückbank) mit Seitenwangen, Kontrastbahn und Kopfstützen, Lenkrad mit
+abgeflachtem Kranz, zwei Speichen und Raute (Pivot), Fußmatten, Pedale, Türverkleidungen mit Zierband, Ambientelicht
+und Tastenfeld, Himmel-Bedienfeld, Sonnenblenden, Innenspiegel, Laderaum mit Ladeboden.
 Schriftzug auf Grill, Heckklappe und Kennzeichen (`--ev-brand`, Standard `VOLT`).
 Seidenmatter Lack in dunklem Waldgrün, dunkel getönte Scheiben mit schwarzen Säulen. Lackierungen: `forest` (Standard), `graphite`, `sand`, `white`, `blue` – jeweils mit schwarzem Dach.
 
@@ -144,7 +150,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
-| Elektro-SUV (`forest`) | 167 472 | 83 726 | 39 493 | 10 733 |
+| Elektro-SUV (`forest`) | 191 241 | 95 612 | 44 598 | 10 990 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---
