@@ -11,6 +11,12 @@
   Antriebswellen), Hinterachslenkung ±10°, AT-Reifen 275/55 R20 auf zweifarbigen 20"-Felgen, Innenraum mit
   Display-Band. Vier Lackierungen (`--suv-livery forest|graphite|glacier|dune`), Heck-Schriftzug per
   `--suv-badge`. Bewegungsbereiche kollisionsfrei geprüft.
+- **Elektro-SUV an die Designvorlage angeglichen:** Unterbau aus eigenen Spanten (Schulterlinie, eingezogener
+  Schweller, gewölbte Haube, stark gerundete Front und Heck), schlankere A-Säulen und breitere Frontscheibe,
+  trapezförmiger Lamellengrill mit Chromleiste, Scheinwerfer mit „Zinnen“-Lichtsignatur, schwarze Ecktaschen mit
+  LED-Leisten, U-förmiger Alu-Unterfahrschutz vorn und hinten, Heckleuchtband unter der Scheibe mit keilförmigen
+  Eckleuchten, Trittbretter, Bügelgriffe, Felgen mit sechs Y-Speichen, Dreispeichen-Lenkrad, dunkleres Oliv und
+  schwarze Kennzeichen.
 
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau
