@@ -82,19 +82,27 @@ Schmutzfänger, Kennzeichen (Mesh-Decal) und
 Innenraum (Armaturenbrett mit Displays, Sitze, Rückbank, Schalt- und Verteilerhebel, Lenkrad).
 Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 
-**Elektro-Geländewagen** – fünftüriger Allrad-SUV mit Offroad-Ausstattung (Karosserie 4,70 m, mit Dachträger
-1,99 m hoch; Breite 1,87 m, Radstand 2,83 m, Spur 1,64 m, Reifen 255/60 R20 All-Terrain, Bodenfreiheit ≈ 0,25 m).
-Karosserie als Spanten-Loft (Unterbau ∪ Kabine) zur 2-cm-Hülle verdickt, über den Radhäusern leicht ausgewölbt
-(Kotflügel-„Hüften“), mit **echten Ausschnitten** für vier Türen
-(Griffe bündig, Fensterrahmen in Klavierlack, Türverkleidung innen), Haube, nach oben öffnende **Heckklappe**
-(Scharnier am Dach, geneigte Heckwand) und Radhäuser; breite Kotflügelverbreiterungen, Schwellerverkleidungen mit
-Trittrippen. **Front:**
-hohe Klavierlack-Grillfläche mit kräftigen Lamellen und beleuchteter Raute, integrierte Scheinwerfer mit gestuftem
-LED-Leuchtband (Haken am Außenende) und Matrix-Modulen, schwarze Eck-Lufteinlässe mit senkrechten LED-Leisten,
-weich verrundeter Stoßfänger mit Unterfahrschutz (hochgezogene Enden) und Bergeösen, Parksensoren, Kennzeichenträger. Leuchten, Grill-Blende und
-Einsätze sind Decals, die exakt auf die gewölbte Karosserie projiziert werden. **Heck:** durchgehende
-rote Lichtleiste auf der Klappe mit um die Ecke gezogenen Eckleuchten, Schriftzug, Dachspoiler mit dritter Bremsleuchte, Unterfahrschutz,
-Heckwischer, Haifischflosse. **Dach:** schwarzes Dach, Reling mit **Gepäckplattform** (Querstreben, Windabweiser).
+**Elektro-Geländewagen** – fünftüriger Allrad-SUV mit Offroad-Ausstattung (Karosserie 4,70 m, mit Unterfahrschutz
+4,84 m; Breite 1,94 m, über die Trittbretter 2,05 m, mit Spiegeln 2,29 m; Dach 1,84 m, mit Dachträger 1,98 m;
+Radstand 2,83 m, Spur 1,64 m, Reifen 255/60 R20 All-Terrain, Bodenfreiheit ≈ 0,25 m). **Karosserie:** Unterbau als
+Spanten-Loft mit eigenem Querschnitt – scharfe **Schulterkante** vom Scheinwerfer über die Türgriffe bis zur
+Rückleuchte, **Lichtkante** im unteren Türbereich, **Powerdome** auf der Haube, Kotflügel-„Hüften“ über den
+Radhäusern; Bug- und Heckkanten sind als Viertelellipsen verrundet, die Bug-Ecken weit zurückgezogen. Darauf die
+Kabine mit 43° geneigter Windschutzscheibe, eingezogenem Glasaufbau, zum Heck ansteigender Fensterlinie und 30°
+geneigter Heckscheibe. Die Hülle entsteht als Außenhaut − Innenhaut (≈ 2 cm Wandstärke) mit **echten Ausschnitten**
+für vier Türen (Bügelgriffe, Fensterrahmen in Klavierlack, Türverkleidung innen), Haube, nach oben öffnende
+**Heckklappe** (Scharnier am Dach, Spoiler schwenkt mit), trapezförmige Radhäuser mit breiten Verkleidungen sowie
+Grill, Scheinwerfer, Nebelleuchten und Lufteinlass; Schweller mit Trittbrett, stromlinienförmige Außenspiegel mit
+Blinker. **Front:** Stoßfänger in Wagenfarbe, **vertiefter Sechseck-Grill** (Rückwand, Rahmen, 13 senkrechte
+Lamellen mit versetzten Blöcken) mit beleuchteter Raute und Zierleiste an der Haubenkante, um die Ecke laufende
+**Scheinwerfer** in eigenen Taschen (drei L-förmige Tagfahrlicht-Segmente, Signaturlinie, klare Abdeckscheibe),
+Nebelleuchten-Taschen mit senkrechten LED-Leisten, unterer Lufteinlass mit Querlamellen, Kennzeichenträger,
+Parksensoren, schwarze Lippe und U-förmiger **Unterfahrschutz** mit zwei Bergeösen. **Heck:** hoher schwarzer
+Stoßfänger (aufgesetzte Verkleidung) mit Unterfahrschutz, Rückstrahlern und Rückfahrleuchten, durchgehende rote
+**Lichtleiste**, die als Rückleuchte um die Ecken läuft und sich auf dem Kotflügel verjüngt, gesperrter Schriftzug,
+Kennzeichenmulde, breite Heckscheibe mit schwarzer Blende, keilförmiger Dachspoiler mit dritter Bremsleuchte,
+Heckwischer, Haifischflosse. **Dach:** schwarzes Dach und schwarze A-/B-/C-Säulen, silberne Reling, flache
+**Gepäckplattform** (Rahmen mit Langlöchern, Querprofile).
 **Ladeklappe** mit CCS-Dose (Pivot). **Antrieb:** flacher Unterflur-Akku zwischen den Achsen mit Unterbodenschutz,
 Kühlrippen und Schweller-Profilen, je ein quer eingebauter **E-Motor** mit Getriebe und Inverter vorn und hinten,
 Hilfsrahmen, Antriebswellen mit inneren/äußeren Faltenbälgen, orangefarbene Hochvolt-Leitungen. **Fahrwerk:**
@@ -103,15 +111,16 @@ Dreieck-Querlenker (`hinge`, schwenkt mit dem Rad) und **Federbein aus zwei Häl
 anvisieren**; große belüftete Bremsscheiben mit Sätteln, Stabilisatoren, Lenkgetriebe. Räder mit
 einzeln modellierten Profilblöcken, Flankenstollen und zweifarbiger Fünfspeichen-Alufelge (dunkel, maschinierte
 Speichenflächen) mit Raute. **Frunk** unter der Haube
-(Wanne, Federtürme, Ladegerät, HV-Verteiler, 12-V-Batterie, Behälter, Kühler). **Innenraum:** gewölbtes Display-Band
-(Kombiinstrument mit Tacho-Ring, Reichweite und Ladebalken, Zentraldisplay mit Route und Kacheln) plus schlankes
-Beifahrerdisplay, Lederpolster mit heller Zierleiste und Ambientelicht, Lüftungsdüsen mit Lamellen, Tastenreihe mit
+(Wanne, Federtürme, Ladegerät, HV-Verteiler, 12-V-Batterie, Behälter, Kühler). **Innenraum:** Armaturenbrett mit
+hellem Zierband und Ambientelicht, Kombiinstrument in einer Hutze (Tacho-Ring, Reichweite, Ladebalken), frei
+stehendes Zentraldisplay mit Kacheln, schlankes Beifahrerdisplay, Lüftungsdüsen mit Lamellen, Tastenreihe mit
 Drehreglern, Mittelkonsole mit Klavierlack-Einlage, Drehwähler, Becherhaltern, Ladeschale und Armlehne, weich
-verrundete Sitze (zwei Einzelsitze, dreiteilige Rückbank) mit Seitenwangen, Kontrastbahn und Kopfstützen, Lenkrad mit
-abgeflachtem Kranz, zwei Speichen und Raute (Pivot), Fußmatten, Pedale, Türverkleidungen mit Zierband, Ambientelicht
+verrundete Sitze (zwei Einzelsitze, dreiteilige Rückbank) mit Seitenwangen, Kontrastbahn und Kopfstützen, rundes
+Dreispeichen-Lenkrad mit Raute (Pivot), Fußmatten, Pedale, Türverkleidungen mit Zierband, Ambientelicht
 und Tastenfeld, Himmel-Bedienfeld, Sonnenblenden, Innenspiegel, Laderaum mit Ladeboden.
-Schriftzug auf Grill, Heckklappe und Kennzeichen (`--ev-brand`, Standard `VOLT`).
-Seidenmatter Lack in dunklem Waldgrün, dunkel getönte Scheiben mit schwarzen Säulen. Lackierungen: `forest` (Standard), `graphite`, `sand`, `white`, `blue` – jeweils mit schwarzem Dach.
+Schriftzug auf Kennzeichenträgern und Heckklappe (`--ev-brand`, Standard `VOLT`).
+Seidenmatter Lack in dunklem Graugrün, getönte Scheiben (Fond und Heck als Privacy-Verglasung). Lackierungen:
+`forest` (Standard), `graphite`, `sand`, `white`, `blue` – jeweils mit schwarzem Dach.
 
 **Motorboot** – Bowrider der 6,4-m-Klasse (mit Außenborder und Badeplattformen 7,3 m, Breite 2,4 m):
 **Tiefen-V-Rumpf** (20° Aufkimmung am Spiegel, nach vorn schärfer) mit Kimmkanten, zwei Spritzleisten je
@@ -150,7 +159,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
-| Elektro-SUV (`forest`) | 191 241 | 95 612 | 44 598 | 10 990 |
+| Elektro-SUV (`forest`) | 213 841 | 106 912 | 50 217 | 13 110 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---
@@ -217,7 +226,7 @@ Anschauen und Weiterbearbeiten.
 | `--plane-livery` | `classic` | `classic`, `trainer`, `bush`, `military` |
 | `--offroad-livery` | `sand` | `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach) |
 | `--ev-livery` | `forest` | `forest`, `graphite`, `sand`, `white`, `blue` (alle mit schwarzem Dach) |
-| `--ev-brand TEXT` | `VOLT` | Schriftzug auf Grill, Heckklappe und Kennzeichen des Elektro-SUV |
+| `--ev-brand TEXT` | `VOLT` | Schriftzug auf Kennzeichenträgern und Heckklappe des Elektro-SUV |
 | `--boat-livery` | `navy` | `navy`, `white`, `red`, `graphite` |
 | `--blades N` | `4` | Anzahl Hauptrotorblätter (2–7) |
 | `--dirt F` | `0.35` | Verschmutzungsgrad 0–1 (Schlamm/Staub, im Bake enthalten) |
@@ -362,9 +371,12 @@ python tools/smoke_blender.py export            # alternativ mit pip-bpy
 - **Geländewagen:** `OffroadGeo` – Unterbau-Spanten (`LOWER`), Achsen, Spur, Radlauf, Gürtellinie,
   Scheibenneigung und Tumblehome der Kabine; Konturen von Türen, Fenstern, Haube und Hecktür in
   `build_offroad`, Motorraum in `offroad_engine_bay`, Rad in `offroad_wheel`.
-- **Elektro-SUV:** `EvGeo` (erbt Kabinen-Methoden von `OffroadGeo`) – Unterbau-Spanten (`LOWER`), Reifenradius, Radstand,
-  Spur, Gürtellinie, Dachhöhe; Karosserie und Ausschnitte in `ev_body`, Front/Heck/Dach/Ladeklappe in `ev_exterior`,
-  Akku/Antrieb/Fahrwerk in `ev_chassis`, Frunk in `ev_frunk`, Innenraum in `ev_interior`, Rad in `ev_wheel`.
+- **Elektro-SUV:** `EvGeo` (erbt Kabinen-Methoden von `OffroadGeo`) – Unterbau-Spanten (`LOWER`: Breite, Ober-/Unterkante,
+  Schulterkante `sh`, Einzug der Schulterfläche `fi`), Kantenrundung an Bug und Heck (`END_R`), Lichtkante (`scallop`),
+  Powerdome (`hood_dome`), Reifenradius, Radstand, Spur, Gürtellinie, Dachhöhe, Scheibenneigungen; der Querschnitt
+  selbst entsteht in `EvGeo.section`. Karosserie, Ausschnitte und Konturen von Grill/Scheinwerfern in `ev_body`,
+  Spiegel in `ev_mirror`, Front/Heck/Dach/Ladeklappe in `ev_exterior`, Akku/Antrieb/Fahrwerk in `ev_chassis`, Frunk in
+  `ev_frunk`, Innenraum in `ev_interior`, Rad in `ev_wheel`.
 - **Motorboot:** `BoatGeo` – Tabellen für Kiel, Kimm und Deckslinie (Höhe/halbe Breite über X),
   Cockpit-Ausschnitt, Motorschacht, Kipp- und Lenkachse; Außenborder in `boat_outboard`.
 - **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`, `EV_LIVERIES`, `BOAT_LIVERIES`
