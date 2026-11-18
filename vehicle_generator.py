@@ -4830,7 +4830,7 @@ def build_boat(cfg):
 
 SUV_LIVERIES = {
     # Lack, Rauheit, Klarlack, Metallic-Anteil; Dach und Säulen schwarz ("schwebendes Dach")
-    "forest": dict(base=(0.038, 0.046, 0.036), rough=0.38, coat=0.5, metallic=0.5, roof=(0.010, 0.010, 0.012),
+    "forest": dict(base=(0.050, 0.064, 0.061), rough=0.36, coat=0.5, metallic=0.45, roof=(0.010, 0.010, 0.012),
                    rim=(0.018, 0.018, 0.020), caliper=(0.05, 0.05, 0.055)),
     "graphite": dict(base=(0.075, 0.08, 0.085), rough=0.32, coat=0.6, metallic=0.65, roof=(0.010, 0.010, 0.012),
                      rim=(0.018, 0.018, 0.020), caliper=(0.55, 0.20, 0.02)),
@@ -4843,10 +4843,12 @@ SUV_LIVERIES = {
 
 def suv_materials(prefix, liv, dirt):
     P = f"M_{prefix}_"
-    roof = [(SuvGeo.Z_BELT + 0.012, 9.0, liv["roof"])]          # alles über der Gürtellinie: Hochglanz-Schwarz
+    # alles über der (nach hinten ansteigenden) Gürtellinie: Hochglanz-Schwarz – Dach, Säulen, Fensterrahmen
+    roof = [(SuvGeo.BELT0 + 0.02, 9.0, liv["roof"], SuvGeo.BELT_K)]
     return {
         "paint": mat_paint(P + "Paint", liv["base"], liv["rough"], coat=liv["coat"], metallic=liv["metallic"],
                            livery=roof, dirt=dirt, dirt_z=(0.15, 0.95)),
+        "paint_d": mat_paint(P + "PaintPillar", liv["base"], liv["rough"], coat=liv["coat"], metallic=liv["metallic"]),
         "clad": mat_plastic(P + "Cladding", (0.022, 0.022, 0.024), 0.68, dirt, (0.1, 0.9), grain=0.35),
         "gloss": mat_paint(P + "GlossBlack", (0.008, 0.008, 0.009), 0.12, coat=0.9),
         "black": mat_plastic(P + "PlasticBlack", (0.02, 0.02, 0.022), 0.55, dirt * 0.6, (0.1, 0.8), grain=0.12),
@@ -4965,46 +4967,55 @@ def _round_off(e, r):
 
 
 class SuvGeo:
-    """Maße eines generischen Elektro-SUV der 4,8-m-Klasse: Karosserie 4,78 m (≈ 4,9 m mit Stoßfängern und
-    Unterfahrschutz), Breite 1,90 m (2,03 m über die Kotflügelverbreiterungen), Höhe 1,85 m (≈ 2,05 m mit
-    Dachplattform), Radstand 2,90 m, Spur 1,66 m, Reifen 275/55 R20 (Ø 0,81 m), Bodenfreiheit ≈ 0,24 m.
+    """Maße eines generischen Elektro-SUV der 4,8-m-Klasse (Crossover-Proportionen): Karosserie 4,76 m (≈ 4,9 m
+    mit Stoßfängern, Unterfahrschutz und Haken), Breite 1,90 m (2,03 m über die Kotflügelverbreiterungen), Dach
+    1,745 m (≈ 1,95 m mit Dachplattform), Radstand 3,10 m, Spur 1,66 m, Reifen 275/55 R20 (Ø 0,81 m),
+    Bodenfreiheit ≈ 0,24 m.
 
-    Unterbau als Loft eigener Spanten (``half_profile``): eingezogener Schweller, leicht bauchige Flanke, weiche
-    Schulterlinie, darüber eingezogene Schulter, gerundete Oberkante und gewölbte Haube. In der Draufsicht sind
-    Front und Heck stark gerundet, Haubenvorderkante und Heckoberkante rollen über die Stirnflächen ab. Darauf
-    sitzt die Kabine: hohe Gürtellinie (1,29 m), flacher Glasaufbau, geneigte, gewölbte Frontscheibe."""
+    Unterbau als Loft eigener Spanten (``half_profile``): eingezogener Schweller, leicht bauchige Flanke, nach
+    hinten ansteigende Schulterlinie, eingezogene Schulter, gerundete Oberkante, gewölbte Haube; in der Draufsicht
+    stark gerundete Front und Heck. Kabine als Loft in Längsrichtung (``cab_half``) entlang einer Dachlinie
+    (``roof_z``): geneigte Frontscheibe, flaches Dach, schräg abfallendes Heck; nach hinten ansteigende
+    Gürtellinie (``belt``)."""
 
-    Z_BELT = 1.29
-    # Spanttabelle über X (monoton interpoliert): Oberkante in der Mitte (zt), Unterkante (zb), Höhe der
-    # Schulterlinie (zc, breiteste Stelle; steigt nach vorn und hinten zu den Leuchten hin an)
-    TABLE = [(-2.40, 1.30, 0.62, 1.13), (-2.20, 1.30, 0.575, 1.12), (-1.40, 1.30, 0.52, 1.075),
-             (-0.80, 1.30, 0.50, 1.065), (0.90, 1.30, 0.50, 1.065), (1.50, 1.292, 0.52, 1.075),
-             (2.00, 1.268, 0.55, 1.09), (2.38, 1.232, 0.585, 1.105)]
+    BELT0, BELT_K = 1.3286, -0.0477         # Gürtellinie z = BELT0 + BELT_K · x (1,29 m vorn → 1,41 m hinten)
+    # Spanttabelle des Unterbaus über X: Oberkante in der Mitte (zt), Unterkante (zb), Schulterlinie (zc)
+    TABLE = [(-2.36, 1.345, 0.62, 1.235), (-2.20, 1.335, 0.575, 1.23), (-1.80, 1.405, 0.54, 1.21),
+             (-1.40, 1.39, 0.52, 1.19), (-0.80, 1.362, 0.50, 1.17), (0.0, 1.324, 0.50, 1.145),
+             (0.90, 1.281, 0.50, 1.12), (1.10, 1.272, 0.51, 1.115), (1.50, 1.262, 0.52, 1.105),
+             (2.00, 1.24, 0.55, 1.095), (2.40, 1.19, 0.585, 1.09)]
     HW, INS, TUCK, CROWN = 0.95, 0.045, 0.05, 0.022        # halbe Breite, Schulter-Einzug, Schweller-Einzug, Wölbung
-    R_TOP, R_BOT, R_CREASE = 0.06, 0.08, 0.05              # Radien: Oberkante, Unterkante, Schulterlinie
-    R_FRONT, R_REAR = 0.26, 0.16                           # Eckradien in der Draufsicht
+    R_TOP, R_BOT, R_CREASE = 0.06, 0.08, 0.03              # Radien: Oberkante, Unterkante, Schulterlinie
+    R_FRONT, R_REAR = 0.22, 0.16                           # Eckradien in der Draufsicht
     ROLL_F, ROLL_R, ROLLB_F, ROLLB_R = 0.06, 0.035, 0.04, 0.03   # abgerundete Ober-/Unterkanten vorn und hinten
 
     def __init__(self):
-        self.fa, self.ra = V((1.45, 0.0, 0.405)), V((-1.45, 0.0, 0.405))     # Achsmitten (Radmitte auf 0,405 m)
+        self.fa, self.ra = V((1.55, 0.0, 0.405)), V((-1.55, 0.0, 0.405))     # Achsmitten (Radstand 3,10 m)
         self.track = 1.66
         self.R = 0.405                                  # Reifenradius 275/55 R20
-        self.x_front, self.x_rear = 2.38, -2.40
+        self.x_front, self.x_rear = 2.40, -2.36
         self.hw = self.HW
-        self.z_belt, self.z_roof = self.Z_BELT, 1.85
-        self.x_ws0, self.x_ws1 = 1.18, 0.50             # Frontscheibe: Unterkante / Dachkante (≈ 55° zur Senkrechten)
+        self.z_belt = 1.30                              # mittlere Gürtellinie (Kollisionsaufteilung)
+        self.z_roof = 1.745                             # Dach vorn (fällt nach hinten leicht ab)
+        self.x_ws0, self.x_ws1 = 1.10, 0.40             # Frontscheibe: Unterkante / Dachkante (≈ 57° zur Senkrechten)
+        self.x_rf1, self.z_rf1 = -1.86, 1.73            # Dach-Hinterkante
+        self.x_rw0, self.z_rw0 = -2.26, 1.32            # Heck: unteres Ende der Schräge (Heckscheibe ≈ 45°)
         self.hw_sh, self.hw_roof = 0.905, 0.835         # halbe Kabinenbreite an Gürtellinie / Dach (Tumblehome)
-        self.r_roof = 0.075
-        self.rf, self.rr = 0.07, 0.15                   # Eckradien der Kabine in der Draufsicht (A- / D-Säule)
-        self.bow = 0.04                                 # Wölbung der Frontscheibe in der Draufsicht
+        self.r_roof, self.crown_roof = 0.045, 0.010     # Radius der Dach-/Säulenkanten, Wölbung des Dachs
+        self.cab_z0 = 1.18                              # Unterkante der Kabine (im Unterbau verborgen)
         self.shell_t = 0.02
         xs = [t[0] for t in self.TABLE]
         self._zt, self._zb, self._zc = (Pchip(xs, [t[i] for t in self.TABLE]) for i in (1, 2, 3))
         self._cache = {}
+        self._roof = self._make_roof_line()
+        self._iroof = max(range(len(self._roof)), key=lambda i: self._roof[i][1])
 
     def wheel(self, key):
         a = self.fa if key[0] == "F" else self.ra
         return V((a.x, (1.0 if key[1] == "L" else -1.0) * self.track / 2, a.z))
+
+    def belt(self, x):
+        return self.BELT0 + self.BELT_K * x
 
     # ------------------------------------------------------------------ Unterbau
     def params(self, x):
@@ -5020,7 +5031,7 @@ class SuvGeo:
 
     def half_profile(self, x):
         """Halber Spant (y, z) von der Unterkante Mitte über die Flanke bis zur Oberkante Mitte – feste Punktzahl."""
-        key = round(x, 6)
+        key = ("lower", round(x, 6))
         if key in self._cache:
             return self._cache[key]
         hw, zt, zb, zc = self.params(x)
@@ -5078,7 +5089,7 @@ class SuvGeo:
                 return lerp(a.y, b.y, (y - a.x) / (b.x - a.x))
         return h[-1].y
 
-    def end_curve(self, z, end, depth=0.50):
+    def end_curve(self, z, end, depth=0.60):
         """Kontur der Draufsicht auf Höhe z (+Y-Hälfte) an der Front (end=+1) bzw. am Heck (end=−1): Stirnfläche
         von der Mitte nach außen, dann um die gerundete Ecke bis ``depth`` hinter die Stirn. Liefert (Punkte 2D,
         kumulierte Bogenlänge)."""
@@ -5088,7 +5099,7 @@ class SuvGeo:
         pts = [V((xe, yf * i / 12)) for i in range(12)]
         pts += [V((x, self.lower_y(x, z))) for x in
                 (xe - end * r * (1 - math.cos(math.pi / 2 * k / 18)) for k in range(19))]
-        pts += [V((x, self.lower_y(x, z))) for x in (xe - end * (r + (depth - r) * k / 6) for k in range(1, 7))]
+        pts += [V((x, self.lower_y(x, z))) for x in (xe - end * (r + (depth - r) * k / 8) for k in range(1, 9))]
         cum = [0.0]
         for a, b in zip(pts, pts[1:]):
             cum.append(cum[-1] + (b - a).length)
@@ -5096,7 +5107,7 @@ class SuvGeo:
 
     def end_frame(self, z, end, s):
         """Punkt (2D), Tangente und Außennormale bei Bogenlänge s auf ``end_curve``."""
-        key = (round(z, 5), end)
+        key = ("end", round(z, 5), end)
         if key not in self._cache:
             self._cache[key] = self.end_curve(z, end)
         pts, cum = self._cache[key]
@@ -5113,44 +5124,95 @@ class SuvGeo:
         return self.lower_y(self.x_front if end > 0 else self.x_rear, z)
 
     # ------------------------------------------------------------------ Kabine
-    def t_cab(self, z):
-        return clamp((z - self.z_belt) / (self.z_roof - self.r_roof - self.z_belt))
-
-    def ws_x(self, z):
-        """X der Frontscheibe (Außenhaut) in der Mitte auf Höhe z."""
-        return lerp(self.x_ws0, self.x_ws1, self.t_cab(z))
-
-    def ws_point(self, y, z):
-        """Punkt auf der (in der Draufsicht gewölbten) Frontscheibe."""
-        return V((self.ws_x(z) - self.bow * (y / self.cab_hw(z)) ** 2, y, z))
-
-    def cab_hw(self, z):
-        return lerp(self.hw_sh, self.hw_roof, self.t_cab(z))
-
-    def cab_xr(self, z):
-        """Kabinen-Heck: Heckscheibe ≈ 29° nach vorn geneigt, unten 4 mm innerhalb des Unterbaus."""
-        return self.x_rear + 0.004 + 0.30 * self.t_cab(z)
-
-    def _cab_ring(self, z, d=0.0, z_ref=None):
-        zr = z if z_ref is None else z_ref
-        hw, xf, xr = self.cab_hw(zr) - d, self.ws_x(zr) - d, self.cab_xr(zr) + d
-        ring = rrect2_ring(xf, xr, hw, self.rf, self.rr, 18, 32, 5, z)
+    def _make_roof_line(self):
+        """Dachlinie (Seitenansicht, x fallend): Frontscheibe → Dach → Heckschräge, Kanten gerundet."""
+        zb0 = self.belt(self.x_ws0)
+        k = (self.x_ws0 - self.x_ws1) / (self.z_roof - zb0)
+        pts = [(self.x_ws0 + (zb0 - self.cab_z0) * k, self.cab_z0), (self.x_ws0, zb0), (self.x_ws1, self.z_roof),
+               (self.x_rf1, self.z_rf1), (self.x_rw0, self.z_rw0), (self.x_rw0 - 0.012, self.cab_z0)]
+        path = fillet_path([V((x, z, 0.0)) for x, z in pts], [0.0, 0.16, 0.13, 0.0], 12)
         out = []
-        for p in ring:                       # Frontscheibe in der Draufsicht wölben (Seitenwände bleiben eben)
-            w = smoothstep(xf - 0.45, xf - 0.05, p.x)
-            out.append(V((p.x - self.bow * (p.y / hw) ** 2 * w, p.y, p.z)))
+        for p in path:
+            if not out or out[-1][0] - p.x > 1e-5:
+                out.append((p.x, p.y))
         return out
 
+    def roof_z(self, x):
+        """Höhe der Kabinen-Oberkante (Mitte) bei x."""
+        pts = self._roof
+        if x >= pts[0][0]:
+            return pts[0][1]
+        if x <= pts[-1][0]:
+            return pts[-1][1]
+        i = next(i for i in range(len(pts) - 1) if pts[i + 1][0] <= x)
+        (x0, z0), (x1, z1) = pts[i], pts[i + 1]
+        return lerp(z0, z1, (x0 - x) / (x0 - x1))
+
+    def roof_slope(self, x):
+        pts = self._roof
+        i = next((i for i in range(len(pts) - 1) if pts[i + 1][0] <= x), len(pts) - 2)
+        (x0, z0), (x1, z1) = pts[i], pts[i + 1]
+        return (z0 - z1) / (x0 - x1)
+
+    def roof_x(self, z, rear=False):
+        """X der Dachlinie auf Höhe z – an der Frontscheibe bzw. (rear) an der Heckschräge."""
+        pts = self._roof
+        seg = list(zip(pts[self._iroof:], pts[self._iroof + 1:])) if rear else \
+            list(zip(pts[:self._iroof], pts[1:self._iroof + 1]))
+        if rear:
+            seg.reverse()                                  # von hinten unten nach oben suchen
+        for (x0, z0), (x1, z1) in seg:
+            if (z0 - z) * (z1 - z) <= 0.0 and abs(z1 - z0) > 1e-9:
+                return lerp(x0, x1, (z - z0) / (z1 - z0))
+        return pts[self._iroof][0]
+
+    def cab_hw(self, z):
+        """Halbe Kabinenbreite (Seitenwand) auf Höhe z – überall gleich, nur das Heck ist in der Draufsicht gerundet."""
+        return lerp(self.hw_sh, self.hw_roof, clamp((z - 1.28) / 0.42))
+
+    def cab_w(self, x, z):
+        return self.cab_hw(z) - _round_off((self.x_rear + self.R_REAR) - x, self.R_REAR)
+
+    def _cab_top(self, x):
+        """(Oberkante Mitte, Wölbung, halbe Breite an der Dachkante, Kantenradius) des Kabinenspants bei x."""
+        zt = self.roof_z(x)
+        zb = self.cab_z0 - 0.02
+        crown = self.crown_roof * clamp((zt - zb) / 0.30)
+        ze = zt - crown
+        return zt, crown, self.cab_w(x, ze), min(self.r_roof, 0.45 * (ze - zb))
+
+    def cab_half(self, x):
+        """Halber Kabinenspant (y, z): Boden (im Unterbau), Seitenwand mit Tumblehome, gerundete Kante, gewölbtes
+        Dach – feste Punktzahl."""
+        zt, crown, we, r = self._cab_top(x)
+        zb = self.cab_z0 - 0.02
+        ctrl = [V((0.0, zb)), V((self.cab_w(x, zb), zb)), V((we, zt - crown))]
+        ctrl += [V((we * (1 - k / 8), zt - crown * (1 - k / 8) ** 2)) for k in range(1, 9)]
+        return ctrl[:2] + fillet_fixed(ctrl[1], ctrl[2], ctrl[3], r, 6) + ctrl[3:]
+
     def cabin_md(self, mat):
-        """Kabine als Loft waagerechter Schnitte: Scheibenneigung, Tumblehome und gerundete Dachkante."""
-        top = self.z_roof - self.r_roof
-        zs = [self.z_belt - 0.08, self.z_belt - 0.02] + [lerp(self.z_belt + 0.02, top, i / 7) for i in range(8)]
-        rings = [self._cab_ring(z) for z in zs]
-        for k in range(1, 6):
-            phi = math.pi / 2 * k / 5
-            rings.append(self._cab_ring(top + self.r_roof * math.sin(phi), self.r_roof * (1 - math.cos(phi)), top))
-        crown = V(((self.ws_x(top) + self.cab_xr(top)) / 2, 0.0, self.z_roof + 0.012))     # leicht gewölbtes Dach
-        return grid_rings(rings, True, "ngon", crown, mat)
+        x0, x1 = self._roof[0][0] - 0.015, self._roof[-1][0] + 0.002
+        n = int((x0 - x1) / 0.03)
+        rings = []
+        for i in range(n, -1, -1):                       # aufsteigend in x wie beim Unterbau
+            x = lerp(x0, x1, i / n)
+            h = self.cab_half(x)
+            rings.append([V((x, p.x, p.y)) for p in h] + [V((x, -p.x, p.y)) for p in reversed(h[1:-1])])
+        return grid_rings(rings, True, "ngon", "ngon", mat)
+
+    def glass_x(self, y, z, rear=False):
+        """X eines Punkts (y, z) auf der Frontscheibe bzw. Heckschräge (Wölbung berücksichtigt)."""
+        x = self.roof_x(z, rear)
+        for _ in range(4):
+            _, crown, we, _ = self._cab_top(x)
+            x = self.roof_x(z + crown * min(1.0, (y / we) ** 2), rear)
+        return x
+
+    def glass_point(self, y, z, rear=False, off=0.0):
+        """Punkt auf Frontscheibe/Heckschräge, um ``off`` entlang der Flächennormalen versetzt."""
+        x = self.glass_x(y, z, rear)
+        n = V((-self.roof_slope(x), 0.0, 1.0)).normalized()
+        return V((x, y, z)) + n * off
 
     def arch_outline(self, a):
         """Trapezförmiger Radlauf (Seitenansicht, offen nach unten) – Federweg ±8 cm und Lenkeinschlag frei."""
@@ -5159,7 +5221,7 @@ class SuvGeo:
         return [V((p.x, p.y)) for p in fillet_path([V((x, z, 0.0)) for x, z in pts], 0.18, 7)]
 
 
-def suv_bumper(x_in, end, z0, z1, mat):
+def suv_bumper(x_in, end, z0, z1, mat, x_face, rc):
     """Stoßfänger als Stapel gerundeter Rechtecke: vorne (end=+1) bzw. hinten (end=−1) bauchig gerundete
     Ober- und Unterkante, in der Draufsicht große Eckradien; innen (x_in) endet er am Radlauf."""
     rings = []
@@ -5167,10 +5229,10 @@ def suv_bumper(x_in, end, z0, z1, mat):
     for t in zs:
         z = lerp(z0, z1, t)
         bulge = math.sqrt(max(0.0, 1.0 - (2.0 * t - 1.0) ** 8))           # flache Front, gerundete Kanten
-        x_out = 2.385 + 0.030 * bulge if end > 0 else -2.405 - 0.030 * bulge
+        x_out = x_face + end * (0.005 + 0.030 * bulge)
         hy = 0.928 + 0.04 * bulge
         xf, xr = (x_out, x_in) if end > 0 else (x_in, x_out)
-        rf, rr = (0.30, 0.004) if end > 0 else (0.004, 0.17)
+        rf, rr = (rc, 0.004) if end > 0 else (0.004, rc)
         rings.append(rrect2_ring(xf, xr, hy, rf, rr, 16, 6, 6, z))
     return grid_rings(rings, True, "ngon", "ngon", mat)
 
@@ -5278,7 +5340,7 @@ def suv_frunk(g, M):
     fr, small = MeshData(), MeshData()
     z_shelf = g.fa.z + 0.52 + 0.02                                              # über dem Radlauf
     fr.merge(box((1.24, 0.0, 0.795), (0.03, 0.88, 0.31), M["interior"]))        # Spritzwand (zwischen den Radhäusern)
-    fr.merge(box((1.24, 0.0, 1.10), (0.03, 1.70, 0.30), M["interior"]))
+    fr.merge(box((1.24, 0.0, 1.085), (0.03, 1.70, 0.27), M["interior"]))
     fr.merge(box((1.31, 0.0, 1.18), (0.12, 1.50, 0.07), M["black"]))           # Klimamodul / Wasserkasten
     for side in (1, -1):                                                        # Innenkotflügel
         fr.merge(box((1.66, side * 0.69, z_shelf - 0.0075), (1.06, 0.50, 0.015), M["interior"]))
@@ -5415,9 +5477,6 @@ def build_suv(cfg):
         md = box((x + fwd * 0.003, 0.0, z), (0.006, 0.52, 0.11), M["plate"])
         fm = frame_matrix(V((x + fwd * 0.0062, 0.0, z)), Y_AXIS * fwd, Z_AXIS, X_AXIS * fwd)
         return md.merge(text_md(reg, 0.075, fm, M["decal"], bold=0.03))
-    k_ws = (g.x_ws0 - g.x_ws1) / (g.z_roof - g.r_roof - g.z_belt)        # Scheibenneigung −dx/dz
-    n_ws = V((1.0, 0.0, k_ws)).normalized()
-
     # ------------------------------------------------------------- Karosserie: Unterbau ∪ Kabine → Hülle
     body = g.body_md(M["paint"]).to_object(f"{name}_Body", smooth=50)
     asm.coll.objects.link(body)
@@ -5428,10 +5487,6 @@ def build_suv(cfg):
     apply_modifiers(body)
     src = body.data.copy()
 
-    def pillar(z, back):
-        """X-Position parallel zur A-Säule (``back`` hinter der Scheibenmitte)."""
-        return g.ws_x(z) - back
-
     def flat(points3d, mat, flip=False):
         vs = list(reversed(points3d)) if flip else list(points3d)
         return MeshData().add(vs, [tuple(range(len(vs)))], None, mat)
@@ -5439,12 +5494,13 @@ def build_suv(cfg):
     def side_glass(outline, side, mat=None):
         """Scheibe in der (geneigten) Kabinenwand, mittig in der Wandstärke; Rand verschwindet in der Wand."""
         pts = ensure_ccw(offset_poly(outline, 0.025))
-        return flat([V((p.x, side * (g.cab_hw(p.y) - st * 0.5), p.y)) for p in pts], mat or M["glass"], side > 0)
+        return flat([V((p.x, side * (g.cab_w(p.x, p.y) - st * 0.5), p.y)) for p in pts], mat or M["glass"], side > 0)
 
     def side_seal(outline, side):
+        """Chromrahmen um das Seitenfenster (Fensterlinie und Dachkante)."""
         pts = ensure_ccw(offset_poly(outline, 0.008))
-        path = [V((p.x, side * (g.cab_hw(p.y) + 0.003), p.y)) for p in pts]
-        return tube(path + [path[0]], 0.0065, 6, M["rubber"], caps=False)
+        path = [V((p.x, side * (g.cab_w(p.x, p.y) + 0.003), p.y)) for p in pts]
+        return tube(path + [path[0]], 0.0055, 6, M["chrome"], caps=False)
 
     def cut_panel(key, inner, holes=()):
         """Anbauteil (Tür, Haube, Heckklappe, Ladeklappe) aus der Hülle schneiden – gleiche Wandstärke."""
@@ -5456,48 +5512,70 @@ def build_suv(cfg):
         transfer_normals(d, src)
         return d
 
+    def solve(f, a, b, n=60):
+        """Nullstelle von f zwischen a und b (Vorzeichenwechsel, linear verfeinert)."""
+        xs_ = [lerp(a, b, i / n) for i in range(n + 1)]
+        for u, v in zip(xs_, xs_[1:]):
+            fu, fv = f(u), f(v)
+            if fu * fv <= 0.0:
+                return lerp(u, v, fu / (fu - fv)) if abs(fu - fv) > 1e-12 else u
+        return b
+
     # Konturen: Seitenansicht (x, z), Front/Heck (y, z), Draufsicht (x, y)
-    zw0, zw1, zd1 = g.z_belt + 0.05, g.z_roof - 0.13, g.z_roof - 0.09     # Fensterunter-/-oberkante, Türoberkante
-    door_f = rounded_poly_2d([(0.855, 0.60), (0.855, g.z_belt + 0.02), (pillar(zd1, 0.13), zd1), (-0.24, zd1),
-                              (-0.24, 0.60)], [0.03, 0.02, 0.05, 0.04, 0.03], 4)
-    win_f = rounded_poly_2d([(0.78, zw0), (pillar(zw1, 0.20), zw1), (-0.19, zw1), (-0.19, zw0)],
-                            [0.02, 0.04, 0.04, 0.03], 4)
+    def zw0(x):                                      # Fensterunterkante (Gürtellinie, steigt nach hinten)
+        return g.belt(x) + 0.01
+
+    def zw1(x):                                      # Fensteroberkante folgt der Dachlinie
+        return g.roof_z(x) - 0.068
+
+    def zd1(x):                                      # Oberkante des Türrahmens
+        return g.roof_z(x) - 0.05
+
+    def along(f, x0, x1, n):
+        return [(lerp(x0, x1, i / n), f(lerp(x0, x1, i / n))) for i in range(n + 1)]
+    z_door0 = 0.53                                   # Türunterkante über der Schwellerverkleidung
+    xf_door, xb_pillar, xr_door0 = 0.955, -0.22, -0.228
+    x_tip = solve(lambda x: zw1(x) - zw0(x) - 0.035, g.x_ws0, g.x_ws1)              # Fensterspitze vorn
+    door_f = rounded_poly_2d([(xf_door, z_door0)] + along(zd1, xf_door, xb_pillar, 30) + [(xb_pillar, z_door0)],
+                             [0.03] + [0.0] * 30 + [0.03, 0.03], 4)
+    win_f = rounded_poly_2d([(-0.17, zw0(-0.17)), (x_tip, zw0(x_tip))] + along(zw1, x_tip - 0.01, -0.17, 24),
+                            [0.03, 0.015] + [0.0] * 24 + [0.03], 4)
     # Hintertür: unten Aussparung um den hinteren Radlauf samt Verbreiterung
     arch_r_off = offset_open(g.arch_outline(g.ra), 0.095)         # vorne unten → oben → hinten unten
-    x_dr = -1.17
-    notch = [p for p in arch_r_off if p.x > x_dr + 0.01 and p.y > 0.605][::-1]     # von oben nach vorne unten
+    x_dr = -1.28
+    notch = [p for p in arch_r_off if p.x > x_dr + 0.01 and p.y > z_door0 + 0.005][::-1]   # von oben nach vorne unten
     z_top = next(lerp(p.y, q.y, (p.x - x_dr) / (p.x - q.x)) for p, q in zip(arch_r_off, arch_r_off[1:])
                  if p.x > x_dr >= q.x)
-    door_r = rounded_poly_2d([(-0.28, 0.60), (-0.28, zd1), (x_dr, zd1), (x_dr, z_top)] +
-                             [(p.x, p.y) for p in notch] + [(notch[-1].x, 0.60)],
-                             [0.03, 0.04, 0.03, 0.0] + [0.0] * len(notch) + [0.02], 4)
-    win_r = rounded_poly_2d([(-0.33, zw0), (-0.33, zw1), (-1.00, zw1), (-1.11, zw1 - 0.09), (-1.11, zw0)],
-                            [0.03, 0.04, 0.05, 0.04, 0.03], 4)
-
-    def x_back(z):
-        return g.cab_xr(z) + 0.24
-    win_q = rounded_poly_2d([(-1.25, zw0), (-1.25, zw1), (x_back(zw1), zw1), (x_back(zw0 + 0.10), zw0 + 0.10),
-                             (x_back(zw0 + 0.10) + 0.12, zw0)], [0.03, 0.04, 0.04, 0.05, 0.05], 4)
-    hw_tg = 0.62
-    x_hinge = g.cab_xr(g.z_roof - g.r_roof) + 0.13
-    tg = rounded_poly_2d([(-0.80, 0.70), (0.80, 0.70), (0.80, g.z_belt - 0.02), (hw_tg, g.z_roof - 0.10),
-                          (hw_tg, g.z_roof + 0.10), (-hw_tg, g.z_roof + 0.10), (-hw_tg, g.z_roof - 0.10),
-                          (-0.80, g.z_belt - 0.02)], [0.05, 0.05, 0.08, 0.06, 0.0, 0.0, 0.06, 0.08], 4)
-    win_b = rounded_poly_2d([(-0.66, zw0 + 0.04), (0.66, zw0 + 0.04), (0.57, g.z_roof - 0.12), (-0.57, g.z_roof - 0.12)],
-                            [0.04, 0.04, 0.05, 0.05], 4)
-    ws = rounded_poly_2d([(-0.80, g.z_belt + 0.04), (0.80, g.z_belt + 0.04), (0.72, g.z_roof - 0.10),
-                          (-0.72, g.z_roof - 0.10)], [0.05, 0.05, 0.06, 0.06], 4)
-    hood = rounded_poly_2d([(1.255, -0.82), (2.315, -0.82), (2.315, 0.82), (1.255, 0.82)], [0.02, 0.20, 0.20, 0.02], 6)
+    door_r = rounded_poly_2d([(xr_door0, z_door0)] + along(zd1, xr_door0, x_dr, 16) + [(x_dr, z_top)] +
+                             [(p.x, p.y) for p in notch] + [(notch[-1].x, z_door0)],
+                             [0.03] + [0.0] * 16 + [0.03, 0.0] + [0.0] * len(notch) + [0.02], 4)
+    win_r = rounded_poly_2d([(-1.155, zw0(-1.155)), (-0.31, zw0(-0.31))] + along(zw1, -0.31, -1.155, 12),
+                            [0.03, 0.03] + [0.03] + [0.0] * 11 + [0.03], 4)
+    # hinteres Seitenfenster: spitz zulaufend, Hinterkante steiler als die Heckschräge (D-Säule in Wagenfarbe)
+    xq0, xq1, xq2 = -1.32, -1.57, -1.80
+    win_q = rounded_poly_2d([(xq2, zw0(xq2)), (xq0, zw0(xq0))] + along(zw1, xq0, xq1, 8),
+                            [0.02, 0.03] + [0.03] + [0.0] * 7 + [0.05], 4)
+    hw_tg = 0.66
+    x_hinge = g.x_rf1 + 0.02
+    z_tg0 = 0.785                                    # Unterkante der Heckklappe (über dem Stoßfänger)
+    tg = rounded_poly_2d([(-0.78, z_tg0), (0.78, z_tg0), (0.78, 1.33), (hw_tg, g.z_roof - 0.08),
+                          (hw_tg, g.z_roof + 0.10), (-hw_tg, g.z_roof + 0.10), (-hw_tg, g.z_roof - 0.08),
+                          (-0.78, 1.33)], [0.05, 0.05, 0.08, 0.06, 0.0, 0.0, 0.06, 0.08], 4)
+    win_b = rounded_poly_2d([(-0.72, 1.35), (0.72, 1.35), (0.61, 1.665), (-0.61, 1.665)], [0.05, 0.05, 0.06, 0.06], 4)
+    ws = rounded_poly_2d([(-0.80, g.belt(g.x_ws0) + 0.035), (0.80, g.belt(g.x_ws0) + 0.035), (0.72, g.z_roof - 0.07),
+                          (-0.72, g.z_roof - 0.07)], [0.05, 0.05, 0.06, 0.06], 4)
+    hood = rounded_poly_2d([(1.15, -0.82), (2.335, -0.82), (2.335, 0.82), (1.15, 0.82)], [0.02, 0.20, 0.20, 0.02], 6)
     roof_glass = rounded_rect_2d(1.50, 1.16, 0.10, 4)
     roof_glass = [V((p.x - 0.62, p.y)) for p in roof_glass]
-    flap = rounded_rect_2d(0.17, 0.12, 0.02, 3)
-    flap = [V((p.x - 1.975, p.y + 1.00)) for p in flap]
+    flap_c = V((-1.645, 1.15))                       # Ladeklappe auf der Schulter über dem Hinterrad
+    flap = [V((p.x + flap_c.x, p.y + flap_c.y)) for p in rounded_rect_2d(0.25, 0.13, 0.03, 3)]
 
     # ------------------------------------------------------------- Türen (4) mit verdeckten Scharnieren
     for side in (1, -1):
         s = "L" if side > 0 else "R"
         y0, y1 = (0.30, 1.30) if side > 0 else (-1.30, -0.30)
-        for row, outline, win, hx, handle_x in (("F", door_f, win_f, 0.85, 0.06), ("R", door_r, win_r, -0.285, -0.80)):
+        for row, outline, win, hx, handle_x in (("F", door_f, win_f, xf_door - 0.005, -0.02),
+                                                ("R", door_r, win_r, xr_door0 - 0.003, -1.06)):
             key = f"Door_{row}{s}"
             d = cut_panel(key, prism_y(offset_poly(outline, -gap), y0, y1), [prism_y(win, y0, y1)])
             p_lo, p_hi = V((hx, side * (g.hw + 0.004), 0.72)), V((hx, side * (g.hw + 0.004), 1.12))
@@ -5508,7 +5586,7 @@ def build_suv(cfg):
             dt = MeshData()
             dt.merge(side_seal(win, side))
             # Bügelgriff in Wagenfarbe über einer schwarzen Griffmulde, knapp unter der Schulterlinie
-            hz = 1.025
+            hz = g.params(handle_x)[3] - 0.035
             yh = g.lower_y(handle_x, hz)
             dt.merge(box((handle_x, side * (yh + 0.002), hz), (0.20, 0.004, 0.05), M["gloss"]))
             hb = [V((handle_x + 0.088, side * (yh + 0.003), hz)), V((handle_x + 0.062, side * (yh + 0.022), hz + 0.002)),
@@ -5530,9 +5608,10 @@ def build_suv(cfg):
             dt.merge(cylinder(V((xc + 0.12, side * (yin - 0.026), 0.70)),
                               V((xc + 0.12, side * (yin - 0.032), 0.70)), 0.065, 20, M["black"]))
             asm.add(dt, f"DoorTrim_{row}{s}", key, mods=[bevel_s], detail=1)
-        # Außenspiegel an der Vordertür (Kamera, Blinker)
+        # Außenspiegel an der Vordertür (Kamera, Blinker), auf der Schulter vor der Fensterspitze
         mm = MeshData()
-        o = V((0.80, side * (g.hw + 0.06), 1.315))                    # Gehäuse als Superellipsen-Loft nach außen
+        zmb = g.belt(0.88) - 0.03
+        o = V((0.86, side * (g.hw + 0.06), zmb + 0.075))              # Gehäuse als Superellipsen-Loft nach außen
         st_m = [dict(x=0.0, hw=0.034, zt=0.045, zb=-0.035, zm=0.0, et=3.0, eb=3.0),
                 dict(x=0.05, hw=0.050, zt=0.068, zb=-0.058, zm=0.0, et=3.0, eb=3.0),
                 dict(x=0.17, hw=0.056, zt=0.074, zb=-0.064, zm=0.0, et=3.0, eb=3.0),
@@ -5541,7 +5620,7 @@ def build_suv(cfg):
         hous = loft_stations(st_m, cosine_spacing(0.0, 0.235, 12, 0.5, 0.8), 24, "ngon", "ngon", M["gloss"])
         hous.transform(frame_matrix(o, Y_AXIS * side, -X_AXIS * side, Z_AXIS))
         mm.merge(hous)
-        base = V((0.80, side * (g.lower_y(0.80, 1.24) - 0.005), 1.24))
+        base = V((0.89, side * (g.lower_y(0.89, zmb) - 0.005), zmb))
         mm.merge(tube(spline([base, base + V((-0.01, side * 0.04, 0.025)), o + V((-0.012, side * 0.03, -0.022))], 4),
                       (0.016, 0.03), 10, M["gloss"], up=Z_AXIS, exponent=3.0))
         mm.merge(box(o + V((-0.057, side * 0.125, 0.004)), (0.004, 0.17, 0.105), M["mirror"]))
@@ -5551,71 +5630,70 @@ def build_suv(cfg):
         asm.add(mm, f"Mirror_{s}", f"Door_F{s}", mods=[bevel_s])
 
     # ------------------------------------------------------------- Haube, Heckklappe, Ladeklappe
-    hz0, hz1 = 1.10, 1.45
+    hz0, hz1 = 1.05, 1.45
     hood_obj = cut_panel("Hood", prism_z(offset_poly(hood, -gap), hz0, hz1))
-    asm.pivot("Hood", V((1.25, 0.0, g.zt(1.25) + 0.003)), -Y_AXIS, orient=True,
+    asm.pivot("Hood", V((1.145, 0.0, g.zt(1.145) + 0.003)), -Y_AXIS, orient=True,
               positive="Haube öffnet (Vorderkante nach oben)", limits=(0, 60))
     asm.add(hood_obj, "Hood", "Hood")
     hf = MeshData()                                  # Versteifungsrahmen unter der Haube
 
     def under_hood(pts, d=0.012):
         return [V((p[0], p[1], g.top_z(p[0], p[1]) - st - d)) for p in pts]
-    frame = resample(fillet_path([(1.75, -0.78, 0.0), (2.24, -0.78, 0.0), (2.24, 0.78, 0.0), (1.32, 0.78, 0.0),
-                                  (1.32, -0.78, 0.0), (1.75, -0.78, 0.0)], 0.07, 4), 0.05)
+    frame = resample(fillet_path([(1.75, -0.78, 0.0), (2.26, -0.78, 0.0), (2.26, 0.78, 0.0), (1.22, 0.78, 0.0),
+                                  (1.22, -0.78, 0.0), (1.75, -0.78, 0.0)], 0.07, 4), 0.05)
     hf.merge(tube(under_hood([(p.x, p.y) for p in frame]), (0.008, 0.022), 8, M["paint"], caps=False, up=Z_AXIS,
                   exponent=4.0))
     for side in (1, -1):
-        hf.merge(tube(under_hood([(lerp(1.38, 2.18, i / 12), side * lerp(0.72, -0.72, i / 12)) for i in range(13)]),
+        hf.merge(tube(under_hood([(lerp(1.28, 2.20, i / 12), side * lerp(0.72, -0.72, i / 12)) for i in range(13)]),
                       (0.007, 0.02), 8, M["paint"], up=Z_AXIS, exponent=4.0))
     asm.add(hf, "HoodFrame", "Hood", detail=1)
 
     tg_obj = cut_panel("Tailgate", prism_x(offset_poly(tg, -gap), g.x_rear - 0.10, x_hinge - gap),
-                       [prism_x(win_b, g.x_rear - 0.10, g.x_rear + 0.40)])
-    z_h = g.z_roof + 0.004
-    asm.pivot("Tailgate", V((x_hinge - 0.012, 0.0, z_h)), Y_AXIS, orient=True, limits=(0, 80),
+                       [prism_x(win_b, g.x_rear - 0.10, g.x_rf1 + 0.05)])
+    asm.pivot("Tailgate", V((x_hinge - 0.012, 0.0, g.roof_z(x_hinge) + 0.004)), Y_AXIS, orient=True, limits=(0, 80),
               positive="Heckklappe öffnet nach oben (Scharnier am Dach)")
     asm.add(tg_obj, "Tailgate", "Tailgate")
-    pts = ensure_ccw(offset_poly(win_b, 0.025))
-    asm.add(flat([V((g.cab_xr(p.y) + st * 0.5, p.x, p.y)) for p in pts], M["privacy"], True), "Glass_Tailgate",
-            "Tailgate", smooth=80)
+    rwg = MeshData().add([V((p.x, p.y, 0.0)) for p in ensure_ccw(offset_poly(win_b, 0.025))],
+                         [tuple(range(len(ensure_ccw(offset_poly(win_b, 0.025)))))], None, M["privacy"])
+    rwg = subdivide_tris(rwg, 0.10)
+    rwg.verts = [g.glass_point(v.x, v.y, True, -st * 0.5) for v in rwg.verts]
+    asm.add(orient_faces(rwg, lambda c: X_AXIS), "Glass_Tailgate", "Tailgate", smooth=80)
     tt = MeshData()
-    path = [V((g.cab_xr(p.y) - 0.003, p.x, p.y)) for p in ensure_ccw(offset_poly(win_b, 0.008))]
+    path = [g.glass_point(p.x, p.y, True, 0.003) for p in ensure_ccw(offset_poly(win_b, 0.008))]
     tt.merge(tube(path + [path[0]], 0.0065, 6, M["rubber"], caps=False))
-    # Dachspoiler mit dritter Bremsleuchte, Heckwischer
-    xs0, xs1 = g.cab_xr(g.z_roof - g.r_roof) - 0.10, x_hinge - 0.02
-    sp = rounded_poly_2d([(xs1, g.z_roof - 0.01), (xs1 - 0.05, g.z_roof + 0.018), (xs0 + 0.02, g.z_roof + 0.022),
-                          (xs0, g.z_roof + 0.0), (xs0 + 0.06, g.z_roof - 0.05), (g.cab_xr(g.z_roof - 0.07), g.z_roof - 0.07)],
-                         [0.0, 0.03, 0.015, 0.01, 0.02, 0.0], 3)
+    # Dachspoiler über der Heckscheibe mit dritter Bremsleuchte, Heckwischer
+    zsp = g.roof_z(g.x_rf1)
+    xsp = g.x_rf1 - 0.19
+    sp = rounded_poly_2d([(x_hinge - 0.02, g.roof_z(x_hinge) - 0.006), (x_hinge - 0.07, zsp + 0.02),
+                          (xsp + 0.035, zsp + 0.022), (xsp, zsp + 0.004), (xsp + 0.045, zsp - 0.018),
+                          (g.x_rf1 - 0.03, g.roof_z(g.x_rf1 - 0.03) - 0.006)], [0.0, 0.03, 0.015, 0.008, 0.02, 0.0], 3)
     tt.merge(prism_y(sp, -hw_tg + 0.01, hw_tg - 0.01, M["gloss"]))
-    tt.merge(box((xs0 + 0.004, 0.0, g.z_roof + 0.009), (0.006, 0.40, 0.010), M["tail"]))
-    zw = zw0 + 0.10
-    wp = V((g.cab_xr(zw) - 0.012, 0.0, zw))
-    tt.merge(cylinder(wp + X_AXIS * 0.01, wp - X_AXIS * 0.02, 0.016, 12, M["black"]))
-    wt = V((g.cab_xr(zw + 0.10) - 0.012, 0.46, zw + 0.10))
+    tt.merge(box((xsp + 0.004, 0.0, zsp + 0.011), (0.006, 0.40, 0.010), M["tail"]))
+    wp = g.glass_point(0.0, 1.44, True, 0.012)
+    wt = g.glass_point(0.46, 1.54, True, 0.012)
+    nw = V((-g.roof_slope(wp.x), 0.0, 1.0)).normalized()
+    tt.merge(cylinder(wp - nw * 0.01, wp + nw * 0.012, 0.016, 12, M["black"]))
     tt.merge(tube([wp, wt], 0.006, 6, M["black"]))
-    # Gesperrte Wortmarke, Kennzeichen-Mulde mit Kamera, Griffleiste
+    # Gesperrte Wortmarke, Griffleiste mit Kamera, Leuchtband über die volle Breite (Mittelteil an der Klappe,
+    # keilförmige Enden an der Karosserie); das Kennzeichen sitzt am Stoßfänger
     x_face = g.x_rear
     badge = "  ".join(" ".join(w) for w in cfg.suv_badge.split())
-    wm = text_md(badge, 0.042, frame_matrix(V((x_face - 0.0035, 0.0, 1.125)), -Y_AXIS, Z_AXIS, -X_AXIS),
-                 M["chrome"], bold=0.03)
-    tt.merge(wm)
-    tt.merge(box((x_face - 0.004, 0.0, 0.86), (0.008, 0.56, 0.16), M["gloss"]))
-    tt.merge(box((x_face - 0.009, 0.0, 0.99), (0.012, 0.36, 0.03), M["gloss"]))
-    tt.merge(box((x_face - 0.0155, 0.0, 0.99), (0.002, 0.03, 0.02), M["lens"]))
-    tt.merge(plate(x_face - 0.0085, 0.86, -1.0))
-    # Leuchtband über die volle Breite (Mittelteil an der Klappe, keilförmige Enden an der Karosserie)
+    tt.merge(text_md(badge, 0.042, frame_matrix(V((x_face - 0.0035, 0.0, 1.03)), -Y_AXIS, Z_AXIS, -X_AXIS),
+                     M["chrome"], bold=0.03))
+    tt.merge(box((x_face - 0.009, 0.0, 0.905), (0.012, 0.36, 0.028), M["gloss"]))
+    tt.merge(box((x_face - 0.0155, 0.0, 0.905), (0.002, 0.03, 0.018), M["lens"]))
     zl = 1.215
     tt.merge(box((x_face - 0.006, 0.0, zl), (0.012, 1.55, 0.06), M["gloss"]))
     tt.merge(box((x_face - 0.0125, 0.0, zl), (0.002, 1.53, 0.022), M["tail"]))
-    for za, zb_, wa, wb in ((zl + 0.03, g.z_belt, 0.765, 0.762), (g.z_belt, zw0 + 0.06, 0.762, 0.745)):
-        quad = [V((g.cab_xr(za) - 0.0025, -wa, za)), V((g.cab_xr(za) - 0.0025, wa, za)),
-                V((g.cab_xr(zb_) - 0.0025, wb, zb_)), V((g.cab_xr(zb_) - 0.0025, -wb, zb_))]
-        tt.merge(orient_faces(flat(quad, M["gloss"]), lambda c: X_AXIS))          # schwarze Blende bis zur Scheibe
+    peak_r = [(-0.045, -0.025), (-0.012, 0.026), (0.0, 0.010), (0.012, 0.030), (0.045, -0.025), (0.030, -0.025),
+              (0.012, 0.004), (0.0, -0.012), (-0.012, 0.0), (-0.030, -0.025)]
+    tt.merge(extrude([(x * 0.7, y * 0.7) for x, y in peak_r], 0.006,
+                     frame_matrix(V((x_face - 0.017, 0.0, zl + 0.002)), -Y_AXIS, Z_AXIS, -X_AXIS), M["chrome"]))
     asm.add(tt, "TailgateTrim", "Tailgate", mods=[bevel_s], detail=1)
 
     flap_obj = cut_panel("ChargeFlap", prism_y(offset_poly(flap, -gap), 0.30, 1.30))
     fx = max(p.x for p in flap) - 0.004
-    asm.pivot("ChargeFlap", V((fx, g.lower_y(fx, 1.0) - 0.002, 1.00)), -Z_AXIS, orient=True, limits=(0, 95),
+    asm.pivot("ChargeFlap", V((fx, g.lower_y(fx, flap_c.y) - 0.002, flap_c.y)), -Z_AXIS, orient=True, limits=(0, 95),
               positive="Ladeklappe öffnet nach außen (Scharnier vorne)")
     asm.add(flap_obj, "ChargeFlap", "ChargeFlap")
 
@@ -5631,7 +5709,7 @@ def build_suv(cfg):
     cutters.append(prism_y(offset_poly(flap, gap), 0.30, 1.30))
     cutters.append(prism_z(offset_poly(hood, gap), hz0, hz1))
     cutters.append(prism_x(offset_poly(tg, gap), g.x_rear - 0.10, x_hinge))
-    cutters.append(prism_x(ws, 0.30, 1.22))
+    cutters.append(prism_x(ws, g.x_ws1 - 0.15, g.x_ws0 + 0.10))
     cutters.append(prism_z(roof_glass, g.z_roof - 0.12, g.z_roof + 0.10))
     boolean(body, [c.to_object("_c") for c in cutters], "DIFFERENCE")
     transfer_normals(body, src)
@@ -5642,8 +5720,8 @@ def build_suv(cfg):
     glass = MeshData()
     wsg = MeshData().add([V((p.x, p.y, 0.0)) for p in ensure_ccw(offset_poly(ws, 0.025))],
                          [tuple(range(len(ensure_ccw(offset_poly(ws, 0.025)))))], None, M["glass"])
-    wsg = subdivide_tris(wsg, 0.12)
-    wsg.verts = [g.ws_point(v.x, v.y) - n_ws * (st * 0.5) for v in wsg.verts]
+    wsg = subdivide_tris(wsg, 0.10)
+    wsg.verts = [g.glass_point(v.x, v.y, False, -st * 0.5) for v in wsg.verts]
     glass.merge(orient_faces(wsg, lambda c: -X_AXIS))
     for side in (1, -1):
         glass.merge(side_glass(win_q, side, M["privacy"]))
@@ -5653,7 +5731,7 @@ def build_suv(cfg):
     glass.merge(orient_faces(rg, lambda c: -Z_AXIS))
     asm.add(glass, "Glass", smooth=80)
     seals = MeshData()
-    path = [g.ws_point(p.x, p.y) + n_ws * 0.003 for p in ensure_ccw(offset_poly(ws, 0.008))]
+    path = [g.glass_point(p.x, p.y, False, 0.003) for p in ensure_ccw(offset_poly(ws, 0.008))]
     seals.merge(tube(path + [path[0]], 0.0065, 6, M["rubber"], caps=False))
     for side in (1, -1):
         seals.merge(side_seal(win_q, side))
@@ -5663,14 +5741,36 @@ def build_suv(cfg):
     rp = [bvh.ray_cast(V((p.x, p.y, g.z_roof + 0.5)), -Z_AXIS, 2.0)[0] + Z_AXIS * 0.002 for p in rp]
     seals.merge(tube(rp + [rp[0]], 0.006, 6, M["rubber"], caps=False))
     # Wasserkasten-Abdeckung unter der Frontscheibe, Wischer
-    cowl = [V((1.225, y, g.top_z(1.225, y) + 0.004)) for y in (lerp(-0.72, 0.72, i / 16) for i in range(17))]
-    seals.merge(tube(cowl, (0.003, 0.026), 6, M["black"], up=Z_AXIS, exponent=4.0))
-    zw_ = g.z_belt + 0.06
+    cowl = [V((1.125, y, g.top_z(1.125, y) + 0.004)) for y in (lerp(-0.72, 0.72, i / 16) for i in range(17))]
+    seals.merge(tube(cowl, (0.003, 0.022), 6, M["black"], up=Z_AXIS, exponent=4.0))
+    zw_ = g.belt(g.x_ws0) + 0.05
     for y0_, y1_ in ((0.50, -0.14), (-0.04, -0.66)):
-        p0 = g.ws_point(y0_, zw_) + n_ws * 0.012
-        p1 = g.ws_point(y1_, zw_ + 0.03) + n_ws * 0.012
-        seals.merge(tube([p0, p1], (0.006, 0.010), 6, M["black"], up=n_ws, exponent=3.0))
-        seals.merge(cylinder(p0 - n_ws * 0.012, p0 + n_ws * 0.01, 0.013, 10, M["black"]))
+        p0 = g.glass_point(y0_, zw_, False, 0.012)
+        p1 = g.glass_point(y1_, zw_ + 0.03, False, 0.012)
+        n0 = V((-g.roof_slope(p0.x), 0.0, 1.0)).normalized()
+        seals.merge(tube([p0, p1], (0.006, 0.010), 6, M["black"], up=n0, exponent=3.0))
+        seals.merge(cylinder(p0 - n0 * 0.012, p0 + n0 * 0.01, 0.013, 10, M["black"]))
+    # D-Säule hinter dem hinteren Seitenfenster in Wagenfarbe (wie die Vorlage), Schulter bis zur Dachkante
+    xa_, xb_ = xq1 - 0.03, xq2 - 0.035
+
+    def frame_z(x):                                  # Rahmenlinie hinter dem Fenster (von unten hinten nach oben vorn)
+        return lerp(zw0(xb_) + 0.01, zw1(xa_) + 0.022, clamp((x - xb_) / (xa_ - xb_)))
+
+    def top_edge(x):
+        zt_, crown_, _, r_ = g._cab_top(x)
+        return zt_ - crown_ - r_ - 0.004
+    x_e = solve(lambda x: top_edge(x) - (g.belt(x) + 0.012), g.x_rw0 + 0.02, xb_)
+
+    def dp(u, v, side):
+        x = lerp(x_e + 0.005, xa_, u)
+        lo = max(g.belt(x) + 0.012, frame_z(x)) if x > xb_ else g.belt(x) + 0.012
+        z = lerp(lo, max(lo + 1e-4, top_edge(x)), v)
+        return V((x, side * (g.cab_w(x, z) + 0.0015), z))
+    pillar_d = MeshData()
+    for side in (1, -1):
+        pillar_d.merge(orient_faces(surface_grid(lambda u, v, s_=side: dp(u, v, s_), 16, 6, M["paint_d"]),
+                                    lambda c, s_=side: V((0.0, -s_, 0.0))))
+    asm.add(pillar_d, "PillarD")
     asm.add(seals, "Seals", detail=2)
 
     # ------------------------------------------------------------- Radhäuser, kantige Kotflügelverbreiterungen
@@ -5722,7 +5822,7 @@ def build_suv(cfg):
         return lathe(prof, segs, p, nrm, mat)
 
     # Grill: trapezförmig (oben breiter), Rahmen in Hochglanzschwarz, dicke senkrechte Lamellen, darüber Chromleiste
-    gz0, gz1, gb, gt = 0.86, 1.122, 0.47, 0.585
+    gz0, gz1, gb, gt = 0.83, 1.10, 0.57, 0.645
     outer = ensure_ccw([V(p) for p in rounded_poly_2d([(-gb, gz0), (gb, gz0), (gt, gz1), (-gt, gz1)],
                                                      [0.05, 0.05, 0.02, 0.02], 4)])
     inner = ensure_ccw(offset_poly(outer, -0.032))
@@ -5730,8 +5830,8 @@ def build_suv(cfg):
                           M["gloss"]))
     fr.merge(extrude(inner, 0.010, frame_matrix(V((xf + 0.004, 0.0, 0.0)), Y_AXIS, Z_AXIS, X_AXIS), M["black"]))
     slope = (gz1 - gz0) / (gt - gb)
-    for i in range(19):
-        y = lerp(-0.51, 0.51, i / 18)
+    for i in range(21):
+        y = lerp(-0.58, 0.58, i / 20)
         if abs(y) < 0.09:
             continue
         zb_ = gz0 + 0.036 + max(0.0, abs(y) - (gb - 0.032)) * slope
@@ -5739,31 +5839,33 @@ def build_suv(cfg):
         if zt_ - zb_ > 0.04:                           # gerundete Lamellen mit Glanzkante
             fr.merge(tube([V((xf + 0.020, y, zb_)), V((xf + 0.020, y, zt_))], (0.016, 0.020), 10, M["gloss"],
                           up=X_AXIS, exponent=2.6))
-    fr.merge(box((xf + 0.007, 0.0, 1.142), (0.014, 1.14, 0.022), M["chrome"]))          # Chromleiste unter der Haube
+    fr.merge(box((xf + 0.007, 0.0, 1.117), (0.014, 1.26, 0.020), M["chrome"]))          # Chromleiste unter der Haube
     # Emblem: stilisierter Berggipfel, hinterleuchtet
-    ez = 1.0
+    ez = 0.975
     fr.merge(cylinder(V((xf + 0.008, 0.0, ez)), V((xf + 0.034, 0.0, ez)), 0.07, 32, M["gloss"]))
     peak = [(-0.045, -0.025), (-0.012, 0.026), (0.0, 0.010), (0.012, 0.030), (0.045, -0.025), (0.030, -0.025),
             (0.012, 0.004), (0.0, -0.012), (-0.012, 0.0), (-0.030, -0.025)]
     fr.merge(extrude([(x * 1.2, y * 1.2) for x, y in peak], 0.006,
                      frame_matrix(V((xf + 0.037, 0.0, ez)), Y_AXIS, Z_AXIS, X_AXIS), M["led"]))
-    small_f.merge(box((xf + 0.030, 0.0, 0.905), (0.012, 0.05, 0.02), M["gloss"]))       # Frontkamera
-    small_f.merge(box((xf + 0.0365, 0.0, 0.905), (0.002, 0.016, 0.012), M["lens"]))
+    small_f.merge(box((xf + 0.030, 0.0, 0.875), (0.012, 0.05, 0.02), M["gloss"]))       # Frontkamera
+    small_f.merge(box((xf + 0.0365, 0.0, 0.875), (0.002, 0.016, 0.012), M["lens"]))
     # Scheinwerfer: schmal, vom Grill bis um die Ecke, Unterkante steigt nach außen; LED-Signatur als Linie mit drei
     # „Zinnen“ (U-Formen) und Projektionsmodulen, Blinker unten außen
-    zt_l, zc_l = 1.138, 1.10
+    zt_l, zc_l = 1.118, 1.08
     s_face = g.face_s(zc_l, 1)
-    s0, s1 = gt - 0.03, s_face + 0.30
+    s0, s1 = gt - 0.03, s_face + 0.50                 # vom Grill bis weit um die Ecke auf die Flanke
 
-    def rx_l(u):
-        return lerp(0.050, 0.027, u ** 0.8)
+    def rx_l(u):                                    # Höhe/2: vorn kräftig, an der Flanke keilförmig auslaufend
+        if u < 0.45:
+            return lerp(0.040, 0.046, smoothstep(0.0, 0.45, u))
+        return lerp(0.046, 0.011, ((u - 0.45) / 0.55) ** 1.2)
     for side in (1.0, -1.0):
         band = end_path(zc_l, 1, s0, s1, 0.004, 28, side, lambda u: zt_l - rx_l(u))
         fr.merge(tube(band, lambda u: (rx_l(u), 0.008), 8, M["gloss"], up=Z_AXIS, exponent=6.0))
         fr.merge(tube(end_path(zc_l, 1, s0 + 0.012, s1 - 0.014, 0.012, 28, side, lambda u: zt_l - 0.011),
                       (0.0058, 0.005), 6, M["led"], up=Z_AXIS, exponent=6.0))
-        for c in (0.15, 0.40, 0.65):
-            sa, sb = lerp(s0, s1, c - 0.10), lerp(s0, s1, c + 0.10)
+        for c in (0.11, 0.27, 0.43):
+            sa, sb = lerp(s0, s1, c - 0.07), lerp(s0, s1, c + 0.07)
             zb_ = zt_l - 2.0 * rx_l(c) + 0.017
             pa = end_pt(zc_l, 1, sa, 0.012, side)[0]
             pb = end_pt(zc_l, 1, sb, 0.012, side)[0]
@@ -5783,7 +5885,7 @@ def build_suv(cfg):
                                lambda u: zt_l - 2.0 * rx_l(lerp(0.45, 1.0, u)) + 0.006),
                       (0.0028, 0.004), 6, M["amber"], up=Z_AXIS, exponent=6.0))
         # Ecktaschen unten: schwarze, kantige Vertiefung mit zwei senkrechten LED-Leisten und Linse
-        zp_ = 0.78
+        zp_ = 0.76
         sp0, sp1 = g.face_s(zp_, 1) - 0.07, g.face_s(zp_, 1) + 0.17
         fr.merge(tube(end_path(zp_, 1, sp0, sp1, 0.004, 16, side, lambda u: zp_ - 0.01 + 0.012 * u),
                       lambda u: (lerp(0.088, 0.118, u), 0.007), 8, M["black"], up=Z_AXIS, exponent=5.0))
@@ -5795,16 +5897,17 @@ def build_suv(cfg):
         lens.merge(end_lathe(0.79, 1, sl - 0.06, [(0.012, 0.005), (0.008, 0.008), (0.0, 0.009)], 12, 0.008, M["lens"],
                              side))
     # Stoßfänger (Kunststoff, genarbt) mit Parksensoren und Rückstrahlern; Kennzeichen auf der lackierten Front
-    fr.merge(suv_bumper(2.04, 1.0, 0.40, 0.68, M["clad"]))
+    xb = xf + 0.035                                       # Bauchmitte des Stoßfängers
+    fr.merge(suv_bumper(g.fa.x + 0.59, 1.0, 0.36, 0.64, M["clad"], xf, 0.24))
     for side in (1, -1):
         for yy in (0.27, 0.55):
-            small_f.merge(cylinder(V((2.411, side * yy, 0.62)), V((2.418, side * yy, 0.62)), 0.011, 12, M["clad"]))
-        small_f.merge(box((2.07, side * 0.969, 0.56), (0.07, 0.004, 0.025), M["reflector"]))
-    small_f.merge(plate(xf, 0.765, 1.0))
+            small_f.merge(cylinder(V((xb - 0.004, side * yy, 0.585)), V((xb + 0.003, side * yy, 0.585)), 0.011, 12,
+                                   M["clad"]))
+    small_f.merge(plate(xf, 0.70, 1.0))
 
     def bumper_front(y, end=1.0):
         """Bauchmitte des Stoßfängers in der Draufsicht: x und Außennormale bei y (vorn bzw. hinten)."""
-        x_out, rc = (2.415, 0.30) if end > 0 else (-2.435, 0.17)
+        x_out, rc = (g.x_front + 0.035, 0.24) if end > 0 else (g.x_rear - 0.035, 0.17)
         cx, cy = x_out - end * rc, 0.968 - rc
         if abs(y) <= cy:
             return x_out, V((end, 0.0, 0.0))
@@ -5827,17 +5930,17 @@ def build_suv(cfg):
         md.recalc = True
         return md
     # Unterfahrschutz: Bodenplatte und U-Bügel aus Alu, Lufteinlässe, zwei Bergehaken
-    sk = rounded_poly_2d([(1.98, 0.36), (2.30, 0.36), (2.47, 0.41), (2.475, 0.45), (2.44, 0.47), (2.10, 0.42)],
-                         [0.0, 0.05, 0.03, 0.015, 0.02, 0.05], 3)
+    sk = rounded_poly_2d([(xb - 0.38, 0.33), (xb - 0.12, 0.33), (xb + 0.05, 0.38), (xb + 0.055, 0.42),
+                          (xb + 0.02, 0.44), (xb - 0.32, 0.39)], [0.0, 0.05, 0.03, 0.015, 0.02, 0.05], 3)
     fr.merge(prism_y(sk, -0.62, 0.62, M["skid"]))
-    fr.merge(skid_u(1.0, 0.395, 0.505, 0.55, 0.645, 0.42, 0.86))
+    fr.merge(skid_u(1.0, 0.36, 0.465, 0.50, 0.585, 0.42, 0.84))
     for side in (1, -1):
-        fr.merge(box((2.418, side * 0.20, 0.565), (0.008, 0.20, 0.05), M["gloss"]))       # Lufteinlässe
-        fr.merge(box((2.432, side * 0.25, 0.452), (0.004, 0.30, 0.006), M["black"]))      # Sicke im Schild
+        fr.merge(box((xb + 0.003, side * 0.20, 0.525), (0.008, 0.20, 0.05), M["gloss"]))      # Lufteinlässe
+        fr.merge(box((xb + 0.017, side * 0.25, 0.415), (0.004, 0.30, 0.006), M["black"]))     # Sicke im Schild
         y = side * 0.38
-        fr.merge(tube(fillet_path([(2.43, y, 0.52), (2.52, y, 0.52), (2.52, y, 0.595), (2.43, y, 0.595)], 0.03),
-                      0.0135, 10, M["skid"]))
-        fr.merge(box((2.425, y, 0.5575), (0.03, 0.07, 0.10), M["clad"]))
+        fr.merge(tube(fillet_path([(xb - 0.005, y, 0.48), (xb + 0.085, y, 0.48), (xb + 0.085, y, 0.555),
+                                   (xb - 0.005, y, 0.555)], 0.03), 0.0135, 10, M["skid"]))
+        fr.merge(box((xb - 0.01, y, 0.5175), (0.03, 0.07, 0.10), M["clad"]))
     asm.add(fr, "Front", mods=[bevel_s])
     asm.add(lens, "HeadlightLens", smooth=60)
     asm.add(small_f, "FrontDetails", mods=[bevel_s], detail=2)
@@ -5845,7 +5948,7 @@ def build_suv(cfg):
     # ------------------------------------------------------------- Heck: keilförmige Eckleuchten, Stoßfänger, Unterfahrschutz
     rr = MeshData()
     s_face_r = g.face_s(zl, -1)
-    sr0, sr1 = 0.786, s_face_r + 0.30
+    sr0, sr1 = 0.786, s_face_r + 0.38
 
     def rx_r(u):
         return lerp(0.030, 0.056, u ** 1.2)
@@ -5857,41 +5960,44 @@ def build_suv(cfg):
         rr.merge(tube(end_path(zl, -1, lerp(sr0, sr1, 0.55), sr1 - 0.03, 0.0125, 8, side,
                                lambda u: zl + 0.03 - 2.0 * rx_r(lerp(0.55, 1.0, u)) + 0.008),
                       (0.0035, 0.004), 6, M["amber"], up=Z_AXIS, exponent=6.0))
-    rr.merge(suv_bumper(-2.04, -1.0, 0.42, 0.70, M["clad"]))
-    rs_ = rounded_poly_2d([(-2.00, 0.38), (-2.30, 0.38), (-2.47, 0.43), (-2.475, 0.47), (-2.44, 0.49), (-2.10, 0.44)],
-                          [0.0, 0.05, 0.03, 0.015, 0.02, 0.05], 3)
+    xr_b = g.x_rear - 0.035                                    # Bauchmitte des hinteren Stoßfängers
+    rr.merge(suv_bumper(g.ra.x - 0.59, -1.0, 0.38, 0.775, M["clad"], g.x_rear, 0.17))
+    rs_ = rounded_poly_2d([(xr_b + 0.42, 0.36), (xr_b + 0.12, 0.36), (xr_b - 0.03, 0.41), (xr_b - 0.035, 0.45),
+                           (xr_b, 0.47), (xr_b + 0.32, 0.42)], [0.0, 0.05, 0.03, 0.015, 0.02, 0.05], 3)
     rr.merge(prism_y(rs_, -0.58, 0.58, M["skid"]))
-    rr.merge(skid_u(-1.0, 0.43, 0.54, 0.56, 0.64, 0.36, 0.80))
-    rr.merge(box((-2.455, 0.0, 0.485), (0.006, 0.30, 0.045), M["gloss"]))                   # Diffusor-Ausschnitt
-    for side in (1, -1):
-        rr.merge(box((-2.437, side * 0.72, 0.665), (0.006, 0.12, 0.028), M["reflector"]))
-        rr.merge(box((-2.437, side * 0.50, 0.665), (0.006, 0.07, 0.028), M["reverse"] if side > 0 else M["tail"]))
-        sm = (-2.434, side * 0.33, 0.68)
+    rr.merge(skid_u(-1.0, 0.38, 0.49, 0.52, 0.60, 0.36, 0.80))
+    trap = [(-0.08, 0.398), (0.08, 0.398), (0.066, 0.452), (-0.066, 0.452)]
+    for side in (1, -1):                                       # Endrohr-Blenden im Unterfahrschutz
+        rr.merge(prism_x([(y + side * 0.28, z) for y, z in trap], xr_b - 0.026, xr_b - 0.012, M["gloss"]))
+        rr.merge(box((xr_b - 0.002, side * 0.70, 0.64), (0.006, 0.05, 0.10), M["reflector"]))
+        rr.merge(box((xr_b - 0.002, side * 0.52, 0.70), (0.006, 0.07, 0.026), M["reverse"] if side > 0 else M["tail"]))
+        sm = (xr_b + 0.001, side * 0.33, 0.73)
         rr.merge(cylinder(V(sm), V(sm) - X_AXIS * 0.006, 0.011, 12, M["clad"]))
-    rr.merge(tube(fillet_path([(-2.46, 0.0, 0.44), (-2.53, 0.0, 0.44), (-2.53, 0.0, 0.51), (-2.46, 0.0, 0.51)], 0.03),
-                  0.012, 10, M["skid"]))
+    rr.merge(plate(xr_b, 0.635, -1.0))
+    rr.merge(tube(fillet_path([(xr_b - 0.01, 0.0, 0.50), (xr_b - 0.08, 0.0, 0.50), (xr_b - 0.08, 0.0, 0.56),
+                               (xr_b - 0.01, 0.0, 0.56)], 0.025), 0.012, 10, M["skid"]))
     asm.add(rr, "Rear", mods=[bevel_s])
 
     # ------------------------------------------------------------- Seite: Schwellerverkleidung, Ladebuchse
     sd = MeshData()
     for side in (1, -1):
-        sec = [(0.86, 0.43), (0.962, 0.455), (0.975, 0.52), (0.968, 0.575), (0.945, 0.592), (0.86, 0.592)]
+        sec = [(0.86, 0.40), (0.962, 0.425), (0.975, 0.48), (0.968, 0.512), (0.945, 0.525), (0.86, 0.525)]
         sec = [(side * y, z) for y, z in sec]
         x0, x1 = g.ra.x + 0.50 + 0.07, g.fa.x - 0.50 - 0.07
         sd.merge(prism_x(sec, x0, x1, M["clad"]))
-        sd.merge(box((x1 - 0.18, side * 0.973, 0.53), (0.25, 0.006, 0.012), M["skid"]))      # Zierleiste
+        sd.merge(box(((x0 + x1) / 2, side * 0.963, 0.519), (x1 - x0 - 0.10, 0.008, 0.010), M["chrome"]))  # Zierleiste
         # Trittbrett mit gerippter Auftrittsfläche, Alu-Endkappen und Haltern
-        stp = [(side * y, z) for y, z in ((0.88, 0.392), (1.008, 0.398), (1.022, 0.414), (1.012, 0.432), (0.88, 0.432))]
+        stp = [(side * y, z) for y, z in ((0.88, 0.305), (1.008, 0.311), (1.022, 0.327), (1.012, 0.345), (0.88, 0.345))]
         sx0, sx1 = g.ra.x + 0.60, g.fa.x - 0.60
         sd.merge(prism_x(stp, sx0, sx1, M["black"]))
         for k in range(14):
-            sd.merge(box((lerp(sx0 + 0.07, sx1 - 0.07, k / 13), side * 0.955, 0.436), (0.035, 0.10, 0.008), M["rubber"]))
+            sd.merge(box((lerp(sx0 + 0.07, sx1 - 0.07, k / 13), side * 0.955, 0.349), (0.035, 0.10, 0.008), M["rubber"]))
         for x in (sx0, sx1):
-            sd.merge(box((x, side * 0.955, 0.413), (0.02, 0.13, 0.040), M["skid"]))
+            sd.merge(box((x, side * 0.955, 0.326), (0.02, 0.13, 0.040), M["skid"]))
         for x in (lerp(sx0, sx1, 0.2), lerp(sx0, sx1, 0.8)):
-            sd.merge(box((x, side * 0.87, 0.41), (0.05, 0.08, 0.035), M["chassis"]))
+            sd.merge(box((x, side * 0.87, 0.372), (0.05, 0.08, 0.06), M["chassis"]))
     # Ladebuchse (CCS) hinter der Klappe, links hinten
-    cp = V((-1.985, g.lower_y(-1.985, 1.0) - 0.05, 1.00))
+    cp = V((flap_c.x, g.lower_y(flap_c.x, flap_c.y) - 0.05, flap_c.y))
     port = MeshData()
     port.merge(box(cp + V((0.0, 0.004, 0.0)), (0.11, 0.04, 0.10), M["black"]))
     port.merge(cylinder(cp + Y_AXIS * 0.025, cp + Y_AXIS * 0.032, 0.032, 24, M["gloss"]))
@@ -5911,24 +6017,24 @@ def build_suv(cfg):
     zr = g.z_roof + 0.004
     for side in (1, -1):
         y = side * 0.64
-        rail = [V((x, y, zr + 0.045 + 0.012 * math.sin(math.pi * clamp((x + 1.84) / 2.12)))) for x in
-                (lerp(0.26, -1.84, i / 20) for i in range(21))]
+        rail = [V((x, y, zr + 0.045 + 0.012 * math.sin(math.pi * clamp((x + 1.74) / 2.0)))) for x in
+                (lerp(0.26, -1.74, i / 20) for i in range(21))]
         rack.merge(tube(rail, (0.012, 0.022), 10, M["black"], up=Z_AXIS, exponent=3.0))
-        for x in (0.20, -0.82, -1.78):
+        for x in (0.20, -0.75, -1.68):
             rack.merge(box((x, y, zr + 0.02), (0.10, 0.045, 0.05), M["black"]))
     zp = g.z_roof + 0.115
-    frame_ring = rrect2_ring(0.23, -1.81, 0.67, 0.08, 0.08, 6, 12, 3, zp)
+    frame_ring = rrect2_ring(0.23, -1.70, 0.67, 0.08, 0.08, 6, 12, 3, zp)
     rack.merge(tube(frame_ring + [frame_ring[0]], (0.018, 0.022), 8, M["black"], caps=False, up=Z_AXIS, exponent=4.0))
     for i in range(11):                                       # Lattenrost
-        x = lerp(0.16, -1.74, i / 10)
+        x = lerp(0.16, -1.63, i / 10)
         rack.merge(box((x, 0.0, zp - 0.004), (0.06, 1.32, 0.014), M["black"]))
     for side in (1, -1):                                      # Reling-Galerie an den Seiten
         y = side * 0.67
-        rack.merge(cylinder(V((0.12, y, zp + 0.065)), V((-1.70, y, zp + 0.065)), 0.011, 8, M["black"]))
+        rack.merge(cylinder(V((0.12, y, zp + 0.065)), V((-1.60, y, zp + 0.065)), 0.011, 8, M["black"]))
         for k in range(9):
-            x = lerp(0.12, -1.70, k / 8)
+            x = lerp(0.12, -1.60, k / 8)
             rack.merge(cylinder(V((x, y, zp)), V((x, y, zp + 0.065)), 0.009, 8, M["black"]))
-        for x in (0.20, -0.82, -1.78):                        # Klemmfüße auf der Reling
+        for x in (0.20, -0.75, -1.68):                        # Klemmfüße auf der Reling
             rack.merge(box((x, side * 0.64, zp - 0.035), (0.06, 0.06, 0.06), M["black"]))
     defl = [V((0.255 + 0.04 * math.sin(math.pi * t), lerp(-0.60, 0.60, t), zp + 0.035)) for t in
             (i / 12 for i in range(13))]                      # Windabweiser
@@ -5945,7 +6051,7 @@ def build_suv(cfg):
     it.merge(box(((xa0 + x_cargo) / 2, 0.0, 0.73), (x_cargo - xa0, 0.88, 0.03), M["floor"]))
     it.merge(box(((g.x_rear + 0.06 + xa0) / 2, 0.0, 0.73), (xa0 - g.x_rear - 0.06, 1.72, 0.03), M["floor"]))
     it.merge(box((x_cargo, 0.0, 0.645), (0.03, 0.88, 0.17), M["floor"]))
-    dash = rounded_poly_2d([(1.20, 1.00), (1.20, 1.25), (0.80, 1.265), (0.62, 1.22), (0.55, 1.12), (0.58, 0.98),
+    dash = rounded_poly_2d([(1.10, 1.00), (1.10, 1.22), (0.80, 1.26), (0.62, 1.22), (0.55, 1.12), (0.58, 0.98),
                             (0.70, 0.89), (0.90, 0.89), (0.90, 1.00)], [0.0, 0.0, 0.05, 0.05, 0.04, 0.05, 0.04, 0.0, 0.0], 3)
     it.merge(extrude(dash, 1.72, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
     it.merge(box((0.585, -0.30, 1.135), (0.01, 0.86, 0.022), M["trim"]))          # Zierleiste Beifahrerseite
@@ -5989,7 +6095,7 @@ def build_suv(cfg):
         return sm_
     for y in (0.40, -0.40):
         it.merge(seat(-0.06, y, 0.54))
-    it.merge(seat(-0.98, 0.0, 1.46, single=False))
+    it.merge(seat(-0.92, 0.0, 1.46, single=False))
     asm.add(it, "Interior", mods=[soft], detail=1)
     hub = V((0.37, 0.40, 1.16))
     col = V((-math.cos(math.radians(24)), 0.0, math.sin(math.radians(24))))
@@ -6015,13 +6121,13 @@ def build_suv(cfg):
 
     # ------------------------------------------------------------- Unterboden: Batterie, Antriebseinheiten, Hilfsrahmen
     ch = MeshData()
-    ch.merge(box((-0.06, 0.0, 0.33), (1.88, 1.40, 0.17), M["battery"]))               # Hochvolt-Batterie
+    ch.merge(box((-0.06, 0.0, 0.33), (2.04, 1.40, 0.17), M["battery"]))               # Hochvolt-Batterie
     for k in range(9):
-        ch.merge(box((lerp(-0.92, 0.80, k / 8), 0.0, 0.243), (0.035, 1.34, 0.008), M["battery"]))
+        ch.merge(box((lerp(-1.00, 0.88, k / 8), 0.0, 0.243), (0.035, 1.34, 0.008), M["battery"]))
     for side in (1, -1):
-        ch.merge(box((-0.06, side * 0.715, 0.40), (1.84, 0.05, 0.03), M["battery"]))
+        ch.merge(box((-0.06, side * 0.715, 0.40), (2.00, 0.05, 0.03), M["battery"]))
         for k in range(8):
-            x = lerp(-0.92, 0.80, k / 7)
+            x = lerp(-1.00, 0.88, k / 7)
             ch.merge(cylinder(V((x, side * 0.715, 0.415)), V((x, side * 0.715, 0.425)), 0.012, 6, M["steel"]))
     for a, sgn in ((g.fa, 1.0), (g.ra, -1.0)):
         # Hilfsrahmen: Längsträger und Querträger mit Lenkerkonsolen
@@ -6040,7 +6146,7 @@ def build_suv(cfg):
         ch.merge(box((a.x + sgn * 0.20, -0.02, 0.57), (0.28, 0.36, 0.09), M["battery"]))     # Inverter
         for yy in (-0.08, 0.04):                                                       # HV-Leitungen zur Batterie
             p0 = V((a.x + sgn * 0.20, yy, 0.615))
-            p1 = V((0.86 if sgn > 0 else -0.98, yy * 2.0, 0.40))
+            p1 = V((0.94 if sgn > 0 else -1.06, yy * 2.0, 0.40))
             ch.merge(tube(spline([p0, p0 + V((-sgn * 0.20, 0.0, 0.03)), (p0 + p1) / 2 + V((0.0, 0.0, 0.05)), p1], 4),
                           0.016, 8, M["hv"]))
     ch.merge(box((g.fa.x + 0.55, 0.0, 0.40), (0.30, 0.84, 0.012), M["chassis"]))     # Unterbodenverkleidung vorn
@@ -6094,13 +6200,13 @@ def build_suv(cfg):
     # ------------------------------------------------------------- Sockets & Kollision
     asm.socket("Driver", (-0.06, 0.40, 0.92))
     asm.socket("Passenger", (-0.06, -0.40, 0.92))
-    asm.socket("Rear_L", (-0.98, 0.45, 0.92))
-    asm.socket("Rear_R", (-0.98, -0.45, 0.92))
+    asm.socket("Rear_L", (-0.92, 0.45, 0.92))
+    asm.socket("Rear_R", (-0.92, -0.45, 0.92))
     for side in (1, -1):
-        asm.socket(f"Headlight_{'L' if side > 0 else 'R'}", (g.x_front + 0.02, side * 0.64, 1.10), forward=X_AXIS)
+        asm.socket(f"Headlight_{'L' if side > 0 else 'R'}", (g.x_front + 0.02, side * 0.66, 1.08), forward=X_AXIS)
     asm.socket("ChargePort", (cp.x, cp.y + 0.035, cp.z), forward=Y_AXIS)
-    asm.socket("TowFront", (2.56, 0.0, 0.50), forward=X_AXIS)
-    asm.socket("TowRear", (-2.53, 0.0, 0.475), forward=-X_AXIS)
+    asm.socket("TowFront", (g.x_front + 0.12, 0.0, 0.5175), forward=X_AXIS)
+    asm.socket("TowRear", (g.x_rear - 0.115, 0.0, 0.53), forward=-X_AXIS)
     asm.socket("Roof", (-0.79, 0.0, zp + 0.01))
 
     def by_pivot(*keys):
@@ -6113,9 +6219,9 @@ def build_suv(cfg):
     shell = [o for o in asm.meshes() if o["pivot"] not in susp_keys and o not in mirrors + chassis_objs]
     asm.collide("Lower", shell, lambda p: p.z <= g.z_belt + 0.03 or p.x > g.x_ws0 + 0.05, 64)
     asm.collide("Cabin", shell, lambda p: p.z >= g.z_belt - 0.03 and p.x <= g.x_ws0 + 0.05, 64)
-    asm.collide("ChassisFront", chassis_objs, lambda p: p.x >= 0.84, 32)              # Hilfsrahmen + Antrieb vorn
-    asm.collide("Battery", chassis_objs, lambda p: -1.03 <= p.x <= 0.90, 32)
-    asm.collide("ChassisRear", chassis_objs, lambda p: p.x <= -0.97, 32)
+    asm.collide("ChassisFront", chassis_objs, lambda p: p.x >= 0.92, 32)              # Hilfsrahmen + Antrieb vorn
+    asm.collide("Battery", chassis_objs, lambda p: -1.11 <= p.x <= 0.98, 32)
+    asm.collide("ChassisRear", chassis_objs, lambda p: p.x <= -1.05, 32)
     for wk in corners:
         asm.collide(f"Suspension_{wk}", by_pivot(*(f"{b}_{wk}" for b in susp_parts)), None, 48)
         asm.collide(f"Wheel_{wk}", by_pivot(f"Wheel_{wk}"), None, 48)

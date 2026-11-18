@@ -19,6 +19,10 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 | ![Motorboot](docs/boat_34.jpg) | ![Elektro-SUV](docs/suv_34.jpg) |
 | ![Motorboot Cockpit](docs/boat_top.jpg) | ![Elektro-SUV geöffnet](docs/suv_open.jpg) |
 
+| Elektro-SUV Seitenansicht | Elektro-SUV Heck |
+|---|---|
+| ![Elektro-SUV Seite](docs/suv_side.jpg) | ![Elektro-SUV Heck](docs/suv_rear.jpg) |
+
 Die Vorschaubilder sind mit `--preview` direkt aus dem Script gerendert (Cycles); für das Bild mit
 geöffneten Türen, Haube und Hecktür (Geländewagen, Elektro-SUV) wurden nur die Pivots gedreht.
 
@@ -91,30 +95,34 @@ Skeg und Dreiblatt-Propeller mit Skew – an Pivots zum **Kippen, Lenken und Dre
 Konstruktionswasserlinie: Mit dem Ursprung auf die Wasseroberfläche gesetzt schwimmt das Boot.
 Lackierungen: `navy`, `white`, `red`, `graphite`.
 
-**Elektro-SUV** – moderner Fünftürer der 4,8-m-Klasse mit zwei E-Motoren (Karosserie 4,78 m, mit Stoßfängern,
-Unterfahrschutz und Bergehaken 5,08 m; Breite 1,90 m bzw. 2,03 m über die Kotflügelverbreiterungen; Höhe 1,85 m,
-mit Dachplattform 2,05 m; Radstand 2,90 m, Spur 1,66 m, Reifen 275/55 R20): eigenständig modelliert. Der Unterbau
-ist ein Loft eigener Spanten mit eingezogenem Schweller, leicht bauchiger Flanke, weicher **Schulterlinie**,
-eingezogener Schulter und **gewölbter Haube**; Front und Heck sind in der Draufsicht stark gerundet, die
-Haubenvorderkante rollt über die Front ab. Darauf sitzt die Kabine mit hoher Gürtellinie (1,29 m), flachem
-Glasaufbau, schlanken A-Säulen, geneigter, gewölbter Frontscheibe und **schwarzem „schwebendem“ Dach** samt Säulen.
+**Elektro-SUV** – moderner Fünftürer der 4,8-m-Klasse mit Crossover-Proportionen und zwei E-Motoren (Karosserie
+4,76 m, mit Stoßfängern, Unterfahrschutz und Bergehaken 5,02 m; Breite 1,90 m bzw. 2,03 m über die
+Kotflügelverbreiterungen; Dach 1,745 m, mit Dachplattform 1,95 m; Radstand 3,10 m, Spur 1,66 m, Reifen 275/55 R20):
+eigenständig modelliert. Der Unterbau ist ein Loft eigener Spanten mit eingezogenem Schweller, leicht bauchiger
+Flanke, **nach hinten ansteigender Schulterlinie** (vom Scheinwerfer bis zur Rückleuchte), eingezogener Schulter und
+gewölbter Haube; Front und Heck sind in der Draufsicht stark gerundet, die Haubenvorderkante rollt über die Front ab.
+Die Kabine ist ein Loft in Längsrichtung entlang einer **Dachlinie**: geneigte Frontscheibe mit schlanken
+A-Säulen, flaches Dach, **schräg abfallendes Heck** (≈ 45°), **nach hinten ansteigende Gürtellinie**, spitz
+zulaufendes hinteres Seitenfenster, Fensterrahmen mit Chromleiste, schwarzes Dach und schwarze Säulen, die
+**D-Säule in Wagenfarbe**.
 **Echte Ausschnitte** für vier Türen (verdeckte Scharniere, Bügelgriffe in Wagenfarbe, Spiegel mit Kamera und
-Blinker), Panorama-Glasdach, Haube, **Heckklappe mit Dachscharnier** (Spoiler, dritte Bremsleuchte, Wischer,
-gesperrte Wortmarke) und **Ladeklappe** mit CCS-Ladebuchse. Front: trapezförmiger Grill mit dicken, gerundeten
-Lamellen, Chromleiste und hinterleuchtetem Emblem, schmale LED-Scheinwerfer bis um die Ecke mit
-**„Zinnen“-Lichtsignatur** (Lichtlinie mit drei U-Elementen und Projektionsmodulen), schwarze Ecktaschen mit
-senkrechten LED-Leisten, schwarzes Kennzeichen, genarbter Stoßfänger und **U-förmiger Alu-Unterfahrschutz mit
-zwei Bergehaken**. Heck: Leuchtband direkt unter der Heckscheibe mit **keilförmigen, um die Ecken laufenden
-Leuchten**, Alu-Unterfahrschutz, Rückstrahler. Gerundete Kotflügelverbreiterungen, Schwellerverkleidung,
-**Trittbretter** mit gerippter Auftrittsfläche, Dachreling mit **Dachplattform** (Lattenrost, Galerie,
-Windabweiser). All-Terrain-Reifen mit einzeln modellierten Profilblöcken, 20"-Felgen mit **sechs Y-Speichen**
-(glanzgedrehte Front, schwarze Flanken), innenbelüftete Bremsscheiben und Sättel.
+Blinker), Panorama-Glasdach, Haube, **Heckklappe mit Dachscharnier** (Heckscheibe, Spoiler, dritte Bremsleuchte,
+Wischer, gesperrte Wortmarke) und **Ladeklappe** mit CCS-Ladebuchse auf der Schulter über dem Hinterrad. Front:
+trapezförmiger Grill mit dicken, gerundeten Lamellen, Chromleiste und hinterleuchtetem Emblem, schmale
+LED-Scheinwerfer mit **„Zinnen“-Lichtsignatur** (Lichtlinie mit drei U-Elementen und Projektionsmodulen), die
+keilförmig um die Ecke auf die Flanke laufen, schwarze Ecktaschen mit senkrechten LED-Leisten, schwarzes Kennzeichen,
+genarbter Stoßfänger und **U-förmiger Alu-Unterfahrschutz mit zwei Bergehaken**. Heck: Leuchtband direkt unter der
+Heckscheibe mit **keilförmigen, weit um die Ecken laufenden Leuchten**, hoher Stoßfänger mit Kennzeichen,
+Rückstrahlern und Alu-Unterfahrschutz mit Endrohr-Blenden. Gerundete Kotflügelverbreiterungen,
+Schwellerverkleidung mit Chromleiste, **Trittbretter** mit gerippter Auftrittsfläche, Dachreling mit
+**Dachplattform** (Lattenrost, Galerie, Windabweiser). All-Terrain-Reifen mit einzeln modellierten Profilblöcken,
+20"-Felgen mit **sechs Y-Speichen** (glanzgedrehte Front, schwarze Flanken), innenbelüftete Bremsscheiben und Sättel.
 Unterboden: Hochvolt-Batterie, Antriebseinheiten vorn und hinten (Motor, Getriebe, Inverter, orange
 HV-Leitungen), Hilfsrahmen. **Doppelquerlenker an allen vier Rädern**: Federweg als `slide`-Pivot, Querlenker,
 Kugelgelenke, Federbeine und Antriebswellen als **Aim-Pivots**, Lenkung vorn ±32° und **Hinterachslenkung**
 ±10°. **Frunk** unter der Haube (Wanne, Klimamodul, 12-V-Batterie, Behälter), Innenraum mit freistehendem
 Display-Band, Dreispeichen-Lenkrad, Mittelkonsole, Sitzen in schwarzem Leder, Rückbank, Ambientelicht und
-Laderaum. Lackierungen: `forest` (dunkles Oliv), `graphite`, `glacier`, `dune` (immer mit schwarzem Dach);
+Laderaum. Lackierungen: `forest` (Graugrün), `graphite`, `glacier`, `dune` (immer mit schwarzem Dach);
 Schriftzug auf der Heckklappe per `--suv-badge`.
 
 ## Game-Ready-Pipeline
@@ -142,7 +150,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
-| Elektro-SUV (`forest`) | 175 066 | 87 522 | 42 346 | 13 013 |
+| Elektro-SUV (`forest`) | 193 770 | 96 875 | 47 008 | 15 105 |
 
 ---
 
@@ -366,11 +374,12 @@ python tools/smoke_blender.py export            # alternativ mit pip-bpy
   `build_offroad`, Motorraum in `offroad_engine_bay`, Rad in `offroad_wheel`.
 - **Motorboot:** `BoatGeo` – Tabellen für Kiel, Kimm und Deckslinie (Höhe/halbe Breite über X),
   Cockpit-Ausschnitt, Motorschacht, Kipp- und Lenkachse; Außenborder in `boat_outboard`.
-- **Elektro-SUV:** `SuvGeo` – Spanttabelle (`TABLE`: Oberkante, Unterkante, Schulterlinie über X), Breite,
-  Schulter- und Schwellereinzug, Haubenwölbung, Kantenradien, Eckradien der Draufsicht (`R_FRONT`, `R_REAR`),
-  Spantform in `half_profile`; Achsen, Spur, Gürtellinie, Neigung und Wölbung der Frontscheibe, Tumblehome,
-  Radlauf (`arch_outline`); Konturen von Türen, Fenstern, Haube, Heckklappe und Ladeklappe in `build_suv`,
-  Fahrwerk je Ecke in `suv_corner`, Rad in `suv_wheel`, Frunk in `suv_frunk`, Stoßfänger in `suv_bumper`.
+- **Elektro-SUV:** `SuvGeo` – Spanttabelle des Unterbaus (`TABLE`: Oberkante, Unterkante, Schulterlinie über X),
+  Breite, Schulter- und Schwellereinzug, Haubenwölbung, Kantenradien, Eckradien der Draufsicht (`R_FRONT`,
+  `R_REAR`), Spantform in `half_profile`; Gürtellinie (`BELT0`, `BELT_K`), Dachlinie der Kabine (Frontscheibe
+  `x_ws0`/`x_ws1`, Dach `z_roof`, Heckschräge `x_rf1`…`x_rw0`), Tumblehome (`cab_hw`), Kabinenspant in `cab_half`;
+  Achsen, Spur, Radlauf (`arch_outline`); Konturen von Türen, Fenstern, Haube, Heckklappe und Ladeklappe in
+  `build_suv`, Fahrwerk je Ecke in `suv_corner`, Rad in `suv_wheel`, Frunk in `suv_frunk`, Stoßfänger in `suv_bumper`.
 - **Farben/Lackierungen:** `ENDURO_PALETTES`, `HELI_LIVERIES`, `PLANE_LIVERIES`, `OFFROAD_LIVERIES`, `BOAT_LIVERIES`, `SUV_LIVERIES`
   (Farbbänder über Welt-Höhe, beim Flugzeug schräg ansteigend, Zweifarb-Dach, Schriftzug, Textfarbe).
 - **Neue Teile:** Baukasten-Funktionen `loft_stations`, `lathe`, `tube`, `extrude`, `surface_grid`,
