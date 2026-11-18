@@ -5,8 +5,8 @@
 ### Neu
 - **Elektro-Geländewagen** (`--vehicle ev`): fünftüriger Allrad-SUV (Karosserie 4,70 m, Breite 1,94 m, Radstand
   2,83 m, Reifen 255/60 R20 All-Terrain). Karosserie mit eigenem Spanten-Querschnitt (scharfe Schulterkante,
-  Lichtkante im unteren Türbereich, Powerdome, verrundete und zurückgezogene Bug-Ecken), 43° geneigter
-  Windschutzscheibe, schwarzem Dach und schwarzen Säulen; Hülle als Außenhaut − Innenhaut mit echten Ausschnitten.
+  Lichtkante im unteren Türbereich, Powerdome, verrundete und zurückgezogene Bug-Ecken), weit nach vorn gezogener,
+  52° geneigter Windschutzscheibe über einer kurzen, abfallenden Haube, schwarzem Dach und schwarzen Säulen; Hülle als Außenhaut − Innenhaut mit echten Ausschnitten.
   Front mit vertieftem Sechseck-Grill (senkrechte Lamellen, beleuchtete Raute), um die Ecke laufenden Scheinwerfern
   mit drei L-förmigen Tagfahrlicht-Segmenten, Nebelleuchten-Taschen, Stoßfänger in Wagenfarbe und U-förmigem
   Unterfahrschutz mit Bergeösen; Heck mit hohem schwarzem Stoßfänger, Unterfahrschutz, durchgehender Lichtleiste,

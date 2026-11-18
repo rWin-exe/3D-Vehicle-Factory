@@ -83,14 +83,15 @@ Innenraum (Armaturenbrett mit Displays, Sitze, Rückbank, Schalt- und Verteilerh
 Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 
 **Elektro-Geländewagen** – fünftüriger Allrad-SUV mit Offroad-Ausstattung (Karosserie 4,70 m, mit Unterfahrschutz
-4,84 m; Breite 1,94 m, über die Trittbretter 2,05 m, mit Spiegeln 2,29 m; Dach 1,84 m, mit Dachträger 1,98 m;
+4,84 m; Breite 1,94 m, über die Trittbretter 2,05 m, mit Spiegeln 2,31 m; Dach 1,84 m, mit Dachträger 1,98 m;
 Radstand 2,83 m, Spur 1,64 m, Reifen 255/60 R20 All-Terrain, Bodenfreiheit ≈ 0,25 m). **Karosserie:** Unterbau als
 Spanten-Loft mit eigenem Querschnitt – scharfe **Schulterkante** vom Scheinwerfer über die Türgriffe bis zur
 Rückleuchte, **Lichtkante** im unteren Türbereich, **Powerdome** auf der Haube, Kotflügel-„Hüften“ über den
 Radhäusern; Bug- und Heckkanten sind als Viertelellipsen verrundet, die Bug-Ecken weit zurückgezogen. Darauf die
-Kabine mit 43° geneigter Windschutzscheibe, eingezogenem Glasaufbau, zum Heck ansteigender Fensterlinie und 30°
-geneigter Heckscheibe. Die Hülle entsteht als Außenhaut − Innenhaut (≈ 2 cm Wandstärke) mit **echten Ausschnitten**
-für vier Türen (Bügelgriffe, Fensterrahmen in Klavierlack, Türverkleidung innen), Haube, nach oben öffnende
+Kabine mit weit nach vorn gezogener, 52° geneigter Windschutzscheibe (kurze, zum Bug abfallende und quer gewölbte
+Haube), eingezogenem Glasaufbau, zum Heck ansteigender Fensterlinie und 35° geneigter Heckscheibe. Die Hülle entsteht als Außenhaut − Innenhaut (≈ 2 cm Wandstärke) mit **echten Ausschnitten**
+für vier Türen (Bügelgriffe, Fensterrahmen in Klavierlack, Türverkleidung innen; die Vordertür mit senkrechter
+Vorderkante und schwarzem Spiegeldreieck an der A-Säule), Haube, nach oben öffnende
 **Heckklappe** (Scharnier am Dach, Spoiler schwenkt mit), trapezförmige Radhäuser mit breiten Verkleidungen sowie
 Grill, Scheinwerfer, Nebelleuchten und Lufteinlass; Schweller mit Trittbrett, stromlinienförmige Außenspiegel mit
 Blinker. **Front:** Stoßfänger in Wagenfarbe, **vertiefter Sechseck-Grill** (Rückwand, Rahmen, 13 senkrechte
@@ -111,7 +112,7 @@ Dreieck-Querlenker (`hinge`, schwenkt mit dem Rad) und **Federbein aus zwei Häl
 anvisieren**; große belüftete Bremsscheiben mit Sätteln, Stabilisatoren, Lenkgetriebe. Räder mit
 einzeln modellierten Profilblöcken, Flankenstollen und zweifarbiger Fünfspeichen-Alufelge (dunkel, maschinierte
 Speichenflächen) mit Raute. **Frunk** unter der Haube
-(Wanne, Federtürme, Ladegerät, HV-Verteiler, 12-V-Batterie, Behälter, Kühler). **Innenraum:** Armaturenbrett mit
+(Wanne, Federtürme, Ladegerät, HV-Verteiler, 12-V-Batterie, Behälter, Kühler). **Innenraum:** tiefes Armaturenbrett mit
 hellem Zierband und Ambientelicht, Kombiinstrument in einer Hutze (Tacho-Ring, Reichweite, Ladebalken), frei
 stehendes Zentraldisplay mit Kacheln, schlankes Beifahrerdisplay, Lüftungsdüsen mit Lamellen, Tastenreihe mit
 Drehreglern, Mittelkonsole mit Klavierlack-Einlage, Drehwähler, Becherhaltern, Ladeschale und Armlehne, weich
@@ -159,7 +160,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
-| Elektro-SUV (`forest`) | 213 841 | 106 912 | 50 217 | 13 110 |
+| Elektro-SUV (`forest`) | 213 816 | 106 902 | 50 173 | 13 098 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---

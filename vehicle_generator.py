@@ -4226,7 +4226,7 @@ def build_offroad(cfg):
 # =============================================================================
 
 EV_LIVERIES = {
-    "forest": dict(base=(0.030, 0.038, 0.028), rough=0.42, coat=0.25, metal=0.50, roof=(0.006, 0.006, 0.007),
+    "forest": dict(base=(0.026, 0.035, 0.029), rough=0.42, coat=0.25, metal=0.50, roof=(0.006, 0.006, 0.007),
                    rim=(0.030, 0.032, 0.036)),
     "graphite": dict(base=(0.040, 0.044, 0.050), rough=0.42, coat=0.4, metal=0.4, roof=(0.006, 0.006, 0.007),
                      rim=(0.030, 0.032, 0.036)),
@@ -4259,11 +4259,13 @@ def ev_glass(name, tint):
 def ev_materials(prefix, liv, dirt):
     P = f"M_{prefix}_"
     void = mat_rubber(P + "Void", (0.004, 0.004, 0.005), 0.95)       # tiefschwarzer Hintergrund in Grill und Lufteinlässen
-    for nd in void.node_tree.nodes:
-        if nd.type == "BSDF_PRINCIPLED":
-            nd.inputs["Specular IOR Level"].default_value = 0.06
+    trim = mat_plastic(P + "TrimBlack", (0.008, 0.008, 0.009), 0.40, grain=0.04)   # seidenschwarze Lamellen und Träger
+    for m_, lvl in ((void, 0.06), (trim, 0.22)):
+        for nd in m_.node_tree.nodes:
+            if nd.type == "BSDF_PRINCIPLED":
+                nd.inputs["Specular IOR Level"].default_value = lvl
     # schwarzes Dach und schwarze A-/B-/C-Säulen (vor der hinteren Seitenscheibe); die D-Säule bleibt in Wagenfarbe
-    roof = [(EvGeo.Z_BELT + 0.057, 9.0, liv["roof"], 0.0, -1.24), (EvGeo.Z_ROOF - 0.085, 9.0, liv["roof"])]
+    roof = [(EvGeo.Z_BELT + 0.043, 9.0, liv["roof"], 0.0, -1.24), (EvGeo.Z_ROOF - 0.085, 9.0, liv["roof"])]
     return {
         "paint": mat_paint(P + "Paint", liv["base"], liv["rough"], coat=liv["coat"], metallic=liv["metal"], livery=roof,
                            dirt=dirt * 0.4, dirt_z=(0.15, 1.0)),            # gepflegter Lack: wenig Schmutz
@@ -4271,7 +4273,8 @@ def ev_materials(prefix, liv, dirt):
         "cladding": mat_plastic(P + "Cladding", (0.014, 0.014, 0.015), 0.80, dirt * 0.7, (0.0, 0.9), grain=0.35),
         "gloss": mat_paint(P + "PianoBlack", (0.008, 0.008, 0.010), 0.08, coat=1.0, dirt=dirt * 0.5, dirt_z=(0.1, 0.9)),
         "void": void,
-        "silver": mat_metal(P + "SkidPlate", (0.23, 0.235, 0.25), 0.48, brushed=True, dirt=dirt * 0.8, dirt_z=(0.0, 0.7)),
+        "trim": trim,
+        "silver": mat_metal(P + "SkidPlate", (0.17, 0.175, 0.185), 0.50, brushed=True, dirt=dirt * 0.8, dirt_z=(0.0, 0.7)),
         "darkmetal": mat_metal(P + "RackSteel", (0.035, 0.036, 0.040), 0.42, dirt=dirt * 0.8, dirt_z=(0.1, 0.9)),
         "chassis": mat_metal(P + "Chassis", (0.040, 0.041, 0.045), 0.55, dirt=dirt * 1.2, dirt_z=(0.0, 0.9)),
         "steel": mat_metal(P + "Steel", (0.30, 0.30, 0.31), 0.35, dirt=dirt * 0.8, dirt_z=(0.0, 0.7)),
@@ -4312,8 +4315,8 @@ class EvGeo(OffroadGeo):
     """Maße des Elektro-SUV: Karosserie 4,70 m, Breite 1,94 m (über die Radlaufverkleidungen 2,03 m), Dachkante
     1,80 m (gewölbtes Dach 1,84 m, mit Dachträger 1,98 m), Radstand 2,83 m, Spur 1,64 m, Reifen 255/60 R20
     (Ø 0,81 m), Bodenfreiheit ≈ 0,25 m.
-    Hohe Gürtellinie (Fensterunterkante 1,30 m) mit schmalem, eingezogenem Glasaufbau, Windschutzscheibe ≈ 43°,
-    Heckscheibe ≈ 30° geneigt, trapezförmige Radläufe. Der Unterbau hat einen eigenen Querschnitt mit scharfer
+    Hohe Gürtellinie (Fensterunterkante 1,29 m) mit eingezogenem Glasaufbau, weit nach vorn gezogene
+    Windschutzscheibe (≈ 52° geneigt, kurze Haube), Heckscheibe ≈ 35° geneigt, trapezförmige Radläufe. Der Unterbau hat einen eigenen Querschnitt mit scharfer
     Schulterkante, Lichtkante im unteren Türbereich und Powerdome auf der Haube; die Kanten an Bug und Heck sind
     in Drauf- und Seitenansicht verrundet."""
 
@@ -4322,23 +4325,24 @@ class EvGeo(OffroadGeo):
     # Spanten: hw = halbe Breite an der Schulterkante, zt/zb = Ober-/Unterkante, eb = Exponent der unteren
     # Superellipse, sh = Schulterkante unter zt, fi = Einzug der Schulterfläche bis zur Oberkante
     LOWER = [
-        dict(x=-2.34, hw=0.925, zt=1.280, zb=0.44, eb=5.0, sh=0.070, fi=0.015),
-        dict(x=-2.00, hw=0.950, zt=1.282, zb=0.36, eb=5.0, sh=0.080, fi=0.036),
-        dict(x=-1.70, hw=0.966, zt=1.278, zb=0.32, eb=5.0, sh=0.085, fi=0.046),
-        dict(x=-1.39, hw=0.972, zt=1.274, zb=0.30, eb=5.0, sh=0.088, fi=0.050),
-        dict(x=-1.10, hw=0.952, zt=1.268, zb=0.30, eb=5.0, sh=0.092, fi=0.036),
-        dict(x=-0.90, hw=0.935, zt=1.265, zb=0.30, eb=5.0, sh=0.095, fi=0.024),
-        dict(x=0.80, hw=0.935, zt=1.240, zb=0.30, eb=5.0, sh=0.090, fi=0.024),
-        dict(x=1.10, hw=0.952, zt=1.212, zb=0.30, eb=5.0, sh=0.080, fi=0.036),
-        dict(x=1.44, hw=0.972, zt=1.180, zb=0.31, eb=5.0, sh=0.070, fi=0.040),
-        dict(x=1.80, hw=0.964, zt=1.150, zb=0.36, eb=5.0, sh=0.065, fi=0.034),
-        dict(x=2.10, hw=0.948, zt=1.128, zb=0.42, eb=5.0, sh=0.060, fi=0.022),
-        dict(x=2.36, hw=0.930, zt=1.105, zb=0.46, eb=5.0, sh=0.055, fi=0.008),
+        dict(x=-2.34, hw=0.925, zt=1.280, zb=0.44, eb=5.0, sh=0.070, fi=0.010),
+        dict(x=-2.00, hw=0.950, zt=1.282, zb=0.36, eb=5.0, sh=0.080, fi=0.028),
+        dict(x=-1.70, hw=0.966, zt=1.278, zb=0.32, eb=5.0, sh=0.085, fi=0.042),
+        dict(x=-1.39, hw=0.972, zt=1.274, zb=0.30, eb=5.0, sh=0.088, fi=0.048),
+        dict(x=-1.10, hw=0.952, zt=1.268, zb=0.30, eb=5.0, sh=0.092, fi=0.030),
+        dict(x=-0.90, hw=0.935, zt=1.265, zb=0.30, eb=5.0, sh=0.095, fi=0.016),
+        dict(x=0.80, hw=0.935, zt=1.245, zb=0.30, eb=5.0, sh=0.090, fi=0.016),
+        dict(x=1.00, hw=0.944, zt=1.240, zb=0.30, eb=5.0, sh=0.086, fi=0.018),
+        dict(x=1.20, hw=0.958, zt=1.226, zb=0.30, eb=5.0, sh=0.080, fi=0.030),
+        dict(x=1.44, hw=0.972, zt=1.200, zb=0.31, eb=5.0, sh=0.072, fi=0.040),
+        dict(x=1.80, hw=0.964, zt=1.160, zb=0.36, eb=5.0, sh=0.066, fi=0.034),
+        dict(x=2.10, hw=0.948, zt=1.125, zb=0.42, eb=5.0, sh=0.060, fi=0.022),
+        dict(x=2.36, hw=0.930, zt=1.090, zb=0.46, eb=5.0, sh=0.055, fi=0.008),
     ]
-    ARCH_R = [0.0, 0.12, 0.10, 0.10, 0.12, 0.0]            # Eckradien des Radlauf-Trapezes
+    ARCH_R = [0.0, 0.16, 0.15, 0.15, 0.16, 0.0]            # Eckradien des Radlauf-Trapezes
     # Kantenrundung an Bug und Heck als Viertelellipsen: (Tiefe in x, Maß quer dazu) für Draufsicht, Ober- und
     # Unterkante. Der Bug hat weit zurückgezogene Ecken (Scheinwerfer und Nebelleuchten laufen um die Ecke).
-    END_R = (((0.16, 0.30), (0.045, 0.035), (0.04, 0.03)), ((0.11, 0.12), (0.03, 0.03), (0.05, 0.04)))
+    END_R = (((0.16, 0.30), (0.10, 0.045), (0.04, 0.03)), ((0.11, 0.12), (0.03, 0.03), (0.05, 0.04)))
 
     def __init__(self):
         super().__init__()
@@ -4348,13 +4352,13 @@ class EvGeo(OffroadGeo):
         self.x_front, self.x_rear = 2.36, -2.34
         self.hw = 0.935                                 # halbe Breite der Türzone (Schulter)
         self.z_belt, self.z_roof = self.Z_BELT, self.Z_ROOF
-        self.x_ws0, self.x_ws1 = 0.82, 0.36             # Windschutzscheibe: Unterkante / Dachkante (≈ 43° Neigung)
-        self.hw_sh, self.hw_roof = 0.895, 0.755         # starker Einzug der Kabine (Tumblehome ≈ 16°)
+        self.x_ws0, self.x_ws1 = 1.00, 0.36             # Windschutzscheibe weit vorn: Unterkante / Dachkante (≈ 52°)
+        self.hw_sh, self.hw_roof = 0.905, 0.765         # starker Einzug der Kabine (Tumblehome ≈ 16°)
         self.r_roof, self.r_corner = 0.07, 0.09
         self.dome = 0.035                               # Dachwölbung
         # Heck: untere Klappenwand senkrecht, darüber ein kleiner Absatz (Lichtleiste), ab z_rake neigt sich die Scheibe
-        self.rear_ledge, self.z_rake, self.rake = 0.045, 1.30, 0.25      # Scheibenneigung ≈ 30°
-        self.arch_top, self.arch_hw, self.arch_w = 0.50, 0.56, 0.085   # Radlauf-Trapez, Breite der Verkleidung
+        self.rear_ledge, self.z_rake, self.rake = 0.045, 1.30, 0.30      # Scheibenneigung ≈ 35°
+        self.arch_top, self.arch_hw, self.arch_w = 0.50, 0.56, 0.068   # Radlauf-Trapez, Breite der Verkleidung
         self.arch_r = self.arch_top
         self.shell_t = 0.02
         xs = [s["x"] for s in self.LOWER]
@@ -4374,8 +4378,8 @@ class EvGeo(OffroadGeo):
 
     def hood_dome(self, x):
         """Powerdome: (halbe Fußbreite, Höhe) bei x – läuft von den A-Säulen auf die Grillecken zu."""
-        h = 0.026 * smoothstep(0.86, 1.02, x) * (1.0 - smoothstep(2.10, 2.30, x))
-        return lerp(0.70, 0.50, clamp((x - 0.86) / 1.44)), h
+        h = 0.026 * smoothstep(1.06, 1.22, x) * (1.0 - smoothstep(2.10, 2.30, x))
+        return lerp(0.70, 0.50, clamp((x - 1.06) / 1.24)), h
 
     def scallop(self, x):
         """Lichtkante im unteren Türbereich: (Gewicht, Unterkante, Hinterschnitt-Unterkante) bei x. Die Kante
@@ -4403,7 +4407,7 @@ class EvGeo(OffroadGeo):
         # Schulterfläche (Fase) und Eckradius zur Oberseite
         # Eckradius: an der Haube weich; im Kabinenbereich scharf, damit die Kabinenwand aus der ebenen Brüstung
         # austritt (kein schleifender Schnitt mit der Rundung)
-        rc = min(lerp(0.006, 0.03, smoothstep(0.80, 1.00, x)), 0.6 * (zt - z_sh))
+        rc = min(lerp(0.006, 0.03, smoothstep(1.02, 1.22, x)), 0.6 * (zt - z_sh))
         al = 0.0
         for _ in range(4):
             zf = zt - rc * (1.0 - math.sin(al))
@@ -4452,7 +4456,8 @@ class EvGeo(OffroadGeo):
         # Oberseite: leicht gewölbt, auf der Haube mit Powerdome
         yd, hd = self.hood_dome(x)
         yd = min(yd, cy - 0.06)
-        wd, crown = 0.035, 0.012
+        wd = 0.035
+        crown = lerp(0.012, 0.028, smoothstep(1.02, 1.35, x))    # die Haube ist quer deutlich stärker gewölbt
 
         def z_top(y):
             return zt + crown * (1.0 - (y / cy) ** 2) + hd * clamp((yd - y) / wd)
@@ -4613,8 +4618,8 @@ def ev_mirror(g, M, side):
     kurzen Fuß an der Türbrüstung, umlaufende Zierleiste mit Blinker an der Außenkante."""
     md = MeshData()
     zb_ = g.z_belt + 0.028
-    base = V((0.60, side * (g.cab_hw(zb_) - 0.006), zb_))
-    head = V((0.575, side * 1.035, g.z_belt + 0.135))
+    base = V((0.655, side * (g.cab_hw(zb_) - 0.006), zb_))
+    head = V((0.630, side * 1.045, g.z_belt + 0.135))
     # Schnitte quer zur Fahrtrichtung, von innen nach außen: (dy, Tiefe nach vorn, Tiefe nach hinten, halbe Höhe, dx)
     stations = [(-0.108, 0.010, 0.006, 0.020, 0.010), (-0.098, 0.030, 0.016, 0.046, 0.008), (-0.070, 0.048, 0.024, 0.062, 0.004),
                 (-0.020, 0.058, 0.026, 0.069, 0.000), (0.040, 0.056, 0.026, 0.067, -0.004), (0.082, 0.044, 0.024, 0.058, -0.010),
@@ -4677,14 +4682,19 @@ def ev_body(c):
         return g.ws_x(z) - back
 
     # Konturen: Seitenansicht (x, z), Front/Heck (y, z), Draufsicht (x, y)
-    zw0, zw1, zd1 = g.z_belt + 0.07, g.z_roof - 0.13, top
+    zw0, zw1, zd1 = g.z_belt + 0.055, g.z_roof - 0.105, top
     zs = 0.53                                                              # Türunterkante (über den Schwellern)
-    door_f = rounded_poly_2d([(0.745, zs), (0.745, g.z_belt - 0.03), (pillar(g.z_belt + 0.04, 0.08), g.z_belt + 0.04),
-                              (pillar(zd1, 0.08), zd1), (-0.325, zd1), (-0.325, zs)],
-                             [0.03, 0.03, 0.02, 0.03, 0.04, 0.03], 4)
+    def z_ws(x):
+        """Höhe, in der die Windschutzscheibe die Position x erreicht."""
+        return g.z_belt + (g.x_ws0 - x) / (g.x_ws0 - g.x_ws1) * (top - g.z_belt)
+    # Vordertür: die Vorderkante steht hinter dem Radlauf senkrecht und folgt erst oben der flachen A-Säule; das
+    # Dreieck zwischen Türkante und A-Säule bleibt als schwarzes Spiegeldreieck an der Karosserie
+    x_df = 0.745
+    door_f = rounded_poly_2d([(x_df, zs), (x_df, z_ws(x_df + 0.08)), (pillar(zd1, 0.08), zd1), (-0.325, zd1),
+                              (-0.325, zs)], [0.03, 0.04, 0.03, 0.04, 0.03], 4)
     # Fensterlinie steigt zum Heck hin an (keilförmiges Fensterband)
-    win_f = rounded_poly_2d([(pillar(zw0, 0.14), zw0), (pillar(zw1, 0.14), zw1), (-0.265, zw1), (-0.265, zw0 + 0.010)],
-                            [0.025, 0.03, 0.03, 0.03], 4)
+    win_f = rounded_poly_2d([(x_df - 0.06, zw0), (x_df - 0.06, z_ws(x_df + 0.08)), (pillar(zw1, 0.14), zw1),
+                             (-0.265, zw1), (-0.265, zw0 + 0.010)], [0.02, 0.03, 0.03, 0.03, 0.03], 4)
     # Hintertür: folgt der Außenkante der hinteren Radlaufverkleidung
     x_edge = -1.12
     ro = offset_poly(g.arch(g.ra), g.arch_w + 0.006)
@@ -4708,12 +4718,13 @@ def ev_body(c):
                              (-0.585, zw1 - 0.005)], [0.05, 0.05, 0.06, 0.06], 4)
     ws = rounded_poly_2d([(-0.80, g.z_belt + 0.05), (0.80, g.z_belt + 0.05), (0.645, g.z_roof - 0.10),
                           (-0.645, g.z_roof - 0.10)], [0.05, 0.05, 0.07, 0.07], 4)
-    hood = rounded_poly_2d([(0.84, -0.82), (2.29, -0.82), (2.29, 0.82), (0.84, 0.82)], [0.02, 0.10, 0.10, 0.02], 4)
+    x_h0 = g.x_ws0 + 0.04                                                  # Haubenhinterkante vor dem Wasserkasten
+    hood = rounded_poly_2d([(x_h0, -0.82), (2.29, -0.82), (2.29, 0.82), (x_h0, 0.82)], [0.02, 0.10, 0.10, 0.02], 4)
 
     # Frontpartie (y, z), jeweils die +Y-Hälfte: Sechseck-Grill, Scheinwerfer (laufen um die Ecke),
     # Nebelleuchten-Taschen auf den zurückgezogenen Ecken, unterer Lufteinlass
-    c.grille = [(0.53, 1.040), (0.66, 0.955), (0.50, 0.775)]
-    c.lamp = [(0.555, 1.042), (0.905, 1.038), (0.918, 1.016), (0.870, 0.946), (0.715, 0.930)]
+    c.grille = [(0.53, 1.030), (0.66, 0.948), (0.50, 0.775)]
+    c.lamp = [(0.555, 1.032), (0.905, 1.028), (0.918, 1.006), (0.870, 0.938), (0.715, 0.922)]
     c.pod = [(0.74, 0.850), (0.86, 0.855), (0.905, 0.815), (0.905, 0.640), (0.85, 0.575), (0.74, 0.620)]
     intake = [(0.56, 0.690), (0.67, 0.500), (0.67, 0.440)]
 
@@ -4828,26 +4839,28 @@ def ev_body(c):
     def top_z(x, y):
         hit = c.body_bvh.ray_cast(V((x, y, 3.0)), -Z_AXIS, 6.0)
         return hit[0].z if hit[0] is not None else zt(x)
-    asm.pivot("Hood", V((0.836, 0.0, top_z(0.836, 0.0) + 0.002)), -Y_AXIS, orient=True,
+    asm.pivot("Hood", V((x_h0 - 0.004, 0.0, top_z(x_h0 - 0.004, 0.0) + 0.002)), -Y_AXIS, orient=True,
               positive="Haube öffnet (Vorderkante nach oben)", limits=(0, 62))
     asm.add(hood_obj, "Hood", "Hood")
 
     def under_hood(pts, d=0.012):
         return [V((p[0], p[1], zt(p[0]) - st - d)) for p in pts]
     hf = MeshData()                                  # Versteifungsrahmen unter der Haube
-    frame_path = fillet_path([(1.50, -0.76, 0.0), (2.13, -0.76, 0.0), (2.13, 0.76, 0.0), (0.92, 0.76, 0.0),
-                              (0.92, -0.76, 0.0), (1.50, -0.76, 0.0)], 0.07, 4)
+    x_f0 = x_h0 + 0.08
+    frame_path = fillet_path([(1.60, -0.76, 0.0), (2.13, -0.76, 0.0), (2.13, 0.76, 0.0), (x_f0, 0.76, 0.0),
+                              (x_f0, -0.76, 0.0), (1.60, -0.76, 0.0)], 0.07, 4)
     frame_path = resample(frame_path, 0.05)
     hf.merge(tube(under_hood([(p.x, p.y) for p in frame_path], 0.03), (0.008, 0.022), 8, M["paint"], caps=False,
                   up=Z_AXIS, exponent=4.0))
     for side in (1, -1):
-        hf.merge(tube(under_hood([(lerp(0.98, 2.08, i / 12), side * lerp(0.70, -0.70, i / 12)) for i in range(13)], 0.03),
+        hf.merge(tube(under_hood([(lerp(x_f0 + 0.06, 2.08, i / 12), side * lerp(0.70, -0.70, i / 12)) for i in range(13)], 0.03),
                       (0.007, 0.02), 8, M["paint"], up=Z_AXIS, exponent=4.0))
     asm.add(hf, "HoodFrame", "Hood", detail=1)
     hn = MeshData()                                  # Waschdüsen
     for side in (1, -1):
-        zn = top_z(0.93, side * 0.30)
-        hn.merge(cylinder(V((0.93, side * 0.30, zn - 0.002)), V((0.93, side * 0.30, zn + 0.007)), 0.011, 8, M["black"]))
+        xn = x_h0 + 0.09
+        zn = top_z(xn, side * 0.30)
+        hn.merge(cylinder(V((xn, side * 0.30, zn - 0.002)), V((xn, side * 0.30, zn + 0.007)), 0.011, 8, M["black"]))
     asm.add(hn, "HoodNozzles", "Hood", detail=2)
 
     # ------------------------------------------------------------- Heckklappe: Scharnier an der Spoiler-Vorderkante
@@ -4913,7 +4926,7 @@ def ev_body(c):
     cutters.append(prism_z(offset_poly(hood, gap), hz0, hz1).to_object("_c"))
     cutters.append(rear_wall(tg, gap))
     cutters.append(rear_wall(win_b))
-    cutters.append(prism_x(ws, 0.20, 0.90).to_object("_c"))
+    cutters.append(prism_x(ws, g.x_ws1 - 0.16, g.x_ws0 + 0.08).to_object("_c"))
     boolean(body, cutters, "DIFFERENCE")
     transfer_normals(body, src)
     asm.add(body, "Body")
@@ -4941,11 +4954,11 @@ def ev_body(c):
     for side in (1, -1):
         for a in (g.fa, g.ra):
             inn = rounded_poly_2d(g.arch(a, z_cl), g.ARCH_R, 5)
-            for width, y_out in ((g.arch_w, 1.004), (0.030, 1.014)):               # breites Band + erhabene Innenlippe
+            for width, y_out in ((g.arch_w, 1.004), (0.024, 1.014)):               # breites Band + erhabene Innenlippe
                 o = offset_poly(g.arch(a, z_cl), width)
                 o[0] = o[0] + (o[1] - o[0]) * ((z_cl - o[0].y) / (o[1].y - o[0].y))
                 o[5] = o[5] + (o[4] - o[5]) * ((z_cl - o[5].y) / (o[4].y - o[5].y))
-                out = rounded_poly_2d(o, [0.0, 0.15, 0.13, 0.13, 0.15, 0.0], 5)
+                out = rounded_poly_2d(o, [0.0, 0.20, 0.19, 0.19, 0.20, 0.0], 5)
                 trim.merge(prism_y(list(out) + list(reversed(inn)), side * 0.90, side * y_out, M["cladding"]))
             lin = rounded_poly_2d(offset_poly(g.arch(a, z_cl), -0.004), g.ARCH_R, 5)   # Radhausschale
             rib = grid_rings([[V((p.x, side * 0.445, p.y)), V((p.x, side * 0.992, p.y))] for p in lin], closed=False,
@@ -5096,7 +5109,7 @@ def ev_exterior(c):
     for z in (0.515, 0.555, 0.595, 0.635):
         fr.merge(box((xf - 0.026, 0.0, z), (0.034, 2 * (0.56 + (0.69 - z) * 0.579) - 0.03, 0.012), M["gloss"]))
     xp = xf + 0.012
-    fr.merge(box((xp, 0.0, 0.628), (0.026, 0.60, 0.138), M["black"]))                      # Kennzeichenträger vorn
+    fr.merge(box((xp, 0.0, 0.628), (0.026, 0.60, 0.138), M["trim"]))                       # Kennzeichenträger vorn
     fr.merge(box((xp + 0.0135, 0.0, 0.628), (0.004, 0.56, 0.112), M["gloss"]))
     fr.merge(text_md(brand, 0.074, yz(xp + 0.0165, 0.0, 0.628), M["badge"], bold=0.04))
     for y in (-0.62, -0.36, 0.36, 0.62):                                                    # Parksensoren
@@ -5112,15 +5125,15 @@ def ev_exterior(c):
         ay = abs(y)
         z_lo = z_b + 0.016 + (max(0.0, ay - y_b) * (z_s - z_b) / (y_s - y_b))
         z_hi = z_t - 0.016 - (max(0.0, ay - y_t) * (z_t - z_s) / (y_s - y_t))
-        fr.merge(box((xf - 0.032, y, (z_lo + z_hi) / 2), (0.044, 0.016, z_hi - z_lo), M["gloss"]))
-        zk = clamp((0.965 if i % 2 == 0 else 0.875), z_lo + 0.055, z_hi - 0.055)
-        fr.merge(box((xf - 0.026, y, zk), (0.050, 0.040, 0.105), M["gloss"]))                # versetzter Block
+        fr.merge(box((xf - 0.032, y, (z_lo + z_hi) / 2), (0.044, 0.016, z_hi - z_lo), M["trim"]))
+        zk = clamp((0.958 if i % 2 == 0 else 0.872), z_lo + 0.055, z_hi - 0.055)
+        fr.merge(box((xf - 0.026, y, zk), (0.050, 0.040, 0.105), M["trim"]))                 # versetzter Block
     strip_y = [lerp(-0.545, 0.545, k / 16) for k in range(17)]
-    fr.merge(tube([V((surf(y, 1.057) + 0.003, y, 1.057)) for y in strip_y], (0.0075, 0.005), 6, M["alu"], up=Z_AXIS))
+    fr.merge(tube([V((surf(y, 1.046) + 0.003, y, 1.046)) for y in strip_y], (0.0065, 0.005), 6, M["alu"], up=Z_AXIS))
     hw_, hh_ = 0.088, 0.080                                                                 # beleuchtete Raute
     outer = [(0.0, hh_), (-hw_, 0.0), (0.0, -hh_), (hw_, 0.0)]
     inner = [(0.0, hh_ - 0.021), (-hw_ + 0.023, 0.0), (0.0, -hh_ + 0.021), (hw_ - 0.023, 0.0)]
-    z_e = 0.912
+    z_e = 0.905
     fr.merge(extrude_ring(outer, inner, 0.010, yz(xf - 0.001, 0.0, z_e), M["emblem"]))
     fr.merge(extrude([(0.0, hh_ + 0.012), (-hw_ - 0.013, 0.0), (0.0, -hh_ - 0.012), (hw_ + 0.013, 0.0)], 0.008,
                      yz(xf - 0.008, 0.0, z_e), M["gloss"]))
@@ -5129,12 +5142,12 @@ def ev_exterior(c):
         # Scheinwerfer: Tasche mit Klavierlack-Rückwand, drei L-förmige Tagfahrlicht-Segmente (außen kleiner),
         # Signaturlinie an der Oberkante, klare Abdeckscheibe bündig zur Karosserie
         fr.merge(pocket_wall(mirror_poly(offset_poly(c.lamp, 0.008), side), M["gloss"], 0.034))
-        for y1, z0, h in ((0.895, 0.977, 0.044), (0.823, 0.952, 0.060), (0.751, 0.945, 0.066)):
+        for y1, z0, h in ((0.895, 0.968, 0.044), (0.823, 0.944, 0.060), (0.751, 0.937, 0.066)):
             # L-Segment: schräger Steg außen, Fuß nach innen
             seg = [(y1 - 0.012, z0), (y1 + 0.012, z0 + h), (y1 - 0.012, z0 + h), (y1 - 0.030, z0 + 0.021),
                    (y1 - 0.062, z0 + 0.021), (y1 - 0.054, z0)]
             fr.merge(decal(mirror_poly(seg, side), M["drl"], -0.012))
-        fr.merge(decal(mirror_poly(strip([(0.590, 1.0335), (0.895, 1.030)], 0.006), side), M["drl"], -0.008))
+        fr.merge(decal(mirror_poly(strip([(0.590, 1.0235), (0.895, 1.020)], 0.006), side), M["drl"], -0.008))
         lens.merge(decal(mirror_poly(c.lamp, side), M["lens"], 0.0006))
         # Nebelleuchten-Tasche auf der zurückgezogenen Ecke: schwarze Rückwand, Lamellen, zweiteilige LED-Leiste
         fr.merge(pocket_wall(mirror_poly(offset_poly(c.pod, 0.008), side), M["void"], 0.030))
@@ -5205,7 +5218,7 @@ def ev_exterior(c):
                   M["black"]))
     asm.add(tg, "TailgateLamps", "Tailgate", mods=[bevel_s], detail=1)
     plate = MeshData()
-    plate.merge(box((xr - 0.010, 0.0, 0.952), (0.014, 0.52, 0.118), M["black"]))
+    plate.merge(box((xr - 0.010, 0.0, 0.952), (0.014, 0.52, 0.118), M["trim"]))
     plate.merge(box((xr - 0.018, 0.0, 0.952), (0.004, 0.49, 0.096), M["gloss"]))
     plate.merge(text_md(brand, 0.066, yz(xr - 0.0215, 0.0, 0.952, -1.0), M["badge"], bold=0.04))
     asm.add(plate, "Plates", "Tailgate", detail=2)
@@ -5419,8 +5432,8 @@ def ev_frunk(c):
     g, M, asm, bevel_s = c.g, c.M, c.asm, c.bevel_s
     bay, small = MeshData(), MeshData()
     z_shelf = g.fa.z + g.arch_top + 0.005
-    bay.merge(box((0.808, 0.0, 0.975), (0.025, 1.80, 0.49), M["interior"]))                  # Spritzwand
-    bay.merge(box((0.87, 0.0, 1.165), (0.10, 1.50, 0.06), M["black"]))                       # Wasserkasten
+    bay.merge(box((0.808, 0.0, 0.945), (0.025, 1.80, 0.43), M["interior"]))                  # Spritzwand
+    bay.merge(box(((0.83 + g.x_ws0 + 0.05) / 2, 0.0, 1.178), (g.x_ws0 + 0.05 - 0.83, 1.50, 0.05), M["black"]))   # Wasserkasten
     for side in (1, -1):
         bay.merge(box((1.44, side * 0.6575, z_shelf - 0.0075), (1.00, 0.425, 0.015), M["interior"]))
         bay.merge(cylinder(V((1.295, side * 0.520, z_shelf - 0.035)), V((1.295, side * 0.520, z_shelf + 0.005)), 0.076, 28,
@@ -5530,6 +5543,8 @@ def ev_interior(c):
     dash = rounded_poly_2d([(0.755, 0.80), (0.758, 1.045 + dz), (0.60, 1.068 + dz), (0.50, 1.028 + dz), (0.455, 0.90 + dz),
                             (0.52, 0.80)], [0.0, 0.0, 0.04, 0.05, 0.05, 0.04], 3)
     it.merge(extrude(dash, 1.66, frame_matrix(V((0, 0, 0)), X_AXIS, Z_AXIS, -Y_AXIS), M["panel"]))
+    x_dt = g.x_ws0 - 0.045                                                                       # tiefe Ablage bis zur Scheibe
+    it.merge(box(((0.74 + x_dt) / 2, 0.0, 1.030 + dz), (x_dt - 0.74, 1.64, 0.034), M["panel"]))
     it.merge(extrude(rounded_poly_2d([(0.755, 1.03 + dz), (0.758, 1.05 + dz), (0.60, 1.072 + dz), (0.52, 1.04 + dz),
                                       (0.56, 1.025 + dz)], 0.01, 2),
                      1.64, frame_matrix(V((0, 0, 0.004)), X_AXIS, Z_AXIS, -Y_AXIS), M["leather"]))   # Lederpolster oben
