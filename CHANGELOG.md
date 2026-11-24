@@ -3,7 +3,7 @@
 ## Unveröffentlicht
 
 ### Geändert
-- **Motorboot überarbeitet und deutlich detailreicher** (LOD0 40 304 → 59 570 Dreiecke):
+- **Motorboot überarbeitet und deutlich detailreicher** (LOD0 40 304 → 71 598 Dreiecke):
   - *Rumpf und Deck:* Zierstreifen (Cove-Stripe + Haarlinie) entlang der Deckskante, Modellname an den
     Bordwänden, rutschfestes Noppendeck (prozedurales Normalmapping), Teakbelag auf den Badeplattformen,
     Heckdusche, Klüsen und zusätzliche Vorschiffsklampen, Ankerkasten-Luke mit Dichtung, Scharnieren und
@@ -17,6 +17,11 @@
   - *Außenborder:* Haube mit gerundetem Heck und abgesetzter Unterhaube (Trennfuge im Lack), Lufteinlass-Lamellen,
     Griffmulde, Farbstreifen, Typenschild, dickerer Schaft, Getriebe mit Wassereinlässen, Staurohr und
     Trimmflosse, Propellermutter, Spiegelhalterung als Klemmkonsolen mit Klemmschrauben.
+  - *Zweite Ausbaustufe:* Targabügel (Edelstahl-Doppelbogen mit Sprossen, Rundumlicht, UKW-Antenne, Lautsprecher,
+    Zugpunkt mit Socket `TowPoint`) ersetzt den Lichtmast; eigene Kollisionshüllen für Beine und Kopf, das Cockpit
+    darunter bleibt begehbar. Teaktisch mit Schlingerleiste und Becherhaltern (Bodenluke dafür zwischen die
+    Fahrersitze verlegt), Mittelklampen mit Fendern (eigenes Teil, ohne Kollision), aufgeschossene Festmacher,
+    Ankerkette mit Kettenrohr, Borddurchlässe und Cockpit-Lenzer.
   - Neue Baukasten-Funktionen `plate3d` und `round_corners`; Dekore am Motor als schmale, einzeln projizierte
     Gitter (statt isotrop unterteilter Flächen) – spart rund 10 000 Dreiecke.
   - Bewegungsbereiche per Mesh-Überschneidungstest erneut geprüft: Kippen 0–65°, Lenken ±35°, Durchgangstür,

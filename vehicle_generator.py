@@ -4917,13 +4917,6 @@ def build_boat(cfg):
     for side, mat in ((1, M["red"]), (-1, M["green"])):
         lights.merge(box((2.99, side * 0.026, zl + 0.022), (0.05, 0.045, 0.026), mat, None))
     asm.add(lights, "NavLights")
-    pole = MeshData()
-    pole_p = V((-2.95, 0.88, g.zs(-2.95)))
-    pole.merge(cylinder(pole_p, pole_p + Z_AXIS * 0.80, 0.012, 8, M["steel"]))
-    pole.merge(lathe([(0.0, 0.0), (0.03, 0.005), (0.032, 0.05), (0.02, 0.07), (0.0, 0.075)], 16, pole_p + Z_AXIS * 0.80,
-                     Z_AXIS, M["white"]))
-    stern_light = asm.add(pole, "SternLight", smooth=60)
-
     # Kennzeichen am Bug (projiziert), Name am Spiegel
     reg = "".join(rng.choice("ABDFHKMNRSTW") for _ in range(2)) + f"-{rng.randint(1000, 9999)}"
     dec = MeshData()
@@ -5281,18 +5274,136 @@ def build_boat(cfg):
     for x_c in (-1.75, -0.8):
         yw = -(wall_y(x_c, 0.46))
         fit.merge(box((x_c, yw + 0.017, 0.46), (0.05, 0.034, 0.05), M["black"]))
-    hx0, hx1, hy = -1.84, -1.06, 0.42                                                         # Bodenluke: Fugen und Zugmulden
+    hx0, hx1, hy = -0.95, -0.32, 0.34                                                         # Bodenluke: Fugen und Zugmulden
     zt = g.z_sole + 0.0012
     for cx, cy, sx, sy in (((hx0 + hx1) / 2, -hy, hx1 - hx0, 0.007), ((hx0 + hx1) / 2, hy, hx1 - hx0, 0.007),
                            (hx0, 0.0, 0.007, 2 * hy), (hx1, 0.0, 0.007, 2 * hy)):
         fit.merge(box((cx, cy, zt), (sx, sy, 0.0024), M["black"]))
-    for cy in (-0.20, 0.20):
-        fit.merge(lathe([(0.027, 0.0), (0.027, 0.0035), (0.0, 0.0035)], 20, V((-1.46, cy, zt + 0.0006)), Z_AXIS, M["steel"]))
-        fit.merge(lathe([(0.016, 0.0036), (0.0, 0.0036)], 16, V((-1.46, cy, zt + 0.0006)), Z_AXIS, M["black"]))
+    for cy in (-0.16, 0.16):
+        fit.merge(lathe([(0.027, 0.0), (0.027, 0.0035), (0.0, 0.0035)], 20, V((-0.635, cy, zt + 0.0006)), Z_AXIS, M["steel"]))
+        fit.merge(lathe([(0.016, 0.0036), (0.0, 0.0036)], 16, V((-0.635, cy, zt + 0.0006)), Z_AXIS, M["black"]))
     w_st = wall_y(g.x_step, g.z_sole)                                                          # Stufenkante zum Vorschiff
     fit.merge(box((g.x_step - 0.012, 0.0, g.z_sole_bow + 0.003), (0.034, 2 * w_st - 0.04, 0.008), M["steel"]))
     fit.merge(box((g.x_step - 0.013, 0.0, g.z_sole_bow + 0.0075), (0.026, 2 * w_st - 0.06, 0.0018), M["rubber"]))
     asm.add(fit, "CockpitFittings", mods=[bevel_s], detail=1)
+
+    # ------------------------------------------------------------- Cockpittisch (Teak, Edelstahl-Schlingerleiste)
+    tc = V((-1.40, 0.05, 0.0))
+    table = lathe([(0.0, 0.0), (0.115, 0.0), (0.115, 0.008), (0.045, 0.022), (0.03, 0.05), (0.03, 0.50), (0.07, 0.515),
+                   (0.0, 0.515)], 20, tc + Z_AXIS * g.z_sole, Z_AXIS, M["steel"])
+    t_out = [V((tc.x + q.x, tc.y + q.y)) for q in rounded_rect_2d(0.72, 0.48, 0.07, 4)]
+    table.merge(prism_z(t_out, 0.615, 0.640, M["teak"]))
+    table.merge(extrude_ring(t_out, offset_poly(t_out, -0.012), 0.022, Matrix.Translation(V((0.0, 0.0, 0.642))), M["steel"]))
+    for dx in (-0.24, 0.24):
+        table.merge(lathe([(0.043, 0.0), (0.043, 0.006), (0.036, 0.006), (0.036, 0.0)], 20, tc + V((dx, 0.14, 0.640)), Z_AXIS,
+                          M["steel"], closed_profile=True))
+        table.merge(lathe([(0.036, 0.001), (0.0, 0.001)], 20, tc + V((dx, 0.14, 0.640)), Z_AXIS, M["black"]))
+    asm.add(table, "Table", mods=[bevel_s], detail=1)
+
+    # ------------------------------------------------------------- Targabügel: Doppelbogen mit Sprossen, Rundumlicht,
+    # Lautsprechern und Zugpunkt; UKW-Antenne
+    zt_a, yt_a = 1.98, 0.74
+    arch = MeshData()
+
+    def hoop(xf, xt):
+        yf = g.ws(xf) - 0.085
+        zf = deck_z(xf, yf)
+        return [V((xf, yf, zf)), V((xt, yt_a, zt_a)), V((xt, -yt_a, zt_a)), V((xf, -yf, zf))]
+    hoops = [hoop(-2.50, -1.98), hoop(-1.95, -1.72)]
+    for h_ in hoops:
+        arch.merge(tube(fillet_path(h_, 0.20, 6), 0.024, 12, M["steel"]))
+        for foot in (h_[0], h_[3]):
+            arch.merge(cylinder(foot - Z_AXIS * 0.004, foot + Z_AXIS * 0.012, 0.047, 16, M["steel"]))
+    for i0, i1 in ((0, 1), (3, 2)):                                                           # Sprossen zwischen den Bögen
+        for t_ in (0.28, 0.54, 0.80):
+            arch.merge(cylinder(hoops[0][i0].lerp(hoops[0][i1], t_), hoops[1][i0].lerp(hoops[1][i1], t_), 0.012, 8, M["steel"]))
+    xr_a, xf_a = hoops[0][1].x, hoops[1][1].x
+    xm_a = (xr_a + xf_a) / 2
+    arch.merge(box((xm_a, 0.0, zt_a), (xf_a - xr_a + 0.02, 0.46, 0.016), M["black"]))                # Geräteträger
+    light_p = V((xm_a, 0.0, zt_a + 0.14))
+    arch.merge(cylinder(V((xm_a, 0.0, zt_a + 0.008)), light_p, 0.012, 8, M["steel"]))
+    arch.merge(lathe([(0.0, 0.0), (0.03, 0.005), (0.032, 0.05), (0.02, 0.07), (0.0, 0.075)], 16, light_p, Z_AXIS, M["white"]))
+    tow_p = V((xr_a, 0.0, zt_a + 0.024))
+    arch.merge(lathe([(0.0, 0.0), (0.016, 0.0), (0.016, 0.04), (0.027, 0.048), (0.027, 0.062), (0.0, 0.066)], 14, tow_p,
+                     Z_AXIS, M["steel"]))                                                              # Zugpunkt (Wakeboard/Ski)
+    for sgn in (1, -1):                                                                            # Lautsprecher, nach achtern
+        sc = V((xf_a + 0.01, sgn * 0.42, zt_a - 0.125))
+        arch.merge(lathe([(0.0, -0.10), (0.05, -0.095), (0.086, -0.05), (0.086, 0.075), (0.076, 0.085), (0.076, 0.075)], 20,
+                         sc, -X_AXIS, M["steel"]))
+        arch.merge(lathe([(0.076, 0.076), (0.03, 0.06), (0.0, 0.068)], 20, sc, -X_AXIS, M["black"]))
+        arch.merge(box((sc.x, sc.y, zt_a - 0.032), (0.05, 0.06, 0.03), M["black"]))
+    arch_obj = asm.add(arch, "Arch", mods=[bevel_s], smooth=45)
+    ant_p = V((xm_a, 0.17, zt_a + 0.008))
+    ant = cylinder(ant_p, ant_p + Z_AXIS * 0.07, 0.014, 10, M["black"])
+    ant.merge(tube([ant_p + Z_AXIS * 0.07, ant_p + V((-0.17, 0.0, 1.25))], lambda q: 0.0045 - 0.0025 * q, 6, M["liner"]))
+    antenna = asm.add(ant, "Antenna", detail=1)
+
+    # ------------------------------------------------------------- Decksbeschläge: Mittelklampen, Kettenrohr, Borddurchlässe
+    gear = MeshData()
+    fender_x = (-1.75, 0.55)
+    for x_ in fender_x:
+        for sgn in (1, -1):
+            yc_ = sgn * (g.ws(x_) - 0.085)
+            cleat(V((x_, yc_, deck_z(x_, yc_))), gear)
+    pipe_c = bp(-0.222, 0.0, -0.004)
+    gear.merge(lathe([(0.021, 0.0), (0.021, 0.009), (0.012, 0.009), (0.012, 0.0)], 16, pipe_c, n_deck, M["steel"],
+                     closed_profile=True))
+    gear.merge(lathe([(0.012, 0.002), (0.0, 0.002)], 12, pipe_c, n_deck, M["black"]))
+    for x_, z_, sgn, r_ in ((-2.30, 0.33, -1, 0.019), (-0.20, 0.30, 1, 0.016), (-2.75, 0.20, 1, 0.022)):     # Lenz-/Kühlwasser
+        c_ = V((x_, sgn * (g.hull_y(x_, z_) - 0.002), z_))
+        gear.merge(lathe([(0.0, 0.0), (r_ * 0.55, 0.0), (r_ * 0.55, 0.004), (r_, 0.004), (r_, 0.0075), (0.0, 0.0075)], 14, c_,
+                         Y_AXIS * sgn, M["steel"]))
+    for sgn in (1, -1):                                                                                 # Cockpit-Lenzer am Spiegel
+        c_ = V((g.X_TR + 0.002, sgn * 0.64, 0.27))
+        gear.merge(lathe([(0.0, 0.0), (0.024, 0.0), (0.024, 0.006), (0.0, 0.008)], 14, c_, -X_AXIS, M["steel"]))
+    asm.add(gear, "DeckGear", mods=[bevel_s], detail=1)
+
+    # ------------------------------------------------------------- Tauwerk: aufgeschossene Festmacher, Ankerkette
+    moor = MeshData()
+
+    def coil(cx, cy, r0, r1, turns, to_pt):
+        """Flach aufgeschossene Leine (Schnecke) auf dem Deck, das Ende läuft zur Klampe ``to_pt``."""
+        n_ = int(turns * 14)
+        pts_ = []
+        for i in range(n_ + 1):
+            a_ = TAU * turns * i / n_
+            r_ = lerp(r0, r1, i / n_)
+            x_, y_ = cx + r_ * math.cos(a_), cy + r_ * math.sin(a_)
+            pts_.append(V((x_, y_, deck_z(x_, y_) + 0.0085)))
+        mid = (pts_[-1] + to_pt) / 2
+        pts_ += spline([pts_[-1], V((mid.x, mid.y, deck_z(mid.x, mid.y) + 0.010)), to_pt], 5)[1:]
+        return tube(pts_, 0.0085, 6, M["rope"])
+    xcl = 2.55
+    ycl = g.ws(xcl) - 0.09
+    moor.merge(coil(2.66, 0.36, 0.022, 0.115, 5.25, V((xcl, ycl, deck_z(xcl, ycl) + 0.03))))
+    xcl = -2.95
+    ycl = -(g.ws(xcl) - 0.09)
+    moor.merge(coil(-2.80, -0.955, 0.02, 0.085, 4.25, V((xcl, ycl, deck_z(xcl, ycl) + 0.03))))
+    ch0, ch1 = bp(-0.168, 0.0, zs_), pipe_c + n_deck * 0.006                                       # Kette: Schäkel → Kettenrohr
+    ch_d = (ch1 - ch0).normalized()
+    n_links = 6
+    for i in range(n_links):
+        c_ = ch0.lerp(ch1, (i + 0.5) / n_links)
+        up_ = Y_AXIS if i % 2 else ch_d.cross(Y_AXIS)
+        moor.merge(tube([c_ + ch_d * (0.0135 * math.cos(a_)) + up_ * (0.0075 * math.sin(a_)) for a_ in
+                         (TAU * k_ / 10 for k_ in range(11))], 0.0032, 5, M["galv"], caps=False))
+    asm.add(moor, "Mooring", detail=1)
+
+    # Fender an den Mittelklampen (hängen außenbords; eigenes Teil – in der Engine nach Bedarf ausblenden)
+    fend = MeshData()
+    for x_ in fender_x:
+        for sgn in (1, -1):
+            yc_ = sgn * (g.ws(x_) - 0.085)
+            y_out = sgn * (g.ws(x_) + 0.105)
+            top_ = V((x_, y_out, g.zs(x_) - 0.13))
+            prof = [(0.0, -0.52), (0.022, -0.515), (0.03, -0.485), (0.07, -0.455), (0.082, -0.40), (0.082, -0.085),
+                    (0.07, -0.035), (0.03, -0.012), (0.022, 0.0), (0.0, 0.0)]
+            fend.merge(lathe(prof, 16, top_, Z_AXIS, M["liner"]))
+            for h0_, h1_ in ((-0.515, -0.455), (-0.035, 0.0)):                                       # farbige Endkappen
+                fend.merge(lathe([(r_ + 0.0012, h_) for r_, h_ in prof if h0_ <= h_ <= h1_], 16, top_, Z_AXIS, M["stripe"]))
+            fend.merge(tube(spline([V((x_, yc_, deck_z(x_, yc_) + 0.03)), V((x_, sgn * (g.ws(x_) + 0.036), g.zs(x_) + 0.012)),
+                                    V((x_, y_out, g.zs(x_) - 0.06)), top_ + Z_AXIS * 0.004], 5), 0.006, 6, M["rope"]))
+    fenders = asm.add(fend, "Fenders", smooth=50, detail=1)
 
     # ------------------------------------------------------------- Außenborder: Kippen → Lenken → Propeller
     ob = boat_outboard(g, M)
@@ -5329,17 +5440,22 @@ def build_boat(cfg):
             asm.socket(f"Float_{pos}{k}", (x, sgn * g.hull_y(x, 0.0), 0.0))
     asm.socket("NavLight_Port", (2.99, 0.05, zl + 0.022), forward=Y_AXIS)
     asm.socket("NavLight_Starboard", (2.99, -0.05, zl + 0.022), forward=-Y_AXIS)
-    asm.socket("SternLight", pole_p + Z_AXIS * 0.84, forward=Z_AXIS)
+    asm.socket("SternLight", light_p + Z_AXIS * 0.08, forward=Z_AXIS)
+    asm.socket("TowPoint", tow_p + Z_AXIS * 0.055, forward=-X_AXIS)
     asm.socket("PropWash", g.prop, forward=-X_AXIS, parent="Outboard_Steer")
     asm.socket("BowWave", (2.72, 0.0, 0.0))
     motor_keys = {"Outboard_Tilt", "Outboard_Steer", "Propeller"}
     allm = asm.meshes()
-    shell = [o for o in allm if o["pivot"] not in motor_keys and o is not stern_light]
+    shell = [o for o in allm if o["pivot"] not in motor_keys and o not in (arch_obj, antenna, fenders)]
     asm.collide("Hull", shell, lambda p: p.z <= g.sheer(p.x) + 0.05, 96)
     asm.collide("TopFwd", shell, lambda p: p.z >= g.sheer(p.x) - 0.03 and p.x > 0.3, 64)
     asm.collide("TopAft", shell, lambda p: p.z >= g.sheer(p.x) - 0.03 and p.x <= 0.3, 48)
     asm.collide("Outboard", [o for o in allm if o["pivot"] in motor_keys], None, 64)
-    asm.hull_exempt.append(([stern_light], "dünner Lichtmast"))
+    for sgn, k in ((1, "L"), (-1, "R")):                                           # Bügel: Beine und Kopf getrennt –
+        asm.collide(f"Arch_{k}", [arch_obj], lambda p, s_=sgn: s_ * p.y > 0.5 and p.z < 1.80, 24)   # das Cockpit bleibt frei
+    asm.collide("ArchTop", [arch_obj], lambda p: p.z >= 1.72, 32)
+    asm.hull_exempt.append(([antenna], "dünne Antenne"))
+    asm.hull_exempt.append(([fenders], "weiche Fender, hängen außenbords"))
     return asm
 
 

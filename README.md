@@ -86,8 +86,10 @@ Cockpit und Motorschacht sind nur durch das Deck geschnitten. Außen: **Zierstre
 Deckskante folgen und zum Bug auslaufen, Modellname und Kennzeichen (Mesh-Decals), **rutschfestes
 Noppendeck**, Scheuerleiste mit Edelstahleinlage, Bugreling, Klampen, Klüsen, Ankerkasten-Luke mit
 Dichtung, Scharnieren und Griffmulde, **Bug-Ankerrolle mit Pflugscharanker**, Bugauge, Ski-Zugösen,
-Positions- und Hecklicht, Trimmklappen, **Badeplattformen mit Teakbelag**, klappbare Badeleiter und
-Heckdusche. Cockpit: **Teak-Laufdeck** mit Bodenluke und Stufenkante, Liner-Wände mit Seitentaschen,
+Positionslichter, Mittelklampen mit **Fendern**, aufgeschossene Festmacher, Ankerkette mit Kettenrohr,
+Borddurchlässe, Trimmklappen, **Badeplattformen mit Teakbelag**, klappbare Badeleiter und
+Heckdusche. **Targabügel** aus Edelstahl (Doppelbogen mit Sprossen) mit Rundumlicht, UKW-Antenne,
+Lautsprechern und Zugpunkt. Cockpit: **Teak-Laufdeck** mit Bodenluke und Stufenkante, **Teaktisch** auf Edelstahlsäule, Liner-Wände mit Seitentaschen,
 Lautsprechern, Feuerlöscher und Bootshaken; **gepolsterte Sitze** mit gerundeten, gewölbten Kissen und
 Steppnähten (Heckbank, Seitenbank, Bugsitze, Sonnenpolster, Fahrer-/Beifahrersitze auf Säulen mit
 Bucket-Rückenlehne, Seitenwangen, Kopfstütze, Klappwulst und Armlehnen) in der Polsterfarbe der
@@ -125,7 +127,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 138 280 | 69 133 | 32 325 | 10 018 |
-| Motorboot (`navy`) | 59 570 | 29 784 | 14 081 | 3 201 |
+| Motorboot (`navy`) | 71 598 | 35 798 | 17 088 | 3 568 |
 
 ---
 
@@ -271,7 +273,7 @@ keine veralteten LOD-Dateien liegen. Andere Dateien im Ordner bleiben unberührt
   `Float_MidL/R`, `Float_FwdL/R` sitzen auf der Wasserlinie an der Bordwand und eignen sich als
   Auftriebspunkte (z. B. Pontons der Unreal-*Buoyancy*-Komponente oder eigene Auftriebsskripte in
   Unity/Godot). `PropWash` (Propeller, zeigt nach achtern) und `BowWave` (Steven) sind Ansatzpunkte für
-  Kielwasser- und Spritzeffekte.
+  Kielwasser- und Spritzeffekte, `TowPoint` (Zugpunkt auf dem Targabügel) für Wakeboard- oder Skileine.
 
 **Unity** (`--target unity`)
 - FBX importieren; die Front zeigt nach +Z (bei Bedarf *Bake Axis Conversion* aktivieren).
@@ -351,7 +353,7 @@ Texture-Sets mit höherer Texeldichte, Schadens-/Verschleißstufen, ein voll aus
 sowie Fahrzeug-Setup (Federung, Rotor-/Propeller-Blur-Meshes, Flugphysik) in der Engine. Beim
 Geländewagen teleskopieren die Federbeine zwar, die Federn werden aber nicht gestaucht (keine
 Skalierung), und der Unterboden ist bis auf Motorraum und Differential-Tasche geschlossen. Beim Motorboot
-liefern Wasseroberfläche, Kielwasser und Gischt die Engine; Persenning und Bimini fehlen. Dafür ist dieses Script die
+liefern Wasseroberfläche, Kielwasser und Gischt die Engine; Persenning und Bimini fehlen, die Fender (eigenes Teil `Fenders`, ohne Kollision) hängen fest außenbords. Dafür ist dieses Script die
 Grundlage: alle Maße, Pivots, LODs und Exporte stehen, und jedes Teil lässt sich in Blender oder
 im Code weiter verfeinern.
 
