@@ -24,6 +24,9 @@
   laufende Scheinwerfer und Rückleuchten, Leuchtband direkt unter der Heckscheibe, Kennzeichen am hohen
   Heckstoßfänger, Endrohr-Blenden, Ladeklappe auf der Schulter, tiefer sitzende Türen und Trittbretter,
   graugrüner Lack. Bewegungsbereiche erneut kollisionsfrei geprüft.
+- **Elektro-SUV weicher geformt:** größere Kanten- und Eckradien, stärker gewölbte Haube, tiefer eingezogene
+  Schulter und Schweller, schmaleres Dach (mehr Tumblehome), schlankere Kotflügelverbreiterungen und Stoßfänger,
+  flache Dachplattform ohne Galerie.
 
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau

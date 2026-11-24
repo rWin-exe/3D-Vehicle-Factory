@@ -115,7 +115,7 @@ genarbter Stoßfänger und **U-förmiger Alu-Unterfahrschutz mit zwei Bergehaken
 Heckscheibe mit **keilförmigen, weit um die Ecken laufenden Leuchten**, hoher Stoßfänger mit Kennzeichen,
 Rückstrahlern und Alu-Unterfahrschutz mit Endrohr-Blenden. Gerundete Kotflügelverbreiterungen,
 Schwellerverkleidung mit Chromleiste, **Trittbretter** mit gerippter Auftrittsfläche, Dachreling mit
-**Dachplattform** (Lattenrost, Galerie, Windabweiser). All-Terrain-Reifen mit einzeln modellierten Profilblöcken,
+**Dachplattform** (flacher Lattenrost, Windabweiser). All-Terrain-Reifen mit einzeln modellierten Profilblöcken,
 20"-Felgen mit **sechs Y-Speichen** (glanzgedrehte Front, schwarze Flanken), innenbelüftete Bremsscheiben und Sättel.
 Unterboden: Hochvolt-Batterie, Antriebseinheiten vorn und hinten (Motor, Getriebe, Inverter, orange
 HV-Leitungen), Hilfsrahmen. **Doppelquerlenker an allen vier Rädern**: Federweg als `slide`-Pivot, Querlenker,
@@ -150,7 +150,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
-| Elektro-SUV (`forest`) | 193 770 | 96 875 | 47 008 | 15 105 |
+| Elektro-SUV (`forest`) | 188 990 | 94 482 | 45 817 | 14 533 |
 
 ---
 
