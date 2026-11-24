@@ -4247,12 +4247,13 @@ class _Ctx:
 
 
 def ev_glass(name, tint):
-    """Getöntes Fahrzeugglas: wie ``mat_glass``, aber mit kleiner Brechzahl – die flach stehende Windschutzscheibe
-    spiegelt große Lichtquellen sonst flächig weiß."""
+    """Getöntes Fahrzeugglas: wie ``mat_glass``, aber mit Brechzahl 1 (keine Spiegelung, keine Brechung). Die großen
+    Flächenlichter der Vorschau spiegeln sich sonst als Schleier in den flach stehenden Scheiben, und weil nur
+    wenige Strahlen diese Spiegelung treffen, rauscht sie als Punktmuster; Reflexe liefert das Glas-Material der Engine."""
     m = mat_glass(name, tint, 0.02)
     for nd in m.node_tree.nodes:
         if nd.type == "BSDF_PRINCIPLED":
-            nd.inputs["IOR"].default_value = 1.08
+            nd.inputs["IOR"].default_value = 1.0
     return m
 
 

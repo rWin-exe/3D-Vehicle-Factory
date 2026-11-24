@@ -3,23 +3,26 @@
 ## Unveröffentlicht
 
 ### Neu
-- **Elektro-Geländewagen** (`--vehicle ev`): fünftüriger Allrad-SUV (Karosserie 4,70 m, Breite 1,94 m, Radstand
-  2,83 m, Reifen 255/60 R20 All-Terrain). Karosserie mit eigenem Spanten-Querschnitt (scharfe Schulterkante,
-  Lichtkante im unteren Türbereich, Powerdome, verrundete und zurückgezogene Bug-Ecken), weit nach vorn gezogener,
-  52° geneigter Windschutzscheibe über einer kurzen, abfallenden Haube, schwarzem Dach und schwarzen Säulen; Hülle als Außenhaut − Innenhaut mit echten Ausschnitten.
-  Front mit vertieftem Sechseck-Grill (senkrechte Lamellen, beleuchtete Raute), um die Ecke laufenden Scheinwerfern
-  mit drei L-förmigen Tagfahrlicht-Segmenten, Nebelleuchten-Taschen, Stoßfänger in Wagenfarbe und U-förmigem
-  Unterfahrschutz mit Bergeösen; Heck mit hohem schwarzem Stoßfänger, Unterfahrschutz, durchgehender Lichtleiste,
-  die als Rückleuchte um die Ecken läuft, breiter Heckscheibe und keilförmigem Dachspoiler an der Klappe;
-  trapezförmige Radläufe mit breiten Verkleidungen, Trittbretter, stromlinienförmige Spiegel, silberne Reling mit
-  flacher Gepäckplattform, Ladeklappe mit CCS-Dose. Technik: Unterflur-Batterie, je ein E-Motor mit Inverter vorn
-  und hinten, Einzelradaufhängung mit Querlenkern, Federbeinen (Aim-Pivots) und Faltenbälgen, Vorder- und
-  Hinterachslenkung, Frunk mit orangefarbenen Hochvolt-Leitungen. Innenraum mit Kombiinstrument in einer Hutze, frei
-  stehendem Zentraldisplay und Beifahrerdisplay, Mittelkonsole mit Drehwähler, weich verrundeten Sitzen (zwei
-  Einzelsitze, dreiteilige Rückbank), rundem Dreispeichen-Lenkrad, Türverkleidungen mit Ambientelicht. Pivots für
-  vier Türen, Haube, Heckklappe, Ladeklappe, Lenkrad, Federweg, Lenkung und Querlenker; Bewegungsbereiche
-  kollisionsfrei geprüft. Fünf Lackierungen (`--ev-livery forest|graphite|sand|white|blue`), Schriftzug per
-  `--ev-brand` (Standard `VOLT`).
+- **Elektro-Geländewagen** (`--vehicle ev`): fünftüriger Allrad-SUV (Karosserie 4,70 m, Breite 1,94 m, Dach 1,75 m,
+  Radstand 3,06 m, Reifen 255/60 R20 All-Terrain). Karosserie aus zwei Spanten-Körpern: Unterbau mit Schulterkante,
+  Lichtkante über dem Schweller, Powerdome und stark verrundeten Ecken, darauf die eingezogene Kabine mit gewölbter,
+  ≈ 55° geneigter Windschutzscheibe; Hülle als Außenhaut − Innenhaut mit echten Ausschnitten und lackierten Falzen.
+  Schwarzes Dach und schwarze Fensterrahmen, D-Säule in Wagenfarbe, Chromleiste um die ansteigende hintere
+  Seitenscheibe. Projektions-Werkzeuge (`ev_tools`) legen Leuchten, Blenden und aufgesetzte Verkleidungen auf die
+  gewölbte Außenhaut – auch polar um die Fahrzeugecken. Front mit vertieftem Grill (16 Lamellen, beleuchtete Raute),
+  um die Ecke laufenden Scheinwerfern mit drei L-förmigen Tagfahrlicht-Segmenten, Nebelleuchten-Taschen, schwarzem
+  Stoßfänger und silbernem Unterfahrschutz mit Bergeösen; Heck mit Leuchtband, das als Rückleuchte um die Ecken
+  läuft, Unterfahrschutz mit drei Blöcken und zwei Endrohr-Blenden, Winkel-Rückstrahlern und Dachspoiler an der
+  Klappe; trapezförmige Radläufe, Trittbretter, Reling mit Gepäckplattform, Ladeklappe mit CCS-Dose. Technik:
+  Unterflur-Batterie, je ein E-Motor mit Inverter vorn und hinten, Einzelradaufhängung mit Querlenkern und
+  Federbeinen (Aim-Pivots), Vorder- und Hinterachslenkung, Frunk mit Hochvolt-Leitungen. Innenraum mit geschichtetem
+  Armaturenbrett (Kombiinstrument, frei stehendes Zentraldisplay, Beifahrerdisplay, satiniertes Zierband, Chromlinie
+  mit Ambientelicht, Lüftungsdüsen, Klimabedienteil), Lenkrad mit Tastenfeldern, hoher Mittelkonsole mit Wählhebel
+  und geteilter Armlehne, ausgeformten Ledersitzen mit Ziernähten, Türverkleidungen an den Tür-Pivots, Dachkonsole
+  und Sonnenblenden sowie einem Laderaum mit gerippter Matte, Radhausverkleidungen, Ladekantenschutz und zwei
+  Gasdruckfedern an der Heckklappe (Aim-Pivots). Pivots für vier Türen, Haube, Heckklappe, Ladeklappe, Lenkrad,
+  Federweg, Lenkung und Querlenker; Bewegungsbereiche kollisionsfrei geprüft. Fünf Lackierungen
+  (`--ev-livery forest|graphite|sand|white|blue`), Schriftzug per `--ev-brand` (Standard `VOLT`).
 
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau
