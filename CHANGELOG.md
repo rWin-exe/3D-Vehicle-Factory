@@ -24,6 +24,11 @@
   Federweg, Lenkung und Querlenker; Bewegungsbereiche kollisionsfrei geprüft. Fünf Lackierungen
   (`--ev-livery forest|graphite|sand|white|blue`), Schriftzug per `--ev-brand` (Standard `VOLT`).
 
+- **Elektro-Geländewagen „Classic“** (`--vehicle ev_classic`, `SM_EVClassic`): die frühere, höhere Karosserie
+  (Radstand 2,83 m, Dach 1,84 m, Sechseck-Grill, senkrechte Heckklappe) als eigenes Modell mit dem aktuellen
+  Innenraum; `ev_interior` richtet Rückbank, Laderaum, Spritzwand und Türverkleidungen jetzt nach der Geometrie
+  der jeweiligen Karosserie aus.
+
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau
   wirkt nicht mehr zu schmal unter dem hohen Glasaufbau. Größerer Kühlergrill mit Chromrahmen, größere

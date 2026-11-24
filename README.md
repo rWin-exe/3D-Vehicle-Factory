@@ -20,6 +20,10 @@ realistisch proportionierte 3D-Modelle vollständig prozedural erzeugt und als
 | ![Elektro-SUV geöffnet](docs/ev_open.jpg) | ![Elektro-SUV Laderaum](docs/ev_trunk.jpg) |
 | ![Elektro-SUV Innenraum](docs/ev_interior.jpg) | ![Elektro-SUV Innenraum im Schnitt](docs/ev_cutaway.jpg) |
 
+| Elektro-SUV „Classic“ (frühere Karosserie) | Classic-Innenraum |
+|---|---|
+| ![Elektro-SUV Classic](docs/ev_classic_34.jpg) | ![Elektro-SUV Classic Innenraum](docs/ev_classic_interior.jpg) |
+
 | Motorboot (Bowrider mit Außenborder) | |
 |---|---|
 | ![Motorboot](docs/boat_34.jpg) | ![Motorboot Cockpit](docs/boat_top.jpg) |
@@ -137,6 +141,14 @@ Schriftzug auf Kennzeichenträgern, Heckklappe, Frunk-Deckel und Einstiegsleiste
 Seidenmatter Lack in dunklem Graugrün, getönte Scheiben (Fond und Heck als Privacy-Verglasung). Lackierungen:
 `forest` (Standard), `graphite`, `sand`, `white`, `blue` – jeweils mit schwarzem Dach.
 
+**Elektro-Geländewagen „Classic“** (`--vehicle ev_classic`, Asset `SM_EVClassic`) – die frühere, höhere und kantigere
+Karosserie als eigenes Modell (Karosserie 4,70 m, Radstand 2,83 m, Dach 1,84 m, mit Dachträger 1,98 m; Sechseck-Grill,
+Stoßfänger in Wagenfarbe, U-förmiger Unterfahrschutz, senkrechte Heckklappe mit Lichtleiste) mit demselben Antrieb und
+Fahrwerk und dem **aktuellen Innenraum**: Armaturenbrett, Lenkrad, Mittelkonsole, Sitze, Türverkleidungen und Laderaum
+stammen aus `ev_interior` und passen sich an Radstand, Spritzwand und Türlängen dieser Karosserie an (kürzere
+Fondtüren mit kompakter Verkleidung, Laderaum zwischen breiteren Radhäusern, keine Gasdruckfedern). Lackierungen und
+Schriftzug wie beim Elektro-SUV (`--ev-livery`, `--ev-brand`).
+
 **Motorboot** – Bowrider der 6,4-m-Klasse (mit Außenborder und Badeplattformen 7,3 m, Breite 2,4 m):
 **Tiefen-V-Rumpf** (20° Aufkimmung am Spiegel, nach vorn schärfer) mit Kimmkanten, zwei Spritzleisten je
 Seite, stark ausgestelltem Bug und Wasserpass, als geschlossener Loft mit Deck zur Schale verdickt;
@@ -175,6 +187,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Elektro-SUV (`forest`) | 239 364 | 119 668 | 54 732 | 12 901 |
+| Elektro-SUV Classic (`forest`) | 237 226 | 118 606 | 54 795 | 13 098 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 
 ---
@@ -225,7 +238,7 @@ Anschauen und Weiterbearbeiten.
 
 | Option | Standard | Beschreibung |
 |---|---|---|
-| `--vehicle {enduro,heli,plane,offroad,ev,boat,all}` | `all` | Welche Modelle gebaut werden |
+| `--vehicle {enduro,heli,plane,offroad,ev,ev_classic,boat,all}` | `all` | Welche Modelle gebaut werden |
 | `--out DIR` | `export` | Ausgabeordner |
 | `--target {unreal,unity,godot,generic}` | `unreal` | Ausrichtung (Unreal: +X vorne; sonst Blender −Y vorne = Unity +Z / glTF +Z), FBX-Skalierung, Textur-Packing |
 | `--formats` | `fbx,glb,blend` | Exportformate (`fbx`, `glb`, `blend`, kommagetrennt) |
@@ -246,7 +259,7 @@ Anschauen und Weiterbearbeiten.
 | `--blades N` | `4` | Anzahl Hauptrotorblätter (2–7) |
 | `--dirt F` | `0.35` | Verschmutzungsgrad 0–1 (Schlamm/Staub, im Bake enthalten) |
 | `--seed N` | `7` | Variation (Stollenmuster, Startnummer, Kennzeichen) |
-| `--enduro-name`, `--heli-name`, `--plane-name`, `--offroad-name`, `--ev-name`, `--boat-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane`, `SM_Offroad`, `SM_EV`, `SM_Boat` | Asset-Namen |
+| `--enduro-name`, `--heli-name`, `--plane-name`, `--offroad-name`, `--ev-name`, `--ev-classic-name`, `--boat-name` | `SM_Enduro`, `SM_Heli`, `SM_Plane`, `SM_Offroad`, `SM_EV`, `SM_EVClassic`, `SM_Boat` | Asset-Namen |
 
 Laufzeit (CPU, 4 Kerne, Standardeinstellungen inkl. `--rig`): ca. 50 s (Enduro), 1 min (Heli),
 1,3 min (Flugzeug), 50 s (Geländewagen), 1 min (Elektro-SUV) und 2 min (Motorboot), alle sechs zusammen rund 7 min; der größte
