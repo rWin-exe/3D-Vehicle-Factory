@@ -4837,6 +4837,9 @@ SUV_LIVERIES = {
     # matter Schutzlack der gepanzerten Ausführung (Standard bei --suv-edition armored)
     "armor": dict(base=(0.036, 0.038, 0.041), rough=0.58, coat=0.12, metallic=0.35, roof=(0.036, 0.038, 0.041),
                   rim=(0.012, 0.012, 0.013), caliper=(0.05, 0.05, 0.055)),
+    # matter Olivton der leicht gepanzerten Ausführung (Standard bei --suv-edition light)
+    "olive": dict(base=(0.085, 0.100, 0.076), rough=0.50, coat=0.2, metallic=0.30, roof=(0.010, 0.010, 0.012),
+                  rim=(0.012, 0.012, 0.013), caliper=(0.05, 0.05, 0.055)),
     "glacier": dict(base=(0.78, 0.79, 0.80), rough=0.28, coat=0.6, metallic=0.15, roof=(0.010, 0.010, 0.012),
                     rim=(0.018, 0.018, 0.020), caliper=(0.05, 0.05, 0.055)),
     "dune": dict(base=(0.40, 0.33, 0.22), rough=0.36, coat=0.45, metallic=0.35, roof=(0.010, 0.010, 0.012),
@@ -5465,11 +5468,14 @@ def suv_corner(g, M, front, side):
 def build_suv(cfg):
     g = SuvGeo()
     armored = getattr(cfg, "suv_edition", "standard") == "armored"
-    liv = SUV_LIVERIES[cfg.suv_color or ("armor" if armored else "forest")]
+    light = getattr(cfg, "suv_edition", "standard") == "light"
+    prot = armored or light                          # beide Schutzausführungen: Schäkel, Verschraubungen, Bodenplatten
+    liv = SUV_LIVERIES[cfg.suv_color or ("armor" if armored else "olive" if light else "forest")]
     name = cfg.suv_name
     M = suv_materials(name, liv, cfg.dirt)
     if armored:                                      # durchgehend Wagenfarbe (kein Glanzdach), schwarze Felgen
         M["paint"] = M["paint_d"]
+    if prot:
         M["machined"] = M["rim"]
     asm = Assembly(name)
     asm.ao_distance = 0.35
@@ -5871,7 +5877,7 @@ def build_suv(cfg):
             fl = offset_open(outline, 0.030)
             path = [V((p.x, side * (g.lower_y(p.x, p.y) + 0.014), p.y)) for p in fl]
             trim.merge(tube(path, (0.026, 0.034), 12, M["clad"], up=Y_AXIS, exponent=5.0))
-            if armored:                              # verschraubte Radlaufverbreiterungen
+            if prot:                                 # verschraubte Radlaufverbreiterungen
                 for q in resample(path, 0.17)[1:-1]:
                     trim.merge(bolt(q + Y_AXIS * side * 0.031, Y_AXIS * side, 0.008, 0.005))
     asm.add(trim, "Flares", mods=[bevel_s])
@@ -6036,7 +6042,7 @@ def build_suv(cfg):
         fr.merge(tube(fillet_path([(xb - 0.005, y, 0.48), (xb + 0.085, y, 0.48), (xb + 0.085, y, 0.555),
                                    (xb - 0.005, y, 0.555)], 0.03), 0.0135, 10, M["skid"]))
         fr.merge(box((xb - 0.01, y, 0.5175), (0.03, 0.07, 0.10), M["clad"]))
-        if armored:                                  # Schäkel in den Bergeösen
+        if prot:                                     # Schäkel in den Bergeösen
             fr.merge(shackle(V((xb + 0.05, y, 0.5175)), 1.0))
     asm.add(fr, "Front", mods=[bevel_s])
     asm.add(lens, "HeadlightLens", smooth=60)
@@ -6073,8 +6079,12 @@ def build_suv(cfg):
     rr.merge(plate(xr_b, 0.635, -1.0))
     rr.merge(tube(fillet_path([(xr_b - 0.01, 0.0, 0.50), (xr_b - 0.08, 0.0, 0.50), (xr_b - 0.08, 0.0, 0.56),
                                (xr_b - 0.01, 0.0, 0.56)], 0.025), 0.012, 10, M["skid"]))
-    if armored:
-        rr.merge(shackle(V((xr_b - 0.045, 0.0, 0.53)), -1.0))
+    if prot:                                         # zwei zusätzliche Bergeösen mit Schäkeln
+        for side in (1, -1):
+            y = side * 0.36
+            rr.merge(tube(fillet_path([(xr_b - 0.01, y, 0.50), (xr_b - 0.08, y, 0.50), (xr_b - 0.08, y, 0.56),
+                                       (xr_b - 0.01, y, 0.56)], 0.025), 0.012, 10, M["skid"]))
+            rr.merge(shackle(V((xr_b - 0.045, y, 0.53)), -1.0))
     asm.add(rr, "Rear", mods=[bevel_s])
 
     # ------------------------------------------------------------- Seite: Schwellerverkleidung, Ladebuchse
@@ -6085,8 +6095,8 @@ def build_suv(cfg):
         x0, x1 = g.ra.x + 0.50 + 0.07, g.fa.x - 0.50 - 0.07
         sd.merge(prism_x(sec, x0, x1, M["clad"]))
         sd.merge(box(((x0 + x1) / 2, side * 0.963, 0.519), (x1 - x0 - 0.10, 0.008, 0.010),
-                     M["black" if armored else "chrome"]))                                 # Zierleiste
-        if armored:
+                     M["black" if prot else "chrome"]))                                 # Zierleiste
+        if prot:
             for k in range(9):
                 sd.merge(bolt(V((lerp(x0 + 0.08, x1 - 0.08, k / 8), side * 0.972, 0.455)), Y_AXIS * side))
         # Trittbrett mit gerippter Auftrittsfläche, Alu-Endkappen und Haltern
@@ -6159,6 +6169,9 @@ def build_suv(cfg):
         rack.merge(box((-1.42, -0.28, zp + 0.123), (0.36, 0.46, 0.012), M["black"]))
         for sy in (-0.42, -0.14):
             rack.merge(box((-1.247, sy, zp + 0.10), (0.008, 0.04, 0.03), M["steel"]))
+    if light:                                        # flache Dachluke unter dem Träger
+        rack.merge(box((-0.72, 0.0, zp + 0.018), (0.50, 0.50, 0.024), M["black"]))
+        rack.merge(box((-0.72, 0.0, zp + 0.034), (0.20, 0.20, 0.010), M["black"]))
     asm.add(rack, "RoofRack", mods=[bevel_s])
     if armored:                                      # Funkantenne hinten links (eigene Kollisionshülle)
         ab = V((-1.60, 0.50, zp + 0.003))
@@ -6277,7 +6290,7 @@ def build_suv(cfg):
                           0.016, 8, M["hv"]))
     ch.merge(box((g.fa.x + 0.55, 0.0, 0.40), (0.30, 0.84, 0.012), M["chassis"]))     # Unterbodenverkleidung vorn
     ch.merge(box((g.ra.x - 0.55, 0.0, 0.45), (0.30, 0.84, 0.012), M["chassis"]))
-    if armored:                                      # Minenschutz: verschraubte Bodenplatten unter Akku und Antrieben
+    if prot:                                         # Minenschutz: verschraubte Bodenplatten unter Akku und Antrieben
         ch.merge(box((-0.06, 0.0, 0.2365), (2.04, 1.30, 0.007), M["chassis"]))
         for x in (-0.57, 0.45):
             ch.merge(box((x, 0.0, 0.2325), (0.012, 1.26, 0.003), M["steel"]))
@@ -7356,9 +7369,10 @@ def parse_args(argv):
     p.add_argument("--offroad-livery", dest="offroad_color", choices=sorted(OFFROAD_LIVERIES), default="sand")
     p.add_argument("--boat-livery", dest="boat_color", choices=sorted(BOAT_LIVERIES), default="navy")
     p.add_argument("--suv-livery", dest="suv_color", choices=sorted(SUV_LIVERIES), default=None,
-                   help="Lackierung des SUV (Standard: forest, bei --suv-edition armored: armor)")
-    p.add_argument("--suv-edition", choices=("standard", "armored"), default="standard",
-                   help="armored: Panzerplatten, Panzerglas-Fenster, Dachausrüstung, Schäkel, Unterbodenschutz")
+                   help="Lackierung des SUV (Standard: forest, bei --suv-edition light/armored: olive/armor)")
+    p.add_argument("--suv-edition", choices=("standard", "light", "armored"), default="standard",
+                   help="light: matter Olivlack, schwarze Felgen, Schäkel, Verschraubungen, Bodenplatten; "
+                        "armored: zusätzlich Panzerplatten, Panzerglas-Fenster, Dachausrüstung")
     p.add_argument("--suv-badge", default="4X4 ELECTRIC", help="Schriftzug auf der Heckklappe des SUV")
     p.add_argument("--blades", type=int, default=4, choices=range(2, 8), metavar="2-7",
                    help="Anzahl Hauptrotorblätter")

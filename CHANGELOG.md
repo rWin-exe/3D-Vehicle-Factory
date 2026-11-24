@@ -3,6 +3,9 @@
 ## Unveröffentlicht
 
 ### Neu
+- **Elektro-SUV, leicht gepanzerte Ausführung** (`--vehicle suv --suv-edition light`): matter Olivlack `olive`,
+  schwarze Felgen, Schäkel vorn und hinten, verschraubte Radläufe und Schweller, Dachluke, Bodenplatten unter
+  Akku und Antrieben. Beide Schutzausführungen haben hinten jetzt zwei Bergeösen mit Schäkeln.
 - **Elektro-SUV, gepanzerte Ausführung** (`--vehicle suv --suv-edition armored`): matter Schutzlack `armor`,
   verschraubte Panzerplatten auf Türen und Haube, Panzerrahmen mit kleinen Sichtöffnungen über den Seitenfenstern,
   verschraubte Radläufe und Schweller, Schäkel vorn und hinten, Dachausrüstung (Suchscheinwerfer, Lichtbalken,
