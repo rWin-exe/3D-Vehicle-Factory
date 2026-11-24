@@ -27,6 +27,9 @@
 - **Elektro-SUV weicher geformt:** größere Kanten- und Eckradien, stärker gewölbte Haube, tiefer eingezogene
   Schulter und Schweller, schmaleres Dach (mehr Tumblehome), schlankere Kotflügelverbreiterungen und Stoßfänger,
   flache Dachplattform ohne Galerie.
+- **Elektro-SUV, weitere Details:** Längssicken und Waschdüsen auf der Haube, 4X4-Schriftzug und Seitenblinker am
+  Kotflügel, Schmutzfänger, Chromlamellen in den Lufteinlässen, Diffusor-Finnen, Innenspiegel mit Sensorgehäuse,
+  Sonnenblenden und Innenleuchte.
 
 ### Geändert
 - **Geländewagen überarbeitet:** Gürtellinie 1,16 → 1,30 m und Dach 1,98 m, Karosserie 6 cm breiter – der Unterbau

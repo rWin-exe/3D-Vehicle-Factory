@@ -6192,6 +6192,39 @@ def build_suv(cfg):
         asm.add(wm, k("Wheel"), k("Wheel"), smooth=40)
         asm.add(wheel["tread"].copy().transform(m), f"Tread_{wk}", k("Wheel"), detail=1)
 
+    # ------------------------------------------------------------- Zusatzdetails
+    hl = MeshData()                                   # Haube: zwei Längssicken (Powerdome) und Waschdüsen
+    for side in (1, -1):
+        rib = [V((x, side * lerp(0.36, 0.44, (x - 1.22) / 1.06), g.top_z(x, 0.40) + 0.001)) for x in
+               (lerp(1.22, 2.28, i / 16) for i in range(17))]
+        hl.merge(tube(rib, (0.005, 0.022), 8, M["paint"], up=Z_AXIS, exponent=2.0))
+        hl.merge(box((1.27, side * 0.28, g.top_z(1.27, 0.28) + 0.004), (0.03, 0.02, 0.008), M["black"]))
+    asm.add(hl, "HoodLines", "Hood", detail=2)
+    xd = MeshData()
+    for side in (1, -1):
+        # Schriftzug auf dem vorderen Kotflügel, Seitenblinker, Schmutzfänger hinter den Rädern
+        zb_ = 1.055
+        fm = frame_matrix(V((g.fa.x, side * (g.lower_y(g.fa.x, zb_) + 0.002), zb_)), -X_AXIS * side, Z_AXIS, Y_AXIS * side)
+        xd.merge(text_md("4X4", 0.038, fm, M["chrome"], bold=0.04))
+        xd.merge(box((g.fa.x + 0.30, side * (g.lower_y(g.fa.x + 0.30, zb_) + 0.002), zb_), (0.06, 0.006, 0.014), M["amber"]))
+        for a_ in (g.fa, g.ra):
+            xd.merge(box((a_.x - 0.535, side * 0.80, 0.37), (0.012, 0.26, 0.20), M["rubber"]))
+        # Lufteinlass-Lamellen im Frontstoßfänger, Diffusor-Finnen hinten
+        for k in range(3):
+            xd.merge(box((xb + 0.004, side * 0.20, 0.508 + 0.017 * k), (0.01, 0.19, 0.005), M["chrome"]))
+        for y in (0.10, 0.20):
+            xd.merge(box((xr_b + 0.06, side * y, 0.375), (0.16, 0.008, 0.05), M["black"]))
+        # Innen: Sonnenblenden
+        xv = g.glass_x(0.0, g.z_roof - 0.10) - 0.10
+        xd.merge(box((xv, side * 0.40, g.z_roof - 0.075), (0.16, 0.36, 0.012), M["fabric"]))
+    # Innenspiegel mit Sensorgehäuse an der Frontscheibe, Dachhimmel-Leuchte
+    xm = g.glass_x(0.0, g.z_roof - 0.13) - 0.05
+    xd.merge(box((xm, 0.0, g.z_roof - 0.14), (0.05, 0.10, 0.07), M["black"]))
+    xd.merge(box((xm - 0.06, 0.0, g.z_roof - 0.17), (0.02, 0.24, 0.065), M["black"]))
+    xd.merge(box((xm - 0.071, 0.0, g.z_roof - 0.17), (0.002, 0.22, 0.05), M["mirror"]))
+    xd.merge(box((-0.30, 0.0, g.z_roof - 0.045), (0.16, 0.10, 0.01), M["lens"]))
+    asm.add(xd, "ExtraDetails", mods=[bevel_s], detail=2)
+
     # ------------------------------------------------------------- Sockets & Kollision
     asm.socket("Driver", (-0.06, 0.40, 0.92))
     asm.socket("Passenger", (-0.06, -0.40, 0.92))

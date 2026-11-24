@@ -150,7 +150,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
-| Elektro-SUV (`forest`) | 188 990 | 94 482 | 45 817 | 14 533 |
+| Elektro-SUV (`forest`) | 190 610 | 95 292 | 45 817 | 14 533 |
 
 ---
 
