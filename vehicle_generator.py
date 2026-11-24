@@ -6458,6 +6458,8 @@ def ev_interior(c):
     y_drv, cw = 0.415, 0.125                                                                   # Fahrerplatz, halbe Konsolenbreite
     x_bs, z_cg = -1.030, 0.745                                                                 # Laderaum: Vorderkante, Boden
     hip_f, hip_r = V((0.020, y_drv, 0.735)), V((-0.930, 0.0, 0.740))
+    c.seat_f, c.seat_r = hip_f, V((hip_r.x, 0.48, hip_r.z))                                     # Sitzbezugspunkte (Sockets)
+    c.cargo = V(((x_bs + g.x_rear + 0.115) / 2, 0.0, z_cg))                                    # Mitte des Ladebodens
 
     # ------------------------------------------------------------- Boden, Teppich, Fußmatten, Einstiegsleisten
     it.merge(box(((x_fw + x_bs) / 2, 0.0, z_f - 0.012), (x_fw - x_bs, 1.70, 0.024), M["floor"]))
@@ -6597,10 +6599,11 @@ def build_ev(cfg):
     ev_chassis(c)
 
     # ------------------------------------------------------------- Sockets & Kollision
-    asm.socket("Driver", (0.02, 0.385, 0.76))
-    asm.socket("Passenger", (0.02, -0.385, 0.76))
-    asm.socket("Rear_L", (-0.96, 0.47, 0.765))
-    asm.socket("Rear_R", (-0.96, -0.47, 0.765))
+    sf, sr = c.seat_f, c.seat_r                                 # Sitzflächen (aus ``ev_interior``)
+    asm.socket("Driver", (sf.x, sf.y, sf.z + 0.025))
+    asm.socket("Passenger", (sf.x, -sf.y, sf.z + 0.025))
+    asm.socket("Rear_L", (sr.x, sr.y, sr.z + 0.025))
+    asm.socket("Rear_R", (sr.x, -sr.y, sr.z + 0.025))
     lamp = c.F["lamp"]
     lu, lz = sum(p[0] for p in lamp) / len(lamp), sum(p[1] for p in lamp) / len(lamp)
     for side in (1, -1):
@@ -6608,7 +6611,7 @@ def build_ev(cfg):
         asm.socket(f"Headlight_{'L' if side > 0 else 'R'}", (p.x + 0.01, p.y, p.z), forward=X_AXIS)
     asm.socket("TowHitch", (g.x_rear - 0.04, 0.0, 0.44), forward=-X_AXIS)
     asm.socket("Frunk", (g.fa.x + 0.07, 0.0, 0.66))
-    asm.socket("Trunk", (-1.66, 0.0, 0.71))
+    asm.socket("Trunk", (c.cargo.x, 0.0, c.cargo.z + 0.010))
     asm.socket("Roof", (-0.69, 0.0, c.top_z(-0.6, 0.0) + 0.08))
 
     def by_pivot(*keys):
