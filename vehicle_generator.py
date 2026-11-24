@@ -4328,7 +4328,7 @@ def ev_materials(prefix, liv, dirt):
 
 
 class EvGeo(OffroadGeo):
-    """Maße des Elektro-SUV: Karosserie 4,70 m, Breite 1,94 m, Dach 1,75 m (mit Dachträger 1,89 m), Radstand 3,06 m,
+    """Maße des Elektro-SUV: Karosserie 4,70 m, Breite 1,94 m, Dach 1,77 m (mit Dachträger 1,87 m), Radstand 2,92 m,
     Spur 1,64 m, Reifen 255/60 R20 (Ø 0,81 m), Bodenfreiheit ≈ 0,27 m.
 
     Die Karosserie besteht aus zwei Spanten-Körpern entlang X:

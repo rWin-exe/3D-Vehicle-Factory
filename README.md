@@ -88,12 +88,13 @@ Innenraum (Armaturenbrett mit Displays, Sitze, Rückbank, Schalt- und Verteilerh
 Lackierungen: `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach).
 
 **Elektro-Geländewagen** – fünftüriger Allrad-SUV mit Offroad-Ausstattung (Karosserie 4,70 m, mit Unterfahrschutz
-4,80 m; Breite 1,94 m, über die Trittbretter 2,06 m, mit Spiegeln 2,35 m; Dach 1,75 m, mit Dachträger 1,88 m;
-Radstand 3,06 m, Spur 1,64 m, Reifen 255/60 R20 All-Terrain, Bodenfreiheit ≈ 0,24 m). **Karosserie:** zwei
+4,81 m; Breite 1,94 m, über die Trittbretter 2,06 m, mit Spiegeln 2,35 m; Dach 1,77 m, mit Dachträger 1,87 m;
+Radstand 2,92 m, Spur 1,64 m, Reifen 255/60 R20 All-Terrain, Bodenfreiheit ≈ 0,24 m). **Karosserie:** zwei
 Spanten-Körper – der Unterbau mit eigenem Querschnitt (**Schulterkante** vom Scheinwerfer über die Türgriffe bis zur
 Rückleuchte, **Lichtkante** über dem Schweller, **Powerdome**; Bug und Heck als Viertelellipsen verrundet und in der
 Draufsicht auf Leuchtenhöhe weit zurückgezogen) und die stark eingezogene Kabine mit in der Draufsicht gewölbter,
-≈ 55° geneigter Windschutzscheibe, quer gewölbtem Dach und ≈ 36° geneigter Heckscheibe. Die Hülle entsteht als
+≈ 58° geneigter Windschutzscheibe, quer gewölbtem Dach und ≈ 39° geneigter Heckscheibe. Haube, Scheiben, Dach und
+Heck folgen einem am Seitenfoto der Vorlage vermessenen Profil. Die Hülle entsteht als
 Außenhaut − Innenhaut (≈ 2 cm Wandstärke, die Innenhaut ist ein eigener Loft) mit **echten Ausschnitten** für vier
 Türen (Bügelgriffe, Chromleiste am Fensterband), Haube, nach oben öffnende **Heckklappe** (Scharnier am Dach,
 Dachstück und Spoiler schwenken mit, zwei Gasdruckfedern), Radhäuser und Scheiben sowie Taschen für Grill,
@@ -186,7 +187,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Hubschrauber (`civil`) | 71 010 | 35 501 | 17 356 | 7 379 |
 | Flugzeug (`classic`) | 59 632 | 29 769 | 14 844 | 6 304 |
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
-| Elektro-SUV (`forest`) | 239 364 | 119 668 | 54 732 | 12 901 |
+| Elektro-SUV (`forest`) | 249 123 | 124 548 | 57 186 | 14 065 |
 | Elektro-SUV Classic (`forest`) | 237 226 | 118 606 | 54 795 | 13 098 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 

@@ -3,10 +3,10 @@
 ## Unveröffentlicht
 
 ### Neu
-- **Elektro-Geländewagen** (`--vehicle ev`): fünftüriger Allrad-SUV (Karosserie 4,70 m, Breite 1,94 m, Dach 1,75 m,
-  Radstand 3,06 m, Reifen 255/60 R20 All-Terrain). Karosserie aus zwei Spanten-Körpern: Unterbau mit Schulterkante,
+- **Elektro-Geländewagen** (`--vehicle ev`): fünftüriger Allrad-SUV (Karosserie 4,70 m, Breite 1,94 m, Dach 1,77 m,
+  Radstand 2,92 m, Reifen 255/60 R20 All-Terrain). Karosserie aus zwei Spanten-Körpern: Unterbau mit Schulterkante,
   Lichtkante über dem Schweller, Powerdome und stark verrundeten Ecken, darauf die eingezogene Kabine mit gewölbter,
-  ≈ 55° geneigter Windschutzscheibe; Hülle als Außenhaut − Innenhaut mit echten Ausschnitten und lackierten Falzen.
+  ≈ 58° geneigter Windschutzscheibe (Profil am Seitenfoto der Vorlage vermessen); Hülle als Außenhaut − Innenhaut mit echten Ausschnitten und lackierten Falzen.
   Schwarzes Dach und schwarze Fensterrahmen, D-Säule in Wagenfarbe, Chromleiste um die ansteigende hintere
   Seitenscheibe. Projektions-Werkzeuge (`ev_tools`) legen Leuchten, Blenden und aufgesetzte Verkleidungen auf die
   gewölbte Außenhaut – auch polar um die Fahrzeugecken. Front mit vertieftem Grill (16 Lamellen, beleuchtete Raute),
