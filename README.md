@@ -125,6 +125,14 @@ Display-Band, Dreispeichen-Lenkrad, Mittelkonsole, Sitzen in schwarzem Leder, R�
 Laderaum. Lackierungen: `forest` (Graugrün), `graphite`, `glacier`, `dune` (immer mit schwarzem Dach);
 Schriftzug auf der Heckklappe per `--suv-badge`.
 
+Mit `--suv-edition armored` entsteht die gepanzerte Ausführung: matter Schutzlack (`armor`) ohne Glanzdach,
+verschraubte Panzerplatten auf Türen und Haube, Panzerrahmen mit verkleinerten Sichtöffnungen über allen
+Seitenfenstern, verschraubte Radlaufverbreiterungen und Schweller, Schäkel in den Bergeösen vorn und hinten,
+Dachausrüstung (Suchscheinwerfer, Lichtbalken, Dachluke mit Sensorkopf, Staukiste, Funkantenne mit eigener
+Kollisionshülle), verschraubte Bodenplatten unter Akku und Antrieben, Trenngitter zum Laderaum und schwarze Felgen.
+
+![Elektro-SUV, gepanzert](docs/suv_armored.jpg)
+
 ## Game-Ready-Pipeline
 
 | Schritt | Ergebnis |
@@ -151,6 +159,7 @@ Gemessene Polycounts (Standardeinstellungen, Dreiecke):
 | Geländewagen (`sand`) | 124 788 | 62 386 | 28 971 | 8 970 |
 | Motorboot (`navy`) | 40 304 | 20 151 | 9 785 | 2 909 |
 | Elektro-SUV (`forest`) | 190 610 | 95 292 | 45 817 | 14 533 |
+| Elektro-SUV (`--suv-edition armored`) | 210 200 | 105 087 | 49 978 | 15 300 |
 
 ---
 
@@ -216,7 +225,8 @@ Anschauen und Weiterbearbeiten.
 | `--plane-livery` | `classic` | `classic`, `trainer`, `bush`, `military` |
 | `--offroad-livery` | `sand` | `sand`, `olive`, `white` (schwarzes Dach), `red` (weißes Dach) |
 | `--boat-livery` | `navy` | `navy`, `white`, `red`, `graphite` |
-| `--suv-livery` | `forest` | `forest`, `graphite`, `glacier`, `dune` (alle mit schwarzem Dach) |
+| `--suv-livery` | `forest` | `forest`, `graphite`, `glacier`, `dune` (alle mit schwarzem Dach), `armor` (matt, Standard der gepanzerten Ausführung) |
+| `--suv-edition` | `standard` | `armored`: Panzerplatten, Panzerglas-Fenster, Dachausrüstung, Schäkel, Unterbodenschutz |
 | `--suv-badge TEXT` | `4X4 ELECTRIC` | Schriftzug auf der Heckklappe des SUV |
 | `--blades N` | `4` | Anzahl Hauptrotorblätter (2–7) |
 | `--dirt F` | `0.35` | Verschmutzungsgrad 0–1 (Schlamm/Staub, im Bake enthalten) |

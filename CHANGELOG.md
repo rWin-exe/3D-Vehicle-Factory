@@ -3,6 +3,11 @@
 ## Unveröffentlicht
 
 ### Neu
+- **Elektro-SUV, gepanzerte Ausführung** (`--vehicle suv --suv-edition armored`): matter Schutzlack `armor`,
+  verschraubte Panzerplatten auf Türen und Haube, Panzerrahmen mit kleinen Sichtöffnungen über den Seitenfenstern,
+  verschraubte Radläufe und Schweller, Schäkel vorn und hinten, Dachausrüstung (Suchscheinwerfer, Lichtbalken,
+  Luke mit Sensorkopf, Staukiste, Antenne), Bodenplatten unter Akku und Antrieben, Laderaum-Trenngitter,
+  schwarze Felgen. Die Standardausführung bleibt unverändert.
 - **Elektro-SUV** (`--vehicle suv`): eigenständig modellierter Fünftürer der 4,8-m-Klasse mit zwei E-Motoren,
   schwarzem „schwebendem“ Dach, schmalen LED-Scheinwerfern, geschlossenem Grill mit hinterleuchtetem Emblem,
   Alu-Unterfahrschutz mit Bergehaken, durchgehendem Heckleuchtband, kantigen Kotflügelverbreiterungen,

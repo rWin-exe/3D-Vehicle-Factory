@@ -4834,6 +4834,9 @@ SUV_LIVERIES = {
                    rim=(0.018, 0.018, 0.020), caliper=(0.05, 0.05, 0.055)),
     "graphite": dict(base=(0.075, 0.08, 0.085), rough=0.32, coat=0.6, metallic=0.65, roof=(0.010, 0.010, 0.012),
                      rim=(0.018, 0.018, 0.020), caliper=(0.55, 0.20, 0.02)),
+    # matter Schutzlack der gepanzerten Ausführung (Standard bei --suv-edition armored)
+    "armor": dict(base=(0.036, 0.038, 0.041), rough=0.58, coat=0.12, metallic=0.35, roof=(0.036, 0.038, 0.041),
+                  rim=(0.012, 0.012, 0.013), caliper=(0.05, 0.05, 0.055)),
     "glacier": dict(base=(0.78, 0.79, 0.80), rough=0.28, coat=0.6, metallic=0.15, roof=(0.010, 0.010, 0.012),
                     rim=(0.018, 0.018, 0.020), caliper=(0.05, 0.05, 0.055)),
     "dune": dict(base=(0.40, 0.33, 0.22), rough=0.36, coat=0.45, metallic=0.35, roof=(0.010, 0.010, 0.012),
@@ -5461,9 +5464,13 @@ def suv_corner(g, M, front, side):
 
 def build_suv(cfg):
     g = SuvGeo()
-    liv = SUV_LIVERIES.get(cfg.suv_color, SUV_LIVERIES["forest"])
+    armored = getattr(cfg, "suv_edition", "standard") == "armored"
+    liv = SUV_LIVERIES[cfg.suv_color or ("armor" if armored else "forest")]
     name = cfg.suv_name
     M = suv_materials(name, liv, cfg.dirt)
+    if armored:                                      # durchgehend Wagenfarbe (kein Glanzdach), schwarze Felgen
+        M["paint"] = M["paint_d"]
+        M["machined"] = M["rim"]
     asm = Assembly(name)
     asm.ao_distance = 0.35
     bevel_s = ("bevel", dict(width=0.0015, segments=1, angle=40))
@@ -5490,6 +5497,65 @@ def build_suv(cfg):
     def flat(points3d, mat, flip=False):
         vs = list(reversed(points3d)) if flip else list(points3d)
         return MeshData().add(vs, [tuple(range(len(vs)))], None, mat)
+
+    def bolt(p, n, r=0.009, h=0.005):
+        """Sechskant-Schraubenkopf auf einer Fläche (Punkt p, Außennormale n)."""
+        return cylinder(p - n * 0.002, p + n * h, r, 6, M["steel"])
+
+    def armor_sheet(fn, nu, nv, inside, bolts_u, bolts_v, off=0.007):
+        """Aufgeschraubte Panzerplatte: fn(u, v, o) liefert den Punkt im Abstand o über der Außenhaut."""
+        md = orient_faces(surface_grid(lambda u, v: fn(u, v, off), nu, nv, M["paint_d"]), inside)
+        loop = ([(i / nu, 0.0) for i in range(nu)] + [(1.0, j / nv) for j in range(nv)] +
+                [(1.0 - i / nu, 1.0) for i in range(nu)] + [(0.0, 1.0 - j / nv) for j in range(nv)])
+        mid = fn(0.5, 0.5, 0.0)
+        md.merge(orient_faces(grid_rings([[fn(u, v, off) for u, v in loop], [fn(u, v, -0.001) for u, v in loop]],
+                                         True, mat=M["paint_d"]), lambda c: mid - c))
+        nrm = (fn(0.5, 0.5, off) - mid).normalized()
+        uv = ([(lerp(0.06, 0.94, i / (bolts_u - 1)), v) for v in (0.08, 0.92) for i in range(bolts_u)] +
+              [(u, lerp(0.08, 0.92, j / (bolts_v + 1))) for u in (0.06, 0.94) for j in range(1, bolts_v + 1)])
+        for u, v in uv:
+            md.merge(bolt(fn(u, v, off), nrm))
+        return md
+
+    def armor_plate(corners, side, bolts_u=5, bolts_v=2):
+        """Panzerplatte auf der Flanke: Viereck (x, z) – unten vorn, unten hinten, oben hinten, oben vorn."""
+        a, b, c, d = [V(q) for q in corners]
+
+        def fn(u, v, o):
+            q = a.lerp(b, u).lerp(d.lerp(c, u), v)
+            return V((q.x, side * (g.lower_y(q.x, q.y) + o), q.y))
+        return armor_sheet(fn, 10, 6, lambda c_: V((0.0, -side, 0.0)), bolts_u, bolts_v)
+
+    def armor_window(win, hole, side, x_max=None):
+        """Panzerrahmen über einem Seitenfenster: Platte in Wagenfarbe mit kleiner Sichtöffnung (tiefe Laibung
+        bis zum Panzerglas) und umlaufenden Schraubenköpfen."""
+        outer = ensure_ccw(offset_poly(win, 0.014))
+        if x_max is not None:
+            cl = []
+            for q in outer:
+                q = V((min(q.x, x_max), q.y))
+                if not cl or (q - cl[-1]).length > 1e-4:
+                    cl.append(q)
+            outer = cl[:-1] if (cl[0] - cl[-1]).length < 1e-4 else cl
+        inner = ensure_ccw(rounded_poly_2d(hole, [0.035] * len(hole), 3))
+
+        def p3(q, o):
+            return V((q.x, side * (g.cab_w(q.x, q.y) + o), q.y))
+        from mathutils.geometry import tessellate_polygon
+        tris = tessellate_polygon([[V((q.x, q.y, 0.0)) for q in outer], [V((q.x, q.y, 0.0)) for q in inner]])
+        o_ = 0.008
+        md = MeshData().add([p3(q, o_) for q in outer + inner], [tuple(t) for t in tris], None, M["paint_d"])
+        md = orient_faces(md, lambda c_: V((0.0, -side, 0.0)))
+        cen = sum(inner, V((0.0, 0.0))) / len(inner)
+        cen = p3(cen, 0.0)
+        md.merge(orient_faces(grid_rings([[p3(q, o_) for q in inner], [p3(q, -st * 0.5 + 0.001) for q in inner]], True,
+                                         mat=M["black"]), lambda c_: c_ - cen))
+        md.merge(orient_faces(grid_rings([[p3(q, o_) for q in outer], [p3(q, -0.001) for q in outer]], True,
+                                         mat=M["paint_d"]), lambda c_: cen - c_))
+        ring = [p3(q, o_) for q in ensure_ccw(offset_poly(inner, 0.026))]
+        for q in resample(ring + [ring[0]], 0.105)[:-1]:
+            md.merge(bolt(q, V((0.0, side, 0.0)), 0.0075, 0.004))
+        return md
 
     def side_glass(outline, side, mat=None):
         """Scheibe in der (geneigten) Kabinenwand, mittig in der Wandstärke; Rand verschwindet in der Wand."""
@@ -5570,6 +5636,19 @@ def build_suv(cfg):
     flap_c = V((-1.645, 1.15))                       # Ladeklappe auf der Schulter über dem Hinterrad
     flap = [V((p.x + flap_c.x, p.y + flap_c.y)) for p in rounded_rect_2d(0.25, 0.13, 0.03, 3)]
 
+    def a_bot(x):
+        return zw0(x) + 0.05
+
+    def a_top(x):
+        return zw1(x) - 0.045
+
+    def a_sh(x):                                     # Oberkante der Türplatten unter der Griffmulde
+        return g.params(x)[3] - 0.085
+    arm_hole = {"F": [(-0.12, a_bot(-0.12)), (0.60, a_bot(0.60)), (0.30, a_top(0.30)), (-0.12, a_top(-0.12))],
+                "R": [(-1.08, a_bot(-1.08)), (-0.38, a_bot(-0.38)), (-0.38, a_top(-0.38)), (-1.08, a_top(-1.08))],
+                "Q": [(-1.63, a_bot(-1.63)), (-1.38, a_bot(-1.38)), (-1.38, a_top(-1.38)), (-1.53, a_top(-1.53))]}
+    arm_plate = {"F": [(0.80, 0.60), (-0.17, 0.60), (-0.17, a_sh(-0.17)), (0.90, a_sh(0.90))],
+                 "R": [(-0.27, 0.60), (-0.86, 0.60), (-1.16, a_sh(-1.16)), (-0.27, a_sh(-0.27))]}
     # ------------------------------------------------------------- Türen (4) mit verdeckten Scharnieren
     for side in (1, -1):
         s = "L" if side > 0 else "R"
@@ -5584,7 +5663,11 @@ def build_suv(cfg):
             asm.add(d, key, key)
             asm.add(side_glass(win, side, M["glass"] if row == "F" else M["privacy"]), f"Glass_{key}", key, smooth=80)
             dt = MeshData()
-            dt.merge(side_seal(win, side))
+            if armored:
+                dt.merge(armor_window(win, arm_hole[row], side, xf_door - 0.03 if row == "F" else None))
+                dt.merge(armor_plate(arm_plate[row], side, 6 if row == "F" else 5))
+            else:
+                dt.merge(side_seal(win, side))
             # Bügelgriff in Wagenfarbe über einer schwarzen Griffmulde, knapp unter der Schulterlinie
             hz = g.params(handle_x)[3] - 0.035
             yh = g.lower_y(handle_x, hz)
@@ -5734,7 +5817,7 @@ def build_suv(cfg):
     path = [g.glass_point(p.x, p.y, False, 0.003) for p in ensure_ccw(offset_poly(ws, 0.008))]
     seals.merge(tube(path + [path[0]], 0.0065, 6, M["rubber"], caps=False))
     for side in (1, -1):
-        seals.merge(side_seal(win_q, side))
+        seals.merge(armor_window(win_q, arm_hole["Q"], side) if armored else side_seal(win_q, side))
     rp = offset_poly(roof_glass, 0.006)
     bvh = BVHTree.FromPolygons(cab_src.verts, [t for f in cab_src.faces for t in
                                                [(f[0], f[i], f[i + 1]) for i in range(1, len(f) - 1)]])
@@ -5788,6 +5871,9 @@ def build_suv(cfg):
             fl = offset_open(outline, 0.030)
             path = [V((p.x, side * (g.lower_y(p.x, p.y) + 0.014), p.y)) for p in fl]
             trim.merge(tube(path, (0.026, 0.034), 12, M["clad"], up=Y_AXIS, exponent=5.0))
+            if armored:                              # verschraubte Radlaufverbreiterungen
+                for q in resample(path, 0.17)[1:-1]:
+                    trim.merge(bolt(q + Y_AXIS * side * 0.031, Y_AXIS * side, 0.008, 0.005))
     asm.add(trim, "Flares", mods=[bevel_s])
 
     # ------------------------------------------------------------- Front: Grill, LED-Scheinwerfer, Stoßfänger
@@ -5929,6 +6015,15 @@ def build_suv(cfg):
         md = grid_rings(rings, True, "ngon", "ngon", M["skid"])
         md.recalc = True
         return md
+    def shackle(c, end):
+        """Schäkel: Bolzen quer durch die Öse bei c, Bügel hängt schräg nach außen/unten."""
+        md = cylinder(c - Y_AXIS * 0.052, c + Y_AXIS * 0.052, 0.012, 10, M["skid"])
+        for sy in (1, -1):
+            md.merge(cylinder(c + Y_AXIS * sy * 0.046, c + Y_AXIS * sy * 0.058, 0.018, 6, M["skid"]))
+        bow = [c + V((0.0, -0.036, 0.0)), c + V((end * 0.105, -0.036, -0.05)), c + V((end * 0.105, 0.036, -0.05)),
+               c + V((0.0, 0.036, 0.0))]
+        md.merge(tube(fillet_path([tuple(q) for q in bow], 0.034, 5), 0.0115, 10, M["skid"]))
+        return md
     # Unterfahrschutz: Bodenplatte und U-Bügel aus Alu, Lufteinlässe, zwei Bergehaken
     sk = rounded_poly_2d([(xb - 0.38, 0.33), (xb - 0.12, 0.33), (xb + 0.05, 0.38), (xb + 0.055, 0.42),
                           (xb + 0.02, 0.44), (xb - 0.32, 0.39)], [0.0, 0.05, 0.03, 0.015, 0.02, 0.05], 3)
@@ -5941,6 +6036,8 @@ def build_suv(cfg):
         fr.merge(tube(fillet_path([(xb - 0.005, y, 0.48), (xb + 0.085, y, 0.48), (xb + 0.085, y, 0.555),
                                    (xb - 0.005, y, 0.555)], 0.03), 0.0135, 10, M["skid"]))
         fr.merge(box((xb - 0.01, y, 0.5175), (0.03, 0.07, 0.10), M["clad"]))
+        if armored:                                  # Schäkel in den Bergeösen
+            fr.merge(shackle(V((xb + 0.05, y, 0.5175)), 1.0))
     asm.add(fr, "Front", mods=[bevel_s])
     asm.add(lens, "HeadlightLens", smooth=60)
     asm.add(small_f, "FrontDetails", mods=[bevel_s], detail=2)
@@ -5976,6 +6073,8 @@ def build_suv(cfg):
     rr.merge(plate(xr_b, 0.635, -1.0))
     rr.merge(tube(fillet_path([(xr_b - 0.01, 0.0, 0.50), (xr_b - 0.08, 0.0, 0.50), (xr_b - 0.08, 0.0, 0.56),
                                (xr_b - 0.01, 0.0, 0.56)], 0.025), 0.012, 10, M["skid"]))
+    if armored:
+        rr.merge(shackle(V((xr_b - 0.045, 0.0, 0.53)), -1.0))
     asm.add(rr, "Rear", mods=[bevel_s])
 
     # ------------------------------------------------------------- Seite: Schwellerverkleidung, Ladebuchse
@@ -5985,7 +6084,11 @@ def build_suv(cfg):
         sec = [(side * y, z) for y, z in sec]
         x0, x1 = g.ra.x + 0.50 + 0.07, g.fa.x - 0.50 - 0.07
         sd.merge(prism_x(sec, x0, x1, M["clad"]))
-        sd.merge(box(((x0 + x1) / 2, side * 0.963, 0.519), (x1 - x0 - 0.10, 0.008, 0.010), M["chrome"]))  # Zierleiste
+        sd.merge(box(((x0 + x1) / 2, side * 0.963, 0.519), (x1 - x0 - 0.10, 0.008, 0.010),
+                     M["black" if armored else "chrome"]))                                 # Zierleiste
+        if armored:
+            for k in range(9):
+                sd.merge(bolt(V((lerp(x0 + 0.08, x1 - 0.08, k / 8), side * 0.972, 0.455)), Y_AXIS * side))
         # Trittbrett mit gerippter Auftrittsfläche, Alu-Endkappen und Haltern
         stp = [(side * y, z) for y, z in ((0.88, 0.305), (1.008, 0.311), (1.022, 0.327), (1.012, 0.345), (0.88, 0.345))]
         sx0, sx1 = g.ra.x + 0.60, g.fa.x - 0.60
@@ -6034,7 +6137,35 @@ def build_suv(cfg):
     defl = [V((0.255 + 0.04 * math.sin(math.pi * t), lerp(-0.60, 0.60, t), zp + 0.035)) for t in
             (i / 12 for i in range(13))]                      # Windabweiser
     rack.merge(tube(defl, (0.004, 0.035), 8, M["black"], up=V((0.6, 0.0, 0.8)), exponent=4.0))
+    if armored:                                      # Dachausrüstung: Suchscheinwerfer, Luke mit Optik, Staukiste
+        for side in (1, -1):
+            rack.merge(box((0.11, side * 0.50, zp + 0.05), (0.10, 0.10, 0.08), M["black"]))
+            rack.merge(box((0.163, side * 0.50, zp + 0.05), (0.006, 0.08, 0.055), M["led"]))
+            rack.merge(box((0.11, side * 0.50, zp + 0.005), (0.04, 0.04, 0.02), M["black"]))
+        rack.merge(box((0.10, 0.0, zp + 0.035), (0.07, 0.66, 0.05), M["black"]))               # Lichtbalken
+        for k in range(6):
+            rack.merge(box((0.137, lerp(-0.27, 0.27, k / 5), zp + 0.035), (0.004, 0.085, 0.034), M["lamp"]))
+        rack.merge(box((-0.72, 0.0, zp + 0.018), (0.66, 0.62, 0.03), M["paint_d"]))            # Dachluke
+        for sx in (1, -1):
+            for sy in (1, -1):
+                for d_ in (0.0, 0.2):
+                    rack.merge(bolt(V((-0.72 + sx * (0.30 - d_), sy * 0.28, zp + 0.033)), Z_AXIS))
+        rack.merge(lathe([(0.0, 0.0), (0.21, 0.0), (0.21, 0.025), (0.17, 0.045), (0.0, 0.045)], 28,
+                         V((-0.72, 0.0, zp + 0.033)), Z_AXIS, M["black"]))
+        rack.merge(box((-0.72, 0.0, zp + 0.125), (0.20, 0.17, 0.095), M["black"]))             # Optik-/Sensorkopf
+        rack.merge(cylinder(V((-0.62, 0.035, zp + 0.13)), V((-0.60, 0.035, zp + 0.13)), 0.032, 16, M["gloss"]))
+        rack.merge(cylinder(V((-0.62, -0.045, zp + 0.14)), V((-0.605, -0.045, zp + 0.14)), 0.018, 12, M["gloss"]))
+        rack.merge(box((-1.42, -0.28, zp + 0.065), (0.34, 0.44, 0.11), M["black"]))             # Staukiste
+        rack.merge(box((-1.42, -0.28, zp + 0.123), (0.36, 0.46, 0.012), M["black"]))
+        for sy in (-0.42, -0.14):
+            rack.merge(box((-1.247, sy, zp + 0.10), (0.008, 0.04, 0.03), M["steel"]))
     asm.add(rack, "RoofRack", mods=[bevel_s])
+    if armored:                                      # Funkantenne hinten links (eigene Kollisionshülle)
+        ab = V((-1.60, 0.50, zp + 0.003))
+        ant = lathe([(0.0, 0.0), (0.028, 0.0), (0.028, 0.02), (0.012, 0.05), (0.0, 0.05)], 12, ab, Z_AXIS, M["black"])
+        ant.merge(tube([ab + Z_AXIS * 0.045, ab + V((-0.01, 0.0, 0.30)), ab + V((-0.04, 0.0, 0.60))], 0.0045, 6,
+                       M["black"]))
+        asm.add(ant, "Antenna")
 
     # ------------------------------------------------------------- Innenraum
     it = MeshData()
@@ -6146,6 +6277,18 @@ def build_suv(cfg):
                           0.016, 8, M["hv"]))
     ch.merge(box((g.fa.x + 0.55, 0.0, 0.40), (0.30, 0.84, 0.012), M["chassis"]))     # Unterbodenverkleidung vorn
     ch.merge(box((g.ra.x - 0.55, 0.0, 0.45), (0.30, 0.84, 0.012), M["chassis"]))
+    if armored:                                      # Minenschutz: verschraubte Bodenplatten unter Akku und Antrieben
+        ch.merge(box((-0.06, 0.0, 0.2365), (2.04, 1.30, 0.007), M["chassis"]))
+        for x in (-0.57, 0.45):
+            ch.merge(box((x, 0.0, 0.2325), (0.012, 1.26, 0.003), M["steel"]))
+        for i in range(9):
+            for y in (-0.60, -0.20, 0.20, 0.60):
+                ch.merge(bolt(V((lerp(-1.02, 0.90, i / 8), y, 0.233)), -Z_AXIS, 0.011, 0.004))
+        for a in (g.fa, g.ra):
+            ch.merge(box((a.x, 0.0, 0.248), (0.60, 0.52, 0.008), M["chassis"]))
+            for sx in (-0.26, 0.0, 0.26):
+                for y in (-0.22, 0.22):
+                    ch.merge(bolt(V((a.x + sx, y, 0.244)), -Z_AXIS, 0.011, 0.004))
     asm.add(ch, "Chassis", mods=[bevel_s], detail=1)
 
     # ------------------------------------------------------------- Fahrwerk: Doppelquerlenker, Federbeine, Räder
@@ -6199,6 +6342,12 @@ def build_suv(cfg):
                (lerp(1.22, 2.28, i / 16) for i in range(17))]
         hl.merge(tube(rib, (0.005, 0.022), 8, M["paint"], up=Z_AXIS, exponent=2.0))
         hl.merge(box((1.27, side * 0.28, g.top_z(1.27, 0.28) + 0.004), (0.03, 0.02, 0.008), M["black"]))
+    if armored:                                      # Panzerplatte auf der Haube
+        def hood_fn(u, v, o):
+            x = lerp(1.30, 2.16, u)
+            y = lerp(-1.0, 1.0, v) * lerp(0.30, 0.25, u)
+            return V((x, y, g.top_z(x, abs(y)) + o))
+        hl.merge(armor_sheet(hood_fn, 10, 8, lambda c: -Z_AXIS, 5, 2))
     asm.add(hl, "HoodLines", "Hood", detail=2)
     xd = MeshData()
     for side in (1, -1):
@@ -6223,6 +6372,16 @@ def build_suv(cfg):
     xd.merge(box((xm - 0.06, 0.0, g.z_roof - 0.17), (0.02, 0.24, 0.065), M["black"]))
     xd.merge(box((xm - 0.071, 0.0, g.z_roof - 0.17), (0.002, 0.22, 0.05), M["mirror"]))
     xd.merge(box((-0.30, 0.0, g.z_roof - 0.045), (0.16, 0.10, 0.01), M["lens"]))
+    if armored:                                      # Trenngitter zwischen Fond und Laderaum
+        xg, gz0_, gz1_, gy = -1.43, 1.00, 1.54, 0.60
+        loop = fillet_path([(xg, -gy, gz0_), (xg, gy, gz0_), (xg, gy, gz1_), (xg, -gy, gz1_)], 0.05, 4)
+        xd.merge(tube(loop + [loop[0]], 0.012, 8, M["black"], caps=False))
+        for i in range(1, 12):
+            xd.merge(box((xg, lerp(-gy, gy, i / 12), (gz0_ + gz1_) / 2), (0.005, 0.005, gz1_ - gz0_), M["steel"]))
+        for j in range(1, 7):
+            xd.merge(box((xg, 0.0, lerp(gz0_, gz1_, j / 7)), (0.005, 2 * gy, 0.005), M["steel"]))
+        for sy in (1, -1):
+            xd.merge(box((xg, sy * 0.42, gz0_ - 0.12), (0.03, 0.03, 0.24), M["black"]))
     asm.add(xd, "ExtraDetails", mods=[bevel_s], detail=2)
 
     # ------------------------------------------------------------- Sockets & Kollision
@@ -6244,7 +6403,8 @@ def build_suv(cfg):
     susp_keys = {f"{b}_{wk}" for wk in corners for b in susp_parts + ("Wheel",)}
     mirrors = [o for o in asm.meshes() if "_Mirror_" in o.name]
     chassis_objs = [o for o in asm.meshes() if o.name.endswith("_Chassis")]
-    shell = [o for o in asm.meshes() if o["pivot"] not in susp_keys and o not in mirrors + chassis_objs]
+    antenna = [o for o in asm.meshes() if o.name.endswith("_Antenna")]
+    shell = [o for o in asm.meshes() if o["pivot"] not in susp_keys and o not in mirrors + chassis_objs + antenna]
     asm.collide("Lower", shell, lambda p: p.z <= g.z_belt + 0.03 or p.x > g.x_ws0 + 0.05, 64)
     asm.collide("Cabin", shell, lambda p: p.z >= g.z_belt - 0.03 and p.x <= g.x_ws0 + 0.05, 64)
     asm.collide("ChassisFront", chassis_objs, lambda p: p.x >= 0.92, 32)              # Hilfsrahmen + Antrieb vorn
@@ -6255,6 +6415,8 @@ def build_suv(cfg):
         asm.collide(f"Wheel_{wk}", by_pivot(f"Wheel_{wk}"), None, 48)
     for o in mirrors:
         asm.collide(o.name.split("_")[-2] + "_" + o.name.split("_")[-1], [o], None, 24)
+    if antenna:
+        asm.collide("Antenna", antenna, None, 12)
     return asm
 
 
@@ -7193,7 +7355,10 @@ def parse_args(argv):
     p.add_argument("--plane-livery", dest="plane_color", choices=sorted(PLANE_LIVERIES), default="classic")
     p.add_argument("--offroad-livery", dest="offroad_color", choices=sorted(OFFROAD_LIVERIES), default="sand")
     p.add_argument("--boat-livery", dest="boat_color", choices=sorted(BOAT_LIVERIES), default="navy")
-    p.add_argument("--suv-livery", dest="suv_color", choices=sorted(SUV_LIVERIES), default="forest")
+    p.add_argument("--suv-livery", dest="suv_color", choices=sorted(SUV_LIVERIES), default=None,
+                   help="Lackierung des SUV (Standard: forest, bei --suv-edition armored: armor)")
+    p.add_argument("--suv-edition", choices=("standard", "armored"), default="standard",
+                   help="armored: Panzerplatten, Panzerglas-Fenster, Dachausrüstung, Schäkel, Unterbodenschutz")
     p.add_argument("--suv-badge", default="4X4 ELECTRIC", help="Schriftzug auf der Heckklappe des SUV")
     p.add_argument("--blades", type=int, default=4, choices=range(2, 8), metavar="2-7",
                    help="Anzahl Hauptrotorblätter")
